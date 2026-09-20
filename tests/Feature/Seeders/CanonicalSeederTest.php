@@ -1,9 +1,12 @@
 <?php
 
+use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\BillingRecordStatus;
+use App\Enums\CommercialItemKind;
 use App\Enums\EncounterStatus;
+use App\Models\AccessoryOrderRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
@@ -15,6 +18,7 @@ use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use App\Models\VisitRating;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -266,6 +270,29 @@ test('canonical seed data creates complete clinic workflow', function () {
         ->and(JobOrder::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(BillingRecord::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(BillingPayment::query()->count())->toBeGreaterThanOrEqual(1);
+});
+
+test('canonical seed data creates one multi-item accessory request and visit feedback', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $patient = Patient::query()->where('patient_number', 'PAT-2026-000001')->firstOrFail();
+    $request = AccessoryOrderRequest::query()
+        ->with('items.productVariant.product')
+        ->where('request_number', 'ORQ-2026-000001')
+        ->firstOrFail();
+    $feedback = VisitRating::query()
+        ->whereHas('appointment', fn ($query) => $query->where('appointment_number', 'APT-2026-000002'))
+        ->firstOrFail();
+
+    expect($request->user_id)->toBe($patient->user_id)
+        ->and($request->patient_id)->toBe($patient->id)
+        ->and($request->status)->toBe(AccessoryOrderRequestStatus::Pending)
+        ->and($request->items)->toHaveCount(2)
+        ->and($request->items->pluck('item_kind')->unique()->all())->toBe([CommercialItemKind::Accessory])
+        ->and((float) $request->subtotal_amount)->toBe(1300.0)
+        ->and($feedback->patient_id)->toBe($patient->id)
+        ->and($feedback->rating)->toBe(5)
+        ->and($feedback->comment)->toBe('Friendly and thorough consultation. The prescription explanation was clear.');
 });
 
 test('seed data has no legacy model references', function () {

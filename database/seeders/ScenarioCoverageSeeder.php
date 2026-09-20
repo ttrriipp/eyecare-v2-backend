@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\LinkPatientAccount;
+use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
@@ -11,6 +12,8 @@ use App\Enums\CommercialItemKind;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
+use App\Models\AccessoryOrderRequest;
+use App\Models\AccessoryOrderRequestItem;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
@@ -29,7 +32,9 @@ use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\VisitRating;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 /**
  * Supplementary demo records that round out appointment and workflow status
@@ -50,6 +55,8 @@ class ScenarioCoverageSeeder extends Seeder
         $this->seedEncounterStatuses();
         $this->seedJobOrderStatuses();
         $this->seedBillingRecordStatuses();
+        $this->seedAccessoryOrderRequest();
+        $this->seedVisitFeedback();
     }
 
     private function flagshipPatient(): Patient
@@ -608,5 +615,105 @@ class ScenarioCoverageSeeder extends Seeder
                 ],
             );
         }
+    }
+
+    private function seedAccessoryOrderRequest(): void
+    {
+        $patient = $this->flagshipPatient();
+        $variants = ProductVariant::query()
+            ->with('product')
+            ->whereIn('sku', [
+                'ACC-SYSTANE-COMPLETE-PF-10ML',
+                'ACC-LACRYL-HYDRATE-10ML',
+            ])
+            ->get()
+            ->keyBy('sku');
+
+        $request = AccessoryOrderRequest::query()->updateOrCreate(
+            ['request_number' => 'ORQ-2026-000001'],
+            [
+                'user_id' => $patient->user_id,
+                'patient_id' => $patient->id,
+                'status' => AccessoryOrderRequestStatus::Pending,
+                'subtotal_amount' => 1300,
+                'requested_discount_type' => 'none',
+                'job_order_id' => null,
+                'resolved_by' => null,
+                'resolved_at' => null,
+                'rejection_reason' => null,
+                'cancelled_at' => null,
+            ],
+        );
+
+        $items = [
+            ['sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML', 'quantity' => 1],
+            ['sku' => 'ACC-LACRYL-HYDRATE-10ML', 'quantity' => 1],
+        ];
+        $variantIds = [];
+
+        foreach ($items as $item) {
+            $variant = $variants->get($item['sku']);
+
+            if ($variant === null) {
+                throw new RuntimeException("Missing seeded accessory variant [{$item['sku']}].");
+            }
+
+            $variantIds[] = $variant->id;
+            $unitPrice = (float) $variant->price;
+
+            AccessoryOrderRequestItem::query()->updateOrCreate(
+                [
+                    'accessory_order_request_id' => $request->id,
+                    'product_variant_id' => $variant->id,
+                ],
+                [
+                    'description' => $variant->product->name.' — '.$variant->name,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $unitPrice,
+                    'amount' => $unitPrice * $item['quantity'],
+                    'item_kind' => CommercialItemKind::Accessory,
+                    'item_snapshot' => [
+                        'product_variant_id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'variant_name' => $variant->name,
+                        'product_name' => $variant->product->name,
+                        'price' => $variant->price,
+                        'attributes' => $variant->attributes,
+                    ],
+                ],
+            );
+        }
+
+        AccessoryOrderRequestItem::query()
+            ->where('accessory_order_request_id', $request->id)
+            ->whereNotIn('product_variant_id', $variantIds)
+            ->delete();
+    }
+
+    private function seedVisitFeedback(): void
+    {
+        $patient = $this->flagshipPatient();
+        $appointment = Appointment::query()
+            ->where('appointment_number', 'APT-2026-000002')
+            ->firstOrFail();
+        $encounter = Encounter::query()
+            ->where('appointment_id', $appointment->id)
+            ->firstOrFail();
+
+        VisitRating::query()->updateOrCreate(
+            ['appointment_id' => $appointment->id],
+            [
+                'patient_id' => $patient->id,
+                'encounter_id' => $encounter->id,
+                'optometrist_id' => $encounter->optometrist_id,
+                'rating' => 5,
+                'comment' => 'Friendly and thorough consultation. The prescription explanation was clear.',
+                'service_ids' => null,
+                'is_hidden' => false,
+                'moderation_reason' => null,
+                'moderated_by' => null,
+                'moderated_at' => null,
+            ],
+        );
     }
 }

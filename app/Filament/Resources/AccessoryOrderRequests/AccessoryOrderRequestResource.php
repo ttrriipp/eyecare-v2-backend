@@ -4,10 +4,12 @@ namespace App\Filament\Resources\AccessoryOrderRequests;
 
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ListAccessoryOrderRequests;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ViewAccessoryOrderRequest;
+use App\Filament\Resources\AccessoryOrderRequests\Schemas\AccessoryOrderRequestInfolist;
 use App\Filament\Resources\AccessoryOrderRequests\Tables\AccessoryOrderRequestsTable;
 use App\Models\AccessoryOrderRequest;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,6 +34,11 @@ class AccessoryOrderRequestResource extends Resource
     public static function table(Table $table): Table
     {
         return AccessoryOrderRequestsTable::configure($table);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return AccessoryOrderRequestInfolist::configure($schema);
     }
 
     public static function getRelations(): array
