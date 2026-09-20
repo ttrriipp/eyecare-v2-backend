@@ -91,6 +91,80 @@ test('accepting an appointment request queues a confirmation sms', function () {
         ->and($sms->status->name)->toBe('queued');
 });
 
+test('accepting a request rejects a competing pending request without a viable alternative', function () {
+    $acceptedUser = User::factory()->patient()->create();
+    $competingUser = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $acceptedRequest = AppointmentRequest::factory()->create([
+        'user_id' => $acceptedUser->id,
+        'patient_id' => $acceptedUser->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $competingRequest = AppointmentRequest::factory()->create([
+        'user_id' => $competingUser->id,
+        'patient_id' => $competingUser->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    app(AcceptAppointmentRequest::class)->handle(
+        request: $acceptedRequest,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    );
+
+    $competingRequest->refresh();
+
+    expect($competingRequest->status)->toBe(AppointmentRequestStatus::Rejected)
+        ->and($competingRequest->rejection_reason)
+        ->toBe('This time is no longer available because another appointment request was accepted for this time.')
+        ->and($competingRequest->resolved_by_user_id)->toBe($reviewer->id)
+        ->and($competingRequest->resolved_at)->not->toBeNull();
+});
+
+test('accepting a request preserves a competing request with a viable alternative', function () {
+    $acceptedUser = User::factory()->patient()->create();
+    $competingUser = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $acceptedRequest = AppointmentRequest::factory()->create([
+        'user_id' => $acceptedUser->id,
+        'patient_id' => $acceptedUser->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $competingRequest = AppointmentRequest::factory()->create([
+        'user_id' => $competingUser->id,
+        'patient_id' => $competingUser->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+        'alternative_scheduled_times' => [
+            Carbon::parse('2026-07-14 10:00:00')->toISOString(),
+        ],
+    ]);
+
+    app(AcceptAppointmentRequest::class)->handle(
+        request: $acceptedRequest,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    );
+
+    $competingRequest->refresh();
+
+    expect($competingRequest->status)->toBe(AppointmentRequestStatus::Pending)
+        ->and($competingRequest->rejection_reason)->toBeNull();
+});
+
 test('accepting is idempotent - returns same appointment on repeat', function () {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();

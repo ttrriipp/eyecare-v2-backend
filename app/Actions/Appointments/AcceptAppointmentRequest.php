@@ -34,6 +34,7 @@ class AcceptAppointmentRequest
         private readonly CreateAuditLog $createAuditLog,
         private readonly NotifyAdminUsers $notifyAdminUsers,
         private readonly NotifyPatientAccount $notifyPatientAccount,
+        private readonly ResolveConflictingAppointmentRequests $resolveConflicts,
     ) {}
 
     /**
@@ -320,6 +321,12 @@ class AcceptAppointmentRequest
             $appointment->load(['patient', 'appointmentType', 'status', 'optometrist']);
             $this->createRescheduledSmsNotification($appointment);
             $this->notifyPatientAccount->appointmentRescheduled($appointment);
+            $this->resolveConflicts->handle(
+                acceptedRequest: $lockedRequest,
+                reviewer: $reviewer,
+                scheduledAt: $scheduledAt,
+                durationMinutes: $durationMinutes,
+            );
 
             return $appointment->fresh(['patient', 'appointmentType', 'status', 'optometrist']);
         }, attempts: 3);
@@ -462,6 +469,12 @@ class AcceptAppointmentRequest
 
             $this->createSmsNotification($appointment);
             $this->notifyPatientAccount->appointmentConfirmed($request, $appointment);
+            $this->resolveConflicts->handle(
+                acceptedRequest: $request,
+                reviewer: $reviewer,
+                scheduledAt: $scheduledAt,
+                durationMinutes: $durationMinutes,
+            );
 
             return $appointment->load(['appointmentType', 'status', 'patient', 'optometrist']);
         });
