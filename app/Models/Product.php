@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
     'description',
     'is_active',
     'product_type',
+    'is_featured_for_prescription',
     'usage',
     'images',
     'default_variant_attributes',
