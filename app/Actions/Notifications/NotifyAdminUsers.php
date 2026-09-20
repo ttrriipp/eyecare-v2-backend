@@ -2,16 +2,20 @@
 
 namespace App\Actions\Notifications;
 
+use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Conversations\ConversationResource;
 use App\Filament\Resources\FrameRatings\FrameRatingResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\PatientLinkRequests\PatientLinkRequestResource;
 use App\Filament\Resources\VisitRatings\VisitRatingResource;
+use App\Models\AccessoryOrderRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\FrameRating;
 use App\Models\Message;
+use App\Models\OrderPaymentProof;
 use App\Models\PatientLinkRequest;
 use App\Models\Role;
 use App\Models\User;
@@ -148,6 +152,36 @@ class NotifyAdminUsers
             icon: 'heroicon-o-star',
             status: 'danger',
             url: FrameRatingResource::getUrl('edit', ['record' => $rating], panel: 'admin'),
+        ));
+    }
+
+    public function accessoryOrderRequestSubmitted(AccessoryOrderRequest $request): void
+    {
+        $this->handle(new AdminDatabaseNotification(
+            title: 'New Accessory Order Request',
+            body: sprintf(
+                '%s submitted order request %s (%d items).',
+                $request->patient?->full_name ?? 'A patient',
+                $request->request_number,
+                $request->items->count(),
+            ),
+            icon: 'heroicon-o-shopping-bag',
+            status: 'info',
+            url: AccessoryOrderRequestResource::getUrl('view', ['record' => $request], panel: 'admin'),
+        ));
+    }
+
+    public function paymentProofSubmitted(OrderPaymentProof $proof): void
+    {
+        $this->handle(new AdminDatabaseNotification(
+            title: 'Payment Proof Submitted',
+            body: sprintf(
+                'Payment proof submitted for order %s.',
+                $proof->jobOrder?->job_order_number ?? 'Unknown',
+            ),
+            icon: 'heroicon-o-document-check',
+            status: 'info',
+            url: OpticalOrderResource::getUrl('edit', ['record' => $proof->jobOrder], panel: 'admin'),
         ));
     }
 
