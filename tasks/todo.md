@@ -1,5 +1,19 @@
 # Active Checklist
 
+**Mobile Accessory Order Requests** — decisions approved 2026-09-20;
+implementation deferred
+
+→ `tasks/mobile-accessory-order-requests-todo.md`
+
+The approved 12-task plan adds an active-link-only accessory catalog, immutable
+multi-item order requests, staff acceptance into the canonical Optical Order
+and Billing workflow, a private 30-minute GCash proof lifecycle, verified
+product-rating filters, and optional Care Accessories placement. Implementation
+has not started. The remaining unchecked gate is production deployment
+configuration for the clinic-owned GCash account and private proof storage.
+
+The previous active checklist remains:
+
 **Patient-Account Link Identity Safety** — plan proposed 2026-09-17
 
 → `tasks/patient-account-link-identity-safety-todo.md`

@@ -9,6 +9,24 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Mobile Accessory Order Requests** — decisions approved 2026-09-20;
+implementation deferred
+
+- Spec: `docs/specs/mobile-accessory-order-requests-spec.md`
+- Plan: `tasks/mobile-accessory-order-requests-plan.md`
+- Checklist: `tasks/mobile-accessory-order-requests-todo.md`
+
+The approved request-first workflow lets an actively linked patient submit a
+multi-item accessory request without reserving stock. Staff acceptance creates
+the canonical pending-payment Optical Order, Billing Record, and inventory
+commitment; one private GCash proof must arrive within 30 minutes before normal
+fulfillment begins. Senior Citizen/PWD declarations are verified manually when
+staff confirms the final amount; no discount rules engine is added. Pending
+requests remain open until staff acts or the patient cancels. Production still
+requires clinic-owned GCash and private-storage configuration.
+
+## Previous active entry (preserved)
+
 **Patient-Account Link Identity Safety** — plan proposed 2026-09-17
 
 - Spec: `docs/specs/patient-account-link-identity-safety-spec.md`
