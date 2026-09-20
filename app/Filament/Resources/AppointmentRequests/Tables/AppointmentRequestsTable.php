@@ -220,17 +220,35 @@ class AppointmentRequestsTable
                         ->visible(fn (AppointmentRequest $record): bool => $record->isPending())
                         ->authorize('reject')
                         ->schema([
-                            Textarea::make('reason')
-                                ->label('Reason')
-                                ->required(),
+                            Select::make('reason_category')
+                                ->label('Rejection Reason')
+                                ->options([
+                                    'patient_request' => 'Patient request',
+                                    'schedule_conflict' => 'Schedule conflict',
+                                    'provider_unavailable' => 'Provider unavailable',
+                                    'emergency' => 'Emergency',
+                                    'duplicate' => 'Duplicate request',
+                                    'other' => 'Other',
+                                ])
+                                ->required()
+                                ->live(),
+                            Textarea::make('rejection_details')
+                                ->label('Details')
+                                ->required(fn (callable $get): bool => $get('reason_category') === 'other')
+                                ->maxLength(1000)
+                                ->columnSpanFull(),
                         ])
                         ->requiresConfirmation()
                         ->action(function (AppointmentRequest $record, array $data): void {
                             try {
+                                $reason = ($data['reason_category'] ?? null) === 'other'
+                                    ? ($data['rejection_details'] ?? null)
+                                    : Str::headline($data['reason_category'] ?? '');
+
                                 app(RejectAppointmentRequest::class)->handle(
                                     request: $record,
                                     reviewer: auth()->user(),
-                                    reason: $data['reason'],
+                                    reason: $reason,
                                 );
 
                                 Notification::make()->title('Request rejected')->success()->send();

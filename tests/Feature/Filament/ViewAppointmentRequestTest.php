@@ -13,10 +13,28 @@ use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+test('link-to-patient new patient phone uses the standard Philippine phone input', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->create(['patient_id' => null]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
+        ->mountAction('linkToPatient');
+    $schema = $component->instance()->getSchema('mountedActionSchema0');
+    $phone = $schema?->getComponent('new_patient_phone', withHidden: true);
+
+    expect($phone)
+        ->toBeInstanceOf(TextInput::class)
+        ->and($phone->isTel())->toBeTrue()
+        ->and($phone->getPrefixLabel())->toBe('+63');
+});
 
 test('staff can link an unlinked request to a patient from the detail page', function () {
     $staff = User::factory()->staff()->create();
@@ -148,7 +166,10 @@ test('rejecting a request from the detail page does not error', function () {
     $this->actingAs($staff);
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
-        ->callAction('reject', ['reason' => 'Patient no longer needs this slot.'])
+        ->callAction('reject', [
+            'reason_category' => 'patient_request',
+            'rejection_details' => null,
+        ])
         ->assertHasNoActionErrors()
         ->assertNotified();
 
