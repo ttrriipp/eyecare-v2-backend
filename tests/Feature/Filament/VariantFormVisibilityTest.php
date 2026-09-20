@@ -255,6 +255,48 @@ test('frame variant creation saves product other details', function () {
     ]);
 });
 
+test('new variants appear in the variants table for every product type', function (string $productType): void {
+    $product = Product::factory()->create([
+        'product_type' => $productType,
+    ]);
+    $variantName = "New {$productType} variant";
+
+    $variantData = [
+        'name' => $variantName,
+        'price' => 1999,
+        'low_stock_threshold' => 1,
+        'attributes' => $productType === 'frame'
+            ? ['lens_width' => 53]
+            : [],
+    ];
+
+    if ($productType === 'frame') {
+        $variantData['frame_other_details'] = [];
+    }
+
+    $component = Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ]);
+
+    $component->instance()->getTableRecords();
+    $component
+        ->callTableAction('create', null, $variantData)
+        ->assertHasNoActionErrors();
+
+    $variant = $product->variants()
+        ->where('name', $variantName)
+        ->firstOrFail();
+
+    expect($variant->is_active)->toBeTrue();
+    $component->assertCanSeeTableRecords([$variant]);
+})->with([
+    'frame' => 'frame',
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
 test('generic default details are prefilled when creating a variant', function () {
     $product = Product::factory()->create([
         'product_type' => 'contact_lens',

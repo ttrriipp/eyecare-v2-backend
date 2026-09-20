@@ -58,11 +58,13 @@ final class VariantForm
                 'frame_other_details' => self::toKeyValueRows(
                     Arr::except($defaultAttributes, self::FRAME_ATTRIBUTE_KEYS),
                 ),
+                'is_active' => true,
             ];
         }
 
         return [
             'attributes' => self::toKeyValueRows($defaultAttributes),
+            'is_active' => true,
         ];
     }
 

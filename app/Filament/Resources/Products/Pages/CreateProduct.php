@@ -125,6 +125,10 @@ class CreateProduct extends CreateRecord
                 continue;
             }
 
+            if (! array_key_exists('is_active', $variantData)) {
+                $variantData['is_active'] = true;
+            }
+
             if ($product->product_type === 'frame') {
                 $variantData = VariantForm::prepareFrameFormDataBeforeSave($variantData);
             }

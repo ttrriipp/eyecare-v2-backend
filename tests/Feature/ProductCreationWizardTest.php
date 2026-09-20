@@ -211,3 +211,59 @@ test('generic defaults prefill a new wizard variant', function (): void {
             return true;
         });
 });
+
+test('wizard variants default to active for every product type', function (string $productType): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => $productType,
+            'name' => "Default Active {$productType}",
+            'slug' => "default-active-{$productType}",
+            'brand_id' => $brand->id,
+        ])
+        ->goToNextWizardStep()
+        ->assertSet('data.variants', function (array $variants): bool {
+            $variant = array_values($variants)[0] ?? [];
+
+            expect($variant['is_active'] ?? null)->toBeTrue();
+
+            return true;
+        });
+})->with([
+    'frame' => 'frame',
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
+test('wizard persists a variant as active when its status is omitted', function (): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => 'accessory',
+            'name' => 'Implicit Active Accessory',
+            'slug' => 'implicit-active-accessory',
+            'brand_id' => $brand->id,
+        ])
+        ->goToNextWizardStep()
+        ->fillForm([
+            'variants' => [[
+                'name' => 'Implicit Active Variant',
+                'price' => 199.99,
+                'attributes' => [
+                    'color' => 'Black',
+                ],
+                'low_stock_threshold' => 0,
+                'target_stock_level' => null,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $product = Product::query()->where('slug', 'implicit-active-accessory')->firstOrFail();
+
+    expect($product->variants()->firstOrFail()->is_active)->toBeTrue();
+});

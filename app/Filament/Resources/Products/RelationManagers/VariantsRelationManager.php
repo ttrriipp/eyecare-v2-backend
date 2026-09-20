@@ -142,6 +142,8 @@ class VariantsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
+                        $data['is_active'] ??= true;
+
                         if ($this->getOwnerRecord()->product_type === 'frame') {
                             return VariantForm::prepareFrameFormDataBeforeSave($data);
                         }
@@ -153,6 +155,9 @@ class VariantsRelationManager extends RelationManager
                         }
 
                         return $data;
+                    })
+                    ->after(function (): void {
+                        $this->flushCachedTableRecords();
                     }),
             ])
             ->filters([
