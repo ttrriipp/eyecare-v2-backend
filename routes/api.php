@@ -146,6 +146,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::get('accessories', [AccessoryCatalogController::class, 'index']);
         Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
 
+        // Accessory order requests (requires active patient link)
+        Route::get('accessory-order-requests', [AccessoryOrderRequestController::class, 'index']);
+        Route::post('accessory-order-requests', [AccessoryOrderRequestController::class, 'store']);
+        Route::get('accessory-order-requests/{accessoryOrderRequest}', [AccessoryOrderRequestController::class, 'show']);
+        Route::post('accessory-order-requests/{accessoryOrderRequest}/cancel', [AccessoryOrderRequestController::class, 'cancel']);
+
         // Saved Frames (account-owned preferences, no patient link required)
         Route::get('saved-frames', [SavedFrameController::class, 'index']);
         Route::put('saved-frames/{productVariant}', [SavedFrameController::class, 'save']);

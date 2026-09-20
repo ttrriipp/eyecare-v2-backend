@@ -2,6 +2,7 @@
 
 use App\Exceptions\ActiveAppointmentExistsException;
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
+use App\Exceptions\ActiveOrderRequestExistsException;
 use App\Exceptions\OtpRateLimitReached;
 use App\Exceptions\PatientIdentityMismatchException;
 use App\Http\Middleware\ConfigureTrustedProxies;
@@ -90,6 +91,19 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'error' => [
                     'code' => 'PATIENT_IDENTITY_MISMATCH',
+                    'message' => $exception->getMessage(),
+                ],
+            ], 422);
+        });
+
+        $exceptions->render(function (ActiveOrderRequestExistsException $exception, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => 'ACTIVE_ORDER_REQUEST_EXISTS',
                     'message' => $exception->getMessage(),
                 ],
             ], 422);
