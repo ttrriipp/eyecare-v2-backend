@@ -89,9 +89,11 @@ test('clicking an inventory row opens its complete detail modal', function (): v
             'FRM-2860-C4',
             'Sep 1, 2026',
             '2',
+            'Early Quantity',
             'Threshold',
             'Target',
         ])
+        ->assertMountedActionModalDontSee('EarlyQty')
         ->assertMountedActionModalDontSee('Usage')
         ->assertMountedActionModalDontSee('Not set')
         ->assertMountedActionModalDontSee('Earliest Expiry');

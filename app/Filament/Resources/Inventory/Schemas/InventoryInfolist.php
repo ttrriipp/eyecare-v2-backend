@@ -59,7 +59,7 @@ class InventoryInfolist
                             ->date('M j, Y')
                             ->placeholder('—'),
                         TextEntry::make('early_purchase_quantity')
-                            ->label('EarlyQty')
+                            ->label('Early Quantity')
                             ->numeric()
                             ->placeholder('—'),
                         TextEntry::make('stock_quantity')
