@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
+use App\Actions\AccessoryOrderRequests\AcceptPaymentProof;
+use App\Actions\AccessoryOrderRequests\RejectPaymentProof;
 use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
@@ -97,6 +99,71 @@ class EditOpticalOrder extends EditRecord
                         $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot mark ready')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            // Payment proof review actions (only for pending_payment/payment_review orders)
+            Action::make('viewProof')
+                ->label('View Payment Proof')
+                ->icon('heroicon-o-document')
+                ->color('info')
+                ->visible(fn (): bool => in_array($this->record->status, [JobOrderStatus::PendingPayment, JobOrderStatus::PaymentReview], true)
+                    && $this->record->paymentProof !== null)
+                ->action(function (): void {
+                    $proof = $this->record->paymentProof;
+                    Notification::make()
+                        ->title('Payment Proof')
+                        ->body("Sender: {$proof->sender_name}\nReference: {$proof->reference_number}\nStatus: {$proof->status->value}")
+                        ->info()
+                        ->send();
+                }),
+
+            Action::make('acceptProof')
+                ->label('Accept Payment')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn (): bool => $this->record->status === JobOrderStatus::PaymentReview
+                    && $this->record->paymentProof?->isPending())
+                ->requiresConfirmation()
+                ->modalHeading('Accept Payment')
+                ->modalDescription('This will record the full GCash payment and queue the order for fulfillment.')
+                ->action(function (): void {
+                    try {
+                        app(AcceptPaymentProof::class)->handle(
+                            proof: $this->record->paymentProof,
+                            reviewer: auth()->user(),
+                        );
+                        $this->record->refresh();
+                        Notification::make()->title('Payment accepted')->success()->send();
+                        $this->refreshFormData(['status']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot accept payment')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            Action::make('rejectProof')
+                ->label('Reject Payment')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (): bool => $this->record->status === JobOrderStatus::PaymentReview
+                    && $this->record->paymentProof?->isPending())
+                ->form([
+                    Textarea::make('reason')
+                        ->label('Rejection reason')
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(RejectPaymentProof::class)->handle(
+                            proof: $this->record->paymentProof,
+                            reviewer: auth()->user(),
+                            reason: $data['reason'],
+                        );
+                        $this->record->refresh();
+                        Notification::make()->title('Payment rejected, order cancelled')->success()->send();
+                        $this->refreshFormData(['status']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot reject payment')->body($e->getMessage())->danger()->send();
                     }
                 }),
 

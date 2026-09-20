@@ -101,6 +101,8 @@ enum AuditEvent: string
 
     case AccessoryOrderRequestAccepted = 'accessory_order_request.accepted';
     case AccessoryOrderRequestRejected = 'accessory_order_request.rejected';
+    case PaymentProofAccepted = 'payment_proof.accepted';
+    case PaymentProofRejected = 'payment_proof.rejected';
 
     case PrivacyRequestProcessed = 'privacy_request.processed';
     case PrivacyIncidentUpdated = 'privacy_incident.updated';
