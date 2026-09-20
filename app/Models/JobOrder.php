@@ -107,6 +107,14 @@ class JobOrder extends Model
     }
 
     /**
+     * @return HasOne<OrderPaymentProof, $this>
+     */
+    public function paymentProof(): HasOne
+    {
+        return $this->hasOne(OrderPaymentProof::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

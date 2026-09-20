@@ -32,6 +32,8 @@ class OpticalOrderResource extends JsonResource
             'dispensed_at' => $this->dispensed_at?->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
+            'payment_expires_at' => $this->payment_expires_at?->toIso8601String(),
+            'payment_proof_status' => $this->getPaymentProofStatus(),
             'items' => $this->items->map(fn (JobOrderItem $item) => [
                 'id' => $item->id,
                 'description' => $item->description,
@@ -184,5 +186,18 @@ class OpticalOrderResource extends JsonResource
             ->whereIn('product_variant_id', $variantIds)
             ->get()
             ->keyBy('product_variant_id');
+    }
+
+    private function getPaymentProofStatus(): string
+    {
+        $proof = $this->relationLoaded('paymentProof')
+            ? $this->paymentProof
+            : $this->paymentProof;
+
+        if ($proof === null) {
+            return 'not_submitted';
+        }
+
+        return $proof->status->value;
     }
 }

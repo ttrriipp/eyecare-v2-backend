@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\PilotParticipantLoginController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\SavedFrameController;
 use App\Http\Controllers\Api\V1\AccessoryCatalogController;
+use App\Http\Controllers\Api\V1\OrderPaymentProofController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
 
@@ -173,6 +174,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
 
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
+    Route::post('optical-orders/{jobOrder}/payment-proof', [OrderPaymentProofController::class, 'store']);
 
     Route::post('appointments/{appointment}/rating', [VisitRatingController::class, 'store']);
 

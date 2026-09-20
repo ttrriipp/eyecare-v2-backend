@@ -65,6 +65,7 @@ return [
 
     'message_attachments_disk' => env('MESSAGE_ATTACHMENTS_DISK', 'message_attachments'),
     'catalog_disk' => env('CATALOG_DISK', 'public'),
+    'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'payment_proofs'),
 
     /*
     |--------------------------------------------------------------------------
@@ -159,6 +160,14 @@ return [
                 'MESSAGE_ATTACHMENTS_USE_PATH_STYLE_ENDPOINT',
                 env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             ),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'payment_proofs' => [
+            'driver' => 'local',
+            'root' => storage_path('app/payment-proofs'),
             'visibility' => 'private',
             'throw' => true,
             'report' => false,
