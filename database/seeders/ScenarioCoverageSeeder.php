@@ -50,8 +50,8 @@ class ScenarioCoverageSeeder extends Seeder
     public function run(): void
     {
         $this->seedAppointmentStatuses();
-        $this->seedAppointmentRequests();
         $this->seedPatientLinkRequests();
+        $this->seedAppointmentRequests();
         $this->seedEncounterStatuses();
         $this->seedJobOrderStatuses();
         $this->seedBillingRecordStatuses();
@@ -153,6 +153,21 @@ class ScenarioCoverageSeeder extends Seeder
         $requestedTime = now()->addDays(2)->setTime(10, 0);
         $requestExpiry = $requestedTime->copy()->addDay();
 
+        // The flagship patient already has the scheduled appointment seeded by
+        // ClinicWorkflowSeeder. Keep the pending request on the separately
+        // linked Rosa Santos account so each patient has only one active
+        // request or scheduled appointment in the canonical demo data.
+        $pendingPatient = Patient::query()->where('patient_number', 'PAT-2026-000003')->firstOrFail();
+        if ($pendingPatient->user_id === null) {
+            throw new RuntimeException('The seeded pending appointment request patient must be linked to a portal account.');
+        }
+
+        $pendingAttributes = [
+            ...$sharedAttributes,
+            'user_id' => $pendingPatient->user_id,
+            'patient_id' => $pendingPatient->id,
+        ];
+
         // A real submission from a linked portal account always resolves
         // patient_id (see SubmitAppointmentRequest), so every seeded row
         // here should carry it too — leaving it null misrepresents the
@@ -162,7 +177,7 @@ class ScenarioCoverageSeeder extends Seeder
         AppointmentRequest::query()->updateOrCreate(
             ['request_number' => 'APR-2026-000001'],
             [
-                ...$sharedAttributes,
+                ...$pendingAttributes,
                 'appointment_id' => null,
                 'scheduled_at' => $requestedTime,
                 'expires_at' => $requestExpiry,
