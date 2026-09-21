@@ -4,8 +4,8 @@ namespace App\Filament\Resources\Prescriptions\Pages;
 
 use App\Actions\Prescriptions\CancelPrescription;
 use App\Enums\EncounterStatus;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Prescription;
 use Filament\Actions\Action;
@@ -172,9 +172,9 @@ class ViewPrescription extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('createOpticalOrder')
-                ->label('Create Optical Order')
-                ->icon('heroicon-o-rectangle-stack')
+            Action::make('createBill')
+                ->label('Create Bill')
+                ->icon('heroicon-o-banknotes')
                 ->color('success')
                 ->visible(fn (): bool => $this->getRecord()->isCurrentVersion()
                     && (
@@ -182,7 +182,8 @@ class ViewPrescription extends ViewRecord
                         || auth()->user()?->isStaff() === true
                         || auth()->user()?->isOptometrist() === true
                     ))
-                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
+                ->url(fn (): string => BillingRecordResource::getUrl('create', [
+                    'patient' => $this->getRecord()->patient_id,
                     'prescription' => $this->getRecord()->id,
                 ])),
 

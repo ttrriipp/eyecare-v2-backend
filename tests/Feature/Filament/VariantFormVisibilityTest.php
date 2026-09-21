@@ -24,14 +24,12 @@ beforeEach(function () {
     $this->user = User::factory()->staff()->create();
 });
 
-test('new generic product details start with one empty row', function (string $productType) {
+test('new generic product details start empty', function (string $productType) {
     Livewire::actingAs($this->user)
         ->test(CreateProduct::class)
         ->set('data.product_type', $productType)
         ->assertSee('Default Details')
-        ->assertSet('data.generic_default_details', [
-            ['key' => '', 'value' => ''],
-        ]);
+        ->assertSet('data.generic_default_details', []);
 })->with([
     'contact lens' => 'contact_lens',
     'accessory' => 'accessory',
@@ -160,11 +158,10 @@ test('an empty product cannot be activated from its edit form', function (): voi
     expect($product->fresh()->is_active)->toBeFalse();
 });
 
-test('new frame product details start with one empty row', function () {
+test('new frame product details start empty', function () {
     Livewire::actingAs($this->user)
         ->test(CreateProduct::class)
-        ->assertSet('data.frame_other_details.0.key', '')
-        ->assertSet('data.frame_other_details.0.value', '');
+        ->assertSet('data.frame_other_details', []);
 });
 
 test('frame default details are prefilled when creating a variant', function () {
@@ -398,14 +395,12 @@ test('product frame defaults use the shared color and material preset options', 
         });
 });
 
-test('switching generic product types keeps one empty details row', function () {
+test('switching generic product types keeps details empty', function () {
     Livewire::actingAs($this->user)
         ->test(CreateProduct::class)
         ->set('data.product_type', 'contact_lens')
         ->set('data.product_type', 'accessory')
-        ->assertSet('data.generic_default_details', [
-            ['key' => '', 'value' => ''],
-        ]);
+        ->assertSet('data.generic_default_details', []);
 });
 
 test('frame product defaults save dimensions and additional details together', function () {

@@ -65,3 +65,29 @@ test('payment proof upload returns a safe created response and moves the order t
     expect($response->json('data'))->not->toHaveKey('file_path')
         ->and($order->fresh()->status)->toBe(JobOrderStatus::PaymentReview);
 });
+
+test('payment proof upload accepts an image at the 10 MB limit', function (): void {
+    $order = createAcceptedPendingPaymentOrder($this->account);
+
+    $this->actingAs($this->account)
+        ->post("/api/v1/optical-orders/{$order->id}/payment-proof", [
+            'proof' => UploadedFile::fake()->image('proof.png', 100, 100)->size(10240),
+            'sender_name' => 'Patient',
+            'reference_number' => 'GCASH-10MB-1',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending');
+});
+
+test('payment proof upload rejects an image over the 10 MB limit', function (): void {
+    $order = createAcceptedPendingPaymentOrder($this->account);
+
+    $this->actingAs($this->account)
+        ->post("/api/v1/optical-orders/{$order->id}/payment-proof", [
+            'proof' => UploadedFile::fake()->image('proof.png', 100, 100)->size(10241),
+            'sender_name' => 'Patient',
+            'reference_number' => 'GCASH-OVER-10MB-1',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('proof');
+});

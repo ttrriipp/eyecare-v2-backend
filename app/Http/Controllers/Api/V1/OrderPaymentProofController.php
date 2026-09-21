@@ -18,7 +18,7 @@ class OrderPaymentProofController extends Controller
         }
 
         $validated = $request->validate([
-            'proof' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120', 'dimensions:max_width=8000,max_height=8000'],
+            'proof' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:10240', 'dimensions:max_width=8000,max_height=8000'],
             'sender_name' => ['required', 'string', 'max:100'],
             'reference_number' => ['required', 'string', 'max:100'],
         ]);

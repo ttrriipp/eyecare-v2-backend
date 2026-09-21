@@ -8,6 +8,7 @@ use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderCreationForm;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Models\Encounter;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\Patient;
@@ -43,22 +44,36 @@ class CreateBillingRecord extends CreateRecord
 
     public ?int $prescriptionId = null;
 
+    public ?int $encounterId = null;
+
     public function mount(
+        ?string $encounter = null,
         ?string $patient = null,
         ?string $prescription = null,
     ): void {
+        $encounter ??= request()->query('encounter');
         $patient ??= request()->query('patient');
         $prescription ??= request()->query('prescription');
 
+        $this->encounterId = filled($encounter) ? (int) $encounter : null;
         $this->patientId = filled($patient) ? (int) $patient : null;
         $this->prescriptionId = filled($prescription) ? (int) $prescription : null;
 
+        if ($this->prescriptionId === null) {
+            $this->prescriptionId = $this->resolveEncounterPrescription()?->id;
+        }
+
+        if ($this->patientId === null) {
+            $this->patientId = $this->resolvePrescription()?->patient_id;
+        }
+
+        $this->patientId ??= $this->resolveEncounter()?->patient_id;
+
         parent::mount();
 
-        if ($this->patientId !== null || $this->prescriptionId !== null) {
+        if ($this->encounterId !== null || $this->patientId !== null || $this->prescriptionId !== null) {
             $this->form->fill([
-                'patient_id' => $this->patientId
-                    ?? Prescription::query()->find($this->prescriptionId)?->patient_id,
+                'patient_id' => $this->patientId,
                 'prescription_id' => $this->prescriptionId,
                 'include_prescription_eyewear' => $this->prescriptionId !== null,
             ]);
@@ -84,7 +99,7 @@ class CreateBillingRecord extends CreateRecord
         );
         $prescriptionOptions = fn (Get $get): array => Prescription::query()
             ->where('patient_id', $get('patient_id'))
-            ->whereNull('voided_at')
+            ->whereNull('cancelled_at')
             ->whereDoesntHave('nextPrescription')
             ->orderByDesc('prescribed_at')
             ->get()
@@ -146,6 +161,8 @@ class CreateBillingRecord extends CreateRecord
                                         ->required()
                                         ->searchable()
                                         ->preload()
+                                        ->disabled(fn (): bool => $this->encounterId !== null)
+                                        ->dehydrated()
                                         ->live()
                                         ->afterStateUpdated(function (
                                             Set $set,
@@ -238,13 +255,13 @@ class CreateBillingRecord extends CreateRecord
                                         ->label('Version')
                                         ->content(fn (Get $get): string => match (true) {
                                             $prescriptionResolver($get) === null => '—',
-                                            $prescriptionResolver($get)->isVoided() => 'Voided',
+                                            $prescriptionResolver($get)->isCancelled() => 'Cancelled',
                                             $prescriptionResolver($get)->isCurrentVersion() => 'Current',
                                             default => 'Superseded',
                                         })
                                         ->badge()
                                         ->color(fn (Get $get): string => match (true) {
-                                            $prescriptionResolver($get)?->isVoided() === true => 'danger',
+                                            $prescriptionResolver($get)?->isCancelled() === true => 'danger',
                                             $prescriptionResolver($get)?->isCurrentVersion() === true => 'success',
                                             default => 'warning',
                                         })
@@ -270,14 +287,8 @@ class CreateBillingRecord extends CreateRecord
                             ),
 
                             Section::make('Services')
-                                ->description('Add catalog or custom services to this bill.')
                                 ->schema([
                                     ServiceChargeForm::items('service_items'),
-                                    Placeholder::make('service_total')
-                                        ->label('Services subtotal')
-                                        ->content(function (Get $get) use ($serviceSubtotal): string {
-                                            return '₱'.number_format($serviceSubtotal($get), 2);
-                                        }),
                                 ]),
                         ]),
 
@@ -285,7 +296,6 @@ class CreateBillingRecord extends CreateRecord
                         ->columnSpan(['default' => 1, 'lg' => 1])
                         ->schema([
                             Section::make('Bill Preview')
-                                ->description('This creates the unpaid bill when submitted.')
                                 ->schema([
                                     Placeholder::make('product_subtotal')
                                         ->label('Optical Order')
@@ -393,13 +403,21 @@ class CreateBillingRecord extends CreateRecord
         $prescription = filled($data['prescription_id'] ?? null)
             ? Prescription::query()->find((int) $data['prescription_id'])
             : null;
+        $encounter = $this->resolveEncounter();
         $includePrescriptionEyewear = (bool) ($this->data['include_prescription_eyewear'] ?? false);
+
+        if ($this->encounterId !== null
+            && ($encounter === null || $encounter->patient_id !== $patient->id)) {
+            throw ValidationException::withMessages([
+                'patient_id' => ['The selected encounter does not belong to this patient.'],
+            ]);
+        }
 
         if ($includePrescriptionEyewear
             && ($prescription === null
                 || $prescription->patient_id !== $patient->id
                 || ! $prescription->isCurrentVersion()
-                || $prescription->isVoided())) {
+                || $prescription->isCancelled())) {
             throw ValidationException::withMessages([
                 'prescription_id' => ['Select a current prescription before creating prescription eyewear.'],
             ]);
@@ -432,6 +450,7 @@ class CreateBillingRecord extends CreateRecord
             creator: $creator,
             orderItems: $orderItems,
             prescription: $prescription,
+            encounter: $encounter,
             serviceItems: $serviceItems,
             discountAmount: $discountAmount,
             discountType: $discountType,
@@ -647,5 +666,28 @@ class CreateBillingRecord extends CreateRecord
         $minimumAge = DiscountType::SeniorCitizen->minimumAge();
 
         return $age !== null && $minimumAge !== null && $age >= $minimumAge;
+    }
+
+    private function resolveEncounter(): ?Encounter
+    {
+        return $this->encounterId !== null
+            ? Encounter::query()->find($this->encounterId)
+            : null;
+    }
+
+    private function resolveEncounterPrescription(): ?Prescription
+    {
+        return $this->resolveEncounter()?->prescriptions()
+            ->whereNull('cancelled_at')
+            ->whereDoesntHave('nextPrescription')
+            ->latest('id')
+            ->first();
+    }
+
+    private function resolvePrescription(): ?Prescription
+    {
+        return $this->prescriptionId !== null
+            ? Prescription::query()->find($this->prescriptionId)
+            : null;
     }
 }

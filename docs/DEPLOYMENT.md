@@ -309,9 +309,15 @@ server {
         deny all;
     }
 
+    # Keep this above the 10 MB payment-proof limit to allow multipart
+    # request overhead. The application accepts proofs up to 10 MB.
     client_max_body_size 20M;
 }
 ```
+
+The PHP runtime must also allow the request: keep `upload_max_filesize` at or
+above `10M` and `post_max_size` above `10M`. The Sail runtime uses `100M` for
+both settings; retain equivalent or higher values in other environments.
 
 ### Queue Worker (Supervisor)
 

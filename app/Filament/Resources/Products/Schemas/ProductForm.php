@@ -117,7 +117,7 @@ class ProductForm
                                     if ($state === 'frame') {
                                         $set('usage', null);
                                         $set('frame_default_attributes', []);
-                                        $set('frame_other_details', self::emptyKeyValueRows());
+                                        $set('frame_other_details', []);
                                         $set('generic_default_details', []);
 
                                         return;
@@ -126,9 +126,7 @@ class ProductForm
                                     if (in_array($state, ['contact_lens', 'accessory'], true)) {
                                         $set('default_variant_attributes', []);
 
-                                        if (filled($get('generic_default_details'))) {
-                                            $set('generic_default_details', self::emptyKeyValueRows());
-                                        }
+                                        $set('generic_default_details', []);
 
                                         $set('frame_default_attributes', []);
                                         $set('frame_other_details', []);
@@ -223,11 +221,6 @@ class ProductForm
                     KeyValue::make('generic_default_details')
                         ->label('Default Details')
                         ->helperText('Key/value pairs that will prefill new variants. Examples: base_curve, diameter, pack_size, color, material.')
-                        ->afterStateHydrated(function (?array $state, KeyValue $component): void {
-                            if (empty($state)) {
-                                $component->state(self::emptyKeyValueRows());
-                            }
-                        })
                         ->dehydratedWhenHidden()
                         ->columnSpanFull(),
                 ])
@@ -273,11 +266,6 @@ class ProductForm
                     KeyValue::make('frame_other_details')
                         ->label('Other Details')
                         ->helperText('Additional key/value pairs for frame variants.')
-                        ->afterStateHydrated(function (?array $state, KeyValue $component): void {
-                            if (empty($state)) {
-                                $component->state(self::emptyKeyValueRows());
-                            }
-                        })
                         ->dehydratedWhenHidden()
                         ->addActionLabel('Add detail')
                         ->columnSpanFull(),
@@ -285,16 +273,6 @@ class ProductForm
                 ->columns(3)
                 ->visible(fn (Get $get): bool => $get('product_type') === 'frame'),
         ]);
-    }
-
-    /**
-     * @return array<int, array{key: string, value: string}>
-     */
-    private static function emptyKeyValueRows(): array
-    {
-        return [
-            ['key' => '', 'value' => ''],
-        ];
     }
 
     private static function isUsageTrackedProduct(mixed $productType): bool

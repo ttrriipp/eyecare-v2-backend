@@ -180,6 +180,7 @@ class CreateOpticalOrder
             $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
                 patient: $patient,
                 jobOrder: $jobOrder,
+                encounter: $encounter,
                 actor: $creator,
             );
 

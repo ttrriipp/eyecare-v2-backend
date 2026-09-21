@@ -74,9 +74,27 @@ test('request response includes resolution fields and immutable item snapshot', 
         ->assertJsonPath('data.resolved_by', null)
         ->assertJsonPath('data.resolved_at', null)
         ->assertJsonPath('data.items.0.quantity', 2)
-        ->assertJsonPath('data.items.0.unit_price', '100.00');
+        ->assertJsonPath('data.items.0.unit_price', '100.00')
+        ->assertJsonPath('data.items.0.product_variant_id', $this->variant->id)
+        ->assertJsonPath('data.items.0.item_snapshot.product_variant_id', $this->variant->id);
 
     expect($response->json('data.subtotal_amount'))->toBe('200.00');
+});
+
+test('current request list includes catalog references and item snapshots', function (): void {
+    $this->actingAs($this->account)
+        ->postJson('/api/v1/accessory-order-requests', [
+            'items' => [
+                ['product_variant_id' => $this->variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertCreated();
+
+    $this->actingAs($this->account)
+        ->getJson('/api/v1/accessory-order-requests?filter=current&page=1&per_page=15')
+        ->assertOk()
+        ->assertJsonPath('data.0.items.0.product_variant_id', $this->variant->id)
+        ->assertJsonPath('data.0.items.0.item_snapshot.product_variant_id', $this->variant->id);
 });
 
 test('owner can cancel a pending request idempotently and other accounts cannot see it', function (): void {

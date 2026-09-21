@@ -41,7 +41,7 @@ system beside Optical Orders and Billing.
    payments, bank transfer, cards, checks, delivery fees, vouchers, or loyalty
    points are introduced by this feature. The payable balance is the final
    amount confirmed by an authorized reviewer after any approved discount.
-7. One private JPG, JPEG, or PNG proof of at most 5 MB may be submitted
+7. One private JPG, JPEG, or PNG proof of at most 10 MB may be submitted
    before the deadline. Submission stops expiration; staff verification has no
    patient-facing countdown.
 8. Staff verify the transfer against the clinic's real GCash transaction
@@ -335,7 +335,7 @@ POST /optical-orders/{jobOrder}/payment-proof
 
 Multipart fields:
 
-- `proof`: required JPG/JPEG/PNG, maximum 5 MB, maximum 8,000 by 8,000 pixels
+- `proof`: required JPG/JPEG/PNG, maximum 10 MB, maximum 8,000 by 8,000 pixels
 - `sender_name`: required string, maximum 100
 - `reference_number`: required string, maximum 100
 

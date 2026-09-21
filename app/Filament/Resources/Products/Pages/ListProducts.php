@@ -17,8 +17,7 @@ class ListProducts extends ListRecords
             CreateAction::make()
                 ->label('New product')
                 ->icon('heroicon-o-plus-circle')
-                ->button()
-                ->tooltip('New product'),
+                ->button(),
         ];
     }
 

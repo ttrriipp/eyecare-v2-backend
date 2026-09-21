@@ -16,9 +16,9 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterTransferReason;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
 use App\Filament\Resources\Encounters\EncounterResource;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\User;
@@ -335,10 +335,10 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            // ── Completed encounter: create Optical Order ──
-            Action::make('createOpticalOrder')
-                ->label('Create Optical Order')
-                ->icon('heroicon-o-rectangle-stack')
+            // ── Completed encounter: create Bill ──
+            Action::make('createBill')
+                ->label('Create Bill')
+                ->icon('heroicon-o-banknotes')
                 ->color('success')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
                     && (
@@ -349,7 +349,7 @@ class EditEncounter extends EditRecord
                     && ! JobOrder::query()
                         ->where('encounter_id', $this->record->id)
                         ->exists())
-                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
+                ->url(fn (): string => BillingRecordResource::getUrl('create', [
                     'encounter' => $this->record->id,
                 ])),
 

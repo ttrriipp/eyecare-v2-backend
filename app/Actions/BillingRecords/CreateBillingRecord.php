@@ -6,6 +6,7 @@ use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\DiscountType;
 use App\Models\BillingRecord;
+use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
@@ -30,6 +31,7 @@ class CreateBillingRecord
         User $creator,
         array $orderItems = [],
         ?Prescription $prescription = null,
+        ?Encounter $encounter = null,
         ?Collection $serviceItems = null,
         ?float $discountAmount = null,
         string $discountType = 'none',
@@ -61,6 +63,7 @@ class CreateBillingRecord
             $creator,
             $orderItems,
             $prescription,
+            $encounter,
             $serviceItems,
             $discountAmount,
             $discountType,
@@ -73,6 +76,7 @@ class CreateBillingRecord
                     creator: $creator,
                     orderItems: $orderItems,
                     prescription: $prescription,
+                    encounter: $encounter,
                     discountAmount: $this->discountForOrderValidation(
                         discountAmount: $discountAmount,
                         discountType: $discountType,
@@ -83,6 +87,7 @@ class CreateBillingRecord
             } else {
                 $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
                     patient: $patient,
+                    encounter: $encounter,
                     actor: $creator,
                 );
             }
@@ -117,6 +122,7 @@ class CreateBillingRecord
         User $creator,
         array $orderItems,
         ?Prescription $prescription,
+        ?Encounter $encounter,
         ?float $discountAmount,
         string $discountType,
     ): BillingRecord {
@@ -127,6 +133,7 @@ class CreateBillingRecord
             fulfillmentMode: 'prepared',
             usesExternalSupplier: false,
             prescription: $prescription,
+            encounter: $encounter,
             discountAmount: $discountAmount,
             discountType: $discountType,
         );

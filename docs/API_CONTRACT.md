@@ -2497,6 +2497,12 @@ list filtering includes pending requests and accepted orders not yet dispensed
 or cancelled; `history` includes rejected/cancelled requests and terminal
 accepted orders. Ordering is `created_at DESC, id DESC`.
 
+Each `items[]` entry includes `id`, `description`, `quantity`, two-decimal
+`unit_price` and `amount`, `product_variant_id`, `item_kind`, and the nullable
+`item_snapshot` object. For accessory requests, `item_snapshot` contains the
+immutable `product_variant_id`, `sku`, `variant_name`, `product_name`,
+two-decimal `price`, and nullable `attributes` captured at submission time.
+
 Patients may cancel only a pending request. Cancellation is idempotent and
 creates no commerce or inventory records. Ownership failures return `404`.
 
@@ -2511,7 +2517,7 @@ Only an owned, accepted accessory request whose resulting Optical Order is in
 
 | Field | Requirements |
 |---|---|
-| `proof` | JPG/JPEG/PNG, <= 5 MB, <= 8,000 x 8,000 pixels |
+| `proof` | JPG/JPEG/PNG, <= 10 MB, <= 8,000 x 8,000 pixels |
 | `sender_name` | Required trimmed string, <= 100 characters |
 | `reference_number` | Required trimmed string, <= 100 characters |
 

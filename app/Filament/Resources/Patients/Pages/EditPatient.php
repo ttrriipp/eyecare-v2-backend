@@ -9,7 +9,7 @@ use App\Actions\PatientAccounts\ResolvePatientIdentityReview;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\PatientInvitationStatus;
 use App\Exceptions\PatientIdentityMismatchException;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Patients\PatientResource;
 use App\Models\Patient;
 use App\Models\PatientInvitation;
@@ -36,12 +36,12 @@ class EditPatient extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('createOpticalOrder')
-                ->label('Create Optical Order')
-                ->icon('heroicon-o-rectangle-stack')
+            Action::make('createBill')
+                ->label('Create Bill')
+                ->icon('heroicon-o-banknotes')
                 ->color('success')
                 ->visible(fn (): bool => auth()->user()?->hasPanelRole() === true)
-                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
+                ->url(fn (): string => BillingRecordResource::getUrl('create', [
                     'patient' => $this->getRecord()->id,
                 ])),
 

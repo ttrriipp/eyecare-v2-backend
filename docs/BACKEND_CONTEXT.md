@@ -52,7 +52,7 @@
 > `payment_expires_at`; optometrist-only accounts cannot decide commerce.
 >
 > Accepted requests use full-balance GCash only. The patient may upload one
-> private JPG/JPEG/PNG proof (<=5 MB and <=8,000 x 8,000) before the deadline;
+> private JPG/JPEG/PNG proof (<=10 MB and <=8,000 x 8,000) before the deadline;
 > a retry is idempotent and moves the order to `payment_review`. Staff/admin
 > review records exactly one posted GCash payment and queues fulfillment, or
 > rejects/cancels with exact inventory reversal and unpaid-bill voiding. An
