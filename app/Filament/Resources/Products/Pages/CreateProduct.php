@@ -7,6 +7,7 @@ use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Filament\Resources\Products\Schemas\VariantForm;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -21,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 class CreateProduct extends CreateRecord
 {
     protected static string $resource = ProductResource::class;
+
+    public int $currentWizardStep = 0;
 
     public function form(Schema $schema): Schema
     {
@@ -84,8 +87,38 @@ class CreateProduct extends CreateRecord
                             ->columnSpanFull(),
                     ]),
             ])
-                ->columnSpanFull(),
+                ->columnSpanFull()
+                ->afterStepUpdated(function (int $step): void {
+                    $this->currentWizardStep = $step;
+                }),
         ]);
+    }
+
+    protected function getCreateFormAction(): Action
+    {
+        $action = parent::getCreateFormAction();
+
+        $action->hidden(fn (): bool => $this->currentWizardStep < 1);
+
+        return $action;
+    }
+
+    protected function getCreateAnotherFormAction(): Action
+    {
+        $action = parent::getCreateAnotherFormAction();
+
+        $action->hidden(fn (): bool => $this->currentWizardStep < 1);
+
+        return $action;
+    }
+
+    protected function getCancelFormAction(): Action
+    {
+        $action = parent::getCancelFormAction();
+
+        $action->hidden(fn (): bool => $this->currentWizardStep < 1);
+
+        return $action;
     }
 
     /**
