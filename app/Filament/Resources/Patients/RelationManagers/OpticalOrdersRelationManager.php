@@ -30,6 +30,8 @@ class OpticalOrdersRelationManager extends RelationManager
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (JobOrderStatus $state): string => match ($state) {
+                        JobOrderStatus::PendingPayment => 'Awaiting Payment',
+                        JobOrderStatus::PaymentReview => 'Payment Review',
                         JobOrderStatus::Queued => 'Confirmed',
                         JobOrderStatus::InProgress => 'Processing',
                         JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
@@ -37,6 +39,8 @@ class OpticalOrdersRelationManager extends RelationManager
                         JobOrderStatus::Cancelled => 'Cancelled',
                     })
                     ->color(fn (JobOrderStatus $state): string => match ($state) {
+                        JobOrderStatus::PendingPayment => 'warning',
+                        JobOrderStatus::PaymentReview => 'info',
                         JobOrderStatus::Queued => 'warning',
                         JobOrderStatus::InProgress => 'primary',
                         JobOrderStatus::ReadyForDispensing => 'success',

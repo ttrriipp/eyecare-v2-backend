@@ -39,6 +39,8 @@ class OpticalOrderForm
                             Placeholder::make('status_badge')
                                 ->label('Status')
                                 ->content(fn (JobOrder $record): string => match ($record->status) {
+                                    JobOrderStatus::PendingPayment => 'Awaiting Payment',
+                                    JobOrderStatus::PaymentReview => 'Payment Review',
                                     JobOrderStatus::Queued => 'Confirmed',
                                     JobOrderStatus::InProgress => 'Processing',
                                     JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
@@ -47,6 +49,8 @@ class OpticalOrderForm
                                 })
                                 ->badge()
                                 ->color(fn (JobOrder $record): string => match ($record->status) {
+                                    JobOrderStatus::PendingPayment => 'warning',
+                                    JobOrderStatus::PaymentReview => 'info',
                                     JobOrderStatus::Queued => 'warning',
                                     JobOrderStatus::InProgress => 'primary',
                                     JobOrderStatus::ReadyForDispensing => 'success',

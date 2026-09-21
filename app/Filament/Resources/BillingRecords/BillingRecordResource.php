@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BillingRecords;
 
 use App\Enums\BillingRecordStatus;
+use App\Filament\Resources\BillingRecords\Pages\CreateBillingRecord;
 use App\Filament\Resources\BillingRecords\Pages\EditBillingRecord;
 use App\Filament\Resources\BillingRecords\Pages\ListBillingRecords;
 use App\Filament\Resources\BillingRecords\RelationManagers\PaymentsRelationManager;
@@ -46,6 +47,11 @@ class BillingRecordResource extends Resource
         return 'warning';
     }
 
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasPanelRole() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([]);
@@ -67,6 +73,7 @@ class BillingRecordResource extends Resource
     {
         return [
             'index' => ListBillingRecords::route('/'),
+            'create' => CreateBillingRecord::route('/create'),
             'edit' => EditBillingRecord::route('/{record}/edit'),
         ];
     }

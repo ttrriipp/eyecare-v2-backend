@@ -2,6 +2,7 @@
 
 use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
 use App\Enums\BillingRecordStatus;
+use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
@@ -350,6 +351,32 @@ test('staff creates a direct order from the optical orders list', function () {
 
     expect(OpticalOrderResource::getUrl('edit', ['record' => $jobOrder]))
         ->toContain("/optical-orders/{$jobOrder->id}/edit");
+});
+
+test('optical order list exposes payment lifecycle tabs and status labels', function () {
+    $staff = User::factory()->staff()->create();
+    $awaitingPayment = JobOrder::factory()->create(['status' => JobOrderStatus::PendingPayment]);
+    $paymentReview = JobOrder::factory()->create(['status' => JobOrderStatus::PaymentReview]);
+    $confirmed = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ListOpticalOrders::class);
+    $tabs = $component->instance()->getTabs();
+
+    expect($tabs)
+        ->toHaveKeys(['awaiting_payment', 'payment_review', 'confirmed']);
+
+    $component
+        ->assertTableColumnFormattedStateSet('status', 'Awaiting Payment', record: $awaitingPayment)
+        ->assertTableColumnFormattedStateSet('status', 'Payment Review', record: $paymentReview)
+        ->assertTableColumnFormattedStateSet('status', 'Confirmed', record: $confirmed)
+        ->set('activeTab', 'awaiting_payment')
+        ->assertCanSeeTableRecords([$awaitingPayment])
+        ->assertCanNotSeeTableRecords([$paymentReview, $confirmed])
+        ->set('activeTab', 'payment_review')
+        ->assertCanSeeTableRecords([$paymentReview])
+        ->assertCanNotSeeTableRecords([$awaitingPayment, $confirmed]);
 });
 
 test('immediate checkout paid in full is dispensed with a zero balance', function () {

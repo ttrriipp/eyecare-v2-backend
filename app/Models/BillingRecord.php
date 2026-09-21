@@ -129,7 +129,11 @@ class BillingRecord extends Model
             return 'Optical Order';
         }
 
-        return 'Encounter';
+        if ($hasEncounter) {
+            return 'Encounter';
+        }
+
+        return 'Direct Service';
     }
 
     /**

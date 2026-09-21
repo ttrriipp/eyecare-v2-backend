@@ -38,6 +38,7 @@ class BillingRecordsTable
                         'Optical Order' => 'info',
                         'Consultation' => 'warning',
                         'Combined' => 'success',
+                        'Direct Service' => 'gray',
                         default => 'gray',
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -120,6 +121,7 @@ class BillingRecordsTable
                         'optical' => 'Optical Order',
                         'encounter' => 'Consultation',
                         'combined' => 'Combined',
+                        'direct_service' => 'Direct Service',
                     ])
                     ->query(function ($query, $data) {
                         if ($data['value'] === 'optical') {
@@ -130,6 +132,9 @@ class BillingRecordsTable
                         }
                         if ($data['value'] === 'combined') {
                             return $query->whereNotNull('job_order_id')->whereNotNull('encounter_id');
+                        }
+                        if ($data['value'] === 'direct_service') {
+                            return $query->whereNull('job_order_id')->whereNull('encounter_id');
                         }
 
                         return $query;

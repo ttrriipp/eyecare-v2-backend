@@ -16,9 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 final class ServiceChargeForm
 {
-    public static function items(): Repeater
+    public static function items(string $name = 'items'): Repeater
     {
-        return Repeater::make('items')
+        return Repeater::make($name)
             ->hiddenLabel()
             ->itemLabel(fn (array $state): string => filled($state['description'] ?? null)
                 ? $state['description']
@@ -132,12 +132,12 @@ final class ServiceChargeForm
             ->addActionLabel('Add Service Line');
     }
 
-    public static function total(): Placeholder
+    public static function total(string $itemsName = 'items', string $name = 'total'): Placeholder
     {
-        return Placeholder::make('total')
+        return Placeholder::make($name)
             ->label('Total')
-            ->content(function (Get $get): string {
-                $total = collect($get('items') ?? [])->sum(
+            ->content(function (Get $get) use ($itemsName): string {
+                $total = collect($get($itemsName) ?? [])->sum(
                     fn (array $item): float => ((float) ($item['quantity'] ?? 0))
                         * ((float) ($item['unit_price'] ?? 0)),
                 );

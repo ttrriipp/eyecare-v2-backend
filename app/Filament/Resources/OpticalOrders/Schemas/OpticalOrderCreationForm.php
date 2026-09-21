@@ -166,6 +166,7 @@ final class OpticalOrderCreationForm
         bool $includeServices = true,
         bool $excludeFramesFromOtherItems = false,
         bool $allowCatalogFrameQuantity = false,
+        bool $allowEmpty = false,
     ): Section {
         $customItemKinds = $includeServices
             ? ['custom_product', 'custom_service']
@@ -180,6 +181,7 @@ final class OpticalOrderCreationForm
                         ? Str::limit($state['description'], 60)
                         : 'New item')
                     ->collapsible()
+                    ->collapsed(false)
                     ->schema([
                         Grid::make(['default' => 1, 'md' => 2])
                             ->columnSpanFull()
@@ -376,10 +378,14 @@ final class OpticalOrderCreationForm
                             ->dehydrated(false),
                     ])
                     ->columns(['default' => 1, 'md' => 3])
-                    ->defaultItems(fn (Get $get): int => $dedicatedPrescriptionEyewear
-                        && $prescriptionEyewearResolver($get) ? 0 : 1)
-                    ->minItems(fn (Get $get): int => $dedicatedPrescriptionEyewear
-                        && $prescriptionEyewearResolver($get) ? 0 : 1)
+                    ->defaultItems(fn (Get $get): int => $allowEmpty
+                        ? 1
+                        : ($dedicatedPrescriptionEyewear
+                            && $prescriptionEyewearResolver($get) ? 0 : 1))
+                    ->minItems(fn (Get $get): int => $allowEmpty
+                        ? 0
+                        : ($dedicatedPrescriptionEyewear
+                            && $prescriptionEyewearResolver($get) ? 0 : 1))
                     ->maxItems(50)
                     ->addActionLabel(fn (Get $get): string => $dedicatedPrescriptionEyewear
                         && $prescriptionEyewearResolver($get) ? 'Add Other Item' : 'Add Item'),

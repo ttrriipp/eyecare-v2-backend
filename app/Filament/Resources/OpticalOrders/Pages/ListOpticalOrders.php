@@ -35,6 +35,12 @@ class ListOpticalOrders extends ListRecords
         return [
             'all' => Tab::make('All'),
 
+            'awaiting_payment' => Tab::make('Awaiting Payment')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::PendingPayment)),
+
+            'payment_review' => Tab::make('Payment Review')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::PaymentReview)),
+
             'confirmed' => Tab::make('Confirmed')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::Queued)),
 
