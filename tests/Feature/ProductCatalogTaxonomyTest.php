@@ -69,6 +69,7 @@ test('catalog seeder provides a complete active lens option catalog', function (
 
 test('catalog seeder imports the approved clinic product catalog idempotently', function (): void {
     Storage::fake('public');
+    User::factory()->staff()->create();
 
     $this->seed(CatalogSeeder::class);
 
@@ -125,8 +126,8 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
         ->toBe(['variants/CL-ALCON-AOC2-BROWN/01-color.png'])
         ->and($contactLens->variants->firstWhere('sku', 'CL-ALCON-AOC2-PURE-HAZEL')?->images)
         ->toBe(['variants/CL-ALCON-AOC2-PURE-HAZEL/01-color.png'])
-        ->and($contactLens->variants->every(fn (ProductVariant $variant): bool => $variant->stock_quantity === 0))->toBeTrue()
-        ->and($contactLens->variants->every(fn (ProductVariant $variant): bool => $variant->inventoryLots->isEmpty()))->toBeTrue();
+        ->and($contactLens->variants->every(fn (ProductVariant $variant): bool => $variant->stock_quantity > 0))->toBeTrue()
+        ->and($contactLens->variants->every(fn (ProductVariant $variant): bool => $variant->inventoryLots->count() === 1))->toBeTrue();
 
     $sofiaGray = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-GRY')->firstOrFail();
     $sofiaChampagne = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-CHAMP')->firstOrFail();

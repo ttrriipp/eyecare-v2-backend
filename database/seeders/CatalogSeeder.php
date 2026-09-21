@@ -24,11 +24,10 @@ use RuntimeException;
 /**
  * Seeds the clinic's current physical catalog.
  *
- * Prices and stock quantities are provisional local-development values where
- * the workbook did not provide verified figures. Opening frame receipt
- * movements and batches mirror the provisional quantities for the initial
- * inventory view; expiry-tracked lots remain empty until receiving data is
- * available.
+ * Prices, stock quantities, and opening lots are provisional local-development
+ * values where the workbook did not provide verified figures. Opening receipt
+ * movements and batches mirror those provisional quantities for the initial
+ * inventory view.
  */
 class CatalogSeeder extends Seeder
 {
@@ -513,9 +512,15 @@ class CatalogSeeder extends Seeder
                             'package_size' => '90 mL',
                             'material' => 'Multi-purpose contact lens solution',
                         ],
-                        'stock_quantity' => 0,
+                        'stock_quantity' => 9,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 18,
+                        'opening_stock' => [
+                            'quantity' => 9,
+                            'lot_number' => 'ACC-NEWLOOK-MPS-202609',
+                            'expires_on' => '2027-09-30',
+                            'purchased_at' => '2026-09-01',
+                        ],
                     ],
                 ],
             ],
@@ -541,9 +546,15 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 0,
+                        'stock_quantity' => 8,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
+                        'opening_stock' => [
+                            'quantity' => 8,
+                            'lot_number' => 'ACC-SYSTANE-COMPLETE-202609',
+                            'expires_on' => '2027-07-31',
+                            'purchased_at' => '2026-09-01',
+                        ],
                     ],
                 ],
             ],
@@ -569,9 +580,15 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 0,
+                        'stock_quantity' => 7,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
+                        'opening_stock' => [
+                            'quantity' => 7,
+                            'lot_number' => 'ACC-SYSTANE-HYDRATION-202609',
+                            'expires_on' => '2027-07-31',
+                            'purchased_at' => '2026-09-01',
+                        ],
                     ],
                 ],
             ],
@@ -597,9 +614,15 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 0,
+                        'stock_quantity' => 6,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
+                        'opening_stock' => [
+                            'quantity' => 6,
+                            'lot_number' => 'ACC-SYSTANE-ULTRA-202609',
+                            'expires_on' => '2027-06-30',
+                            'purchased_at' => '2026-09-01',
+                        ],
                     ],
                 ],
             ],
@@ -625,9 +648,15 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 0,
+                        'stock_quantity' => 5,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
+                        'opening_stock' => [
+                            'quantity' => 5,
+                            'lot_number' => 'ACC-LACRYL-HYDRATE-202609',
+                            'expires_on' => '2027-06-30',
+                            'purchased_at' => '2026-09-01',
+                        ],
                     ],
                 ],
             ],
@@ -636,7 +665,7 @@ class CatalogSeeder extends Seeder
                 'category' => 'Colored Contact Lens',
                 'name' => 'AIR OPTIX COLORS',
                 'slug' => 'air-optix-colors',
-                'description' => 'Monthly replacement colored silicone-hydrogel contact lens with 3-in-1 Color Technology; daily wear only and removed for cleaning/disinfection between uses. Actual power, lot, expiry, and received quantity are not yet verified.',
+                'description' => 'Monthly replacement colored silicone-hydrogel contact lens with 3-in-1 Color Technology; daily wear only and removed for cleaning/disinfection between uses. Actual power values are not yet verified; seeded inventory values are provisional demo data.',
                 'product_type' => 'contact_lens',
                 'default_variant_attributes' => [
                     'base_curve' => '8.6',
@@ -654,9 +683,15 @@ class CatalogSeeder extends Seeder
                             'color' => $color,
                             'pack_size' => 2,
                         ],
-                        'stock_quantity' => 0,
-                        'low_stock_threshold' => 0,
-                        'target_stock_level' => null,
+                        'stock_quantity' => 6,
+                        'low_stock_threshold' => 2,
+                        'target_stock_level' => 12,
+                        'opening_stock' => [
+                            'quantity' => 6,
+                            'lot_number' => 'CL-ALCON-AOC2-'.strtoupper(str_replace(' ', '-', $color)).'-202609',
+                            'expires_on' => '2027-09-30',
+                            'purchased_at' => '2026-09-01',
+                        ],
                     ],
                     [
                         'Brown',
@@ -683,15 +718,13 @@ class CatalogSeeder extends Seeder
      * @param  array{brand: string, category: string, name: string, slug: string, description: string, product_type: string, variants: array<int, array<string, mixed>>}  $productData
      * @param  array<string, Brand>  $brands
      * @param  array<string, ProductCategory>  $categories
-     * @param  int|null  $openingStockReceiverId
      */
     private function upsertClinicProduct(
         array $productData,
         array $brands,
         array $categories,
         ?int $openingStockReceiverId,
-    ): void
-    {
+    ): void {
         $productImages = $this->copySeededImages('products', $productData['slug']);
 
         $product = Product::query()->updateOrCreate(
@@ -754,10 +787,7 @@ class CatalogSeeder extends Seeder
             }
 
             if (is_array($openingStock) && isset($openingStock['quantity'], $openingStock['purchased_at'])) {
-                $this->seedOpeningStockMovement($variant, [
-                    'quantity' => (int) $openingStock['quantity'],
-                    'purchased_at' => (string) $openingStock['purchased_at'],
-                ], $openingStockReceiverId);
+                $this->seedOpeningStockMovement($variant, $openingStock, $openingStockReceiverId);
             }
         }
 
@@ -767,14 +797,13 @@ class CatalogSeeder extends Seeder
     }
 
     /**
-     * @param  array{quantity: int, purchased_at: string}  $openingStock
+     * @param  array{quantity: int, purchased_at: string, lot_number?: string, expires_on?: string|null}  $openingStock
      */
     private function seedOpeningStockMovement(
         ProductVariant $variant,
         array $openingStock,
         ?int $receivedByUserId,
-    ): void
-    {
+    ): void {
         $restockType = InventoryMovementType::query()->firstOrCreate(['name' => 'restock']);
         $openingBatch = $this->seedOpeningStockBatch($variant, $openingStock, $receivedByUserId);
 
@@ -796,7 +825,7 @@ class CatalogSeeder extends Seeder
     }
 
     /**
-     * @param  array{quantity: int, purchased_at: string}  $openingStock
+     * @param  array{quantity: int, purchased_at: string, lot_number?: string, expires_on?: string|null}  $openingStock
      */
     private function seedOpeningStockBatch(
         ProductVariant $variant,
@@ -807,7 +836,8 @@ class CatalogSeeder extends Seeder
             return null;
         }
 
-        $batchNumber = $this->openingStockBatchNumber($variant, $openingStock['purchased_at']);
+        $batchNumber = $openingStock['lot_number']
+            ?? $this->openingStockBatchNumber($variant, $openingStock['purchased_at']);
         $canonicalBatchExists = InventoryLot::query()
             ->where('product_variant_id', $variant->id)
             ->where('lot_number', $batchNumber)
@@ -826,7 +856,7 @@ class CatalogSeeder extends Seeder
                 'lot_number' => $batchNumber,
             ],
             [
-                'expires_on' => null,
+                'expires_on' => $openingStock['expires_on'] ?? null,
                 'received_quantity' => $openingStock['quantity'],
                 'quantity_on_hand' => $openingStock['quantity'],
                 'received_at' => CarbonImmutable::parse($openingStock['purchased_at'])->startOfDay(),

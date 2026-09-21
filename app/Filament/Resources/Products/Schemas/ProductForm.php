@@ -193,8 +193,7 @@ class ProductForm
                         Section::make('Status')->schema([
                             Toggle::make('is_active')
                                 ->label('Active')
-                                ->helperText('Active products must have at least one active variant.')
-                                ->default(false),
+                                ->default(true),
                         ]),
 
                         Section::make('Associations')->schema([
@@ -222,6 +221,9 @@ class ProductForm
                         ->label('Default Details')
                         ->helperText('Key/value pairs that will prefill new variants. Examples: base_curve, diameter, pack_size, color, material.')
                         ->dehydratedWhenHidden()
+                        ->extraAlpineAttributes([
+                            'x-init' => '$nextTick(() => { if (Object.keys(state || {}).length === 0) rows = [] })',
+                        ])
                         ->columnSpanFull(),
                 ])
                 ->visible(fn (Get $get): bool => in_array($get('product_type'), ['contact_lens', 'accessory'])),
@@ -267,6 +269,9 @@ class ProductForm
                         ->label('Other Details')
                         ->helperText('Additional key/value pairs for frame variants.')
                         ->dehydratedWhenHidden()
+                        ->extraAlpineAttributes([
+                            'x-init' => '$nextTick(() => { if (Object.keys(state || {}).length === 0) rows = [] })',
+                        ])
                         ->addActionLabel('Add detail')
                         ->columnSpanFull(),
                 ])
