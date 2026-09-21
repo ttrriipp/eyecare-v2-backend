@@ -7,7 +7,6 @@ use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Filament\Resources\Products\Schemas\VariantForm;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -85,43 +84,8 @@ class CreateProduct extends CreateRecord
                             ->columnSpanFull(),
                     ]),
             ])
-                ->columnSpanFull()
-                ->persistStepInQueryString('wizard-step'),
+                ->columnSpanFull(),
         ]);
-    }
-
-    protected function getCreateFormAction(): Action
-    {
-        $action = parent::getCreateFormAction();
-
-        $action->hidden(fn (): bool => $this->isOnFirstStep());
-
-        return $action;
-    }
-
-    protected function getCreateAnotherFormAction(): Action
-    {
-        $action = parent::getCreateAnotherFormAction();
-
-        $action->hidden(fn (): bool => $this->isOnFirstStep());
-
-        return $action;
-    }
-
-    protected function getCancelFormAction(): Action
-    {
-        $action = parent::getCancelFormAction();
-
-        $action->hidden(fn (): bool => $this->isOnFirstStep());
-
-        return $action;
-    }
-
-    private function isOnFirstStep(): bool
-    {
-        $currentStep = (int) request()->query('wizard-step', 1);
-
-        return $currentStep < 2;
     }
 
     /**
