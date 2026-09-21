@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Prescriptions\Pages;
 
-use App\Actions\Prescriptions\CancelPrescription;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
@@ -10,15 +9,12 @@ use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Prescription;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Textarea;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
-use Illuminate\Validation\ValidationException;
 
 class ViewPrescription extends ViewRecord
 {
@@ -217,37 +213,6 @@ class ViewPrescription extends ViewRecord
                 ->url(fn () => route('pdf.prescription', $this->getRecord()))
                 ->openUrlInNewTab(),
 
-            Action::make('cancelPrescription')
-                ->label('Cancel Prescription')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->visible(fn (): bool => ! $this->getRecord()->isCancelled()
-                    && auth()->user()?->isOptometrist() === true)
-                ->requiresConfirmation()
-                ->modalHeading('Cancel Prescription')
-                ->modalDescription('This will mark the prescription as cancelled. This action cannot be undone.')
-                ->modalSubmitActionLabel('Cancel Prescription')
-                ->schema([
-                    Textarea::make('reason')
-                        ->label('Reason for Cancellation')
-                        ->required()
-                        ->maxLength(1000)
-                        ->rows(3),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(CancelPrescription::class)->handle(
-                            prescription: $this->getRecord(),
-                            actor: auth()->user(),
-                            reason: $data['reason'],
-                        );
-
-                        Notification::make()->title('Prescription cancelled')->success()->send();
-                        $this->refreshFormData([]);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot cancel prescription')->body($e->getMessage())->danger()->send();
-                    }
-                }),
         ];
     }
 }

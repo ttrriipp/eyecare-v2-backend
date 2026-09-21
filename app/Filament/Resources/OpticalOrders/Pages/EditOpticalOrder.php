@@ -25,6 +25,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 
@@ -170,17 +171,35 @@ class EditOpticalOrder extends EditRecord
                 ->color('danger')
                 ->visible(fn (): bool => in_array($this->record->status, [JobOrderStatus::Queued, JobOrderStatus::InProgress], true))
                 ->schema([
-                    Textarea::make('cancellation_reason')
-                        ->label('Reason')
-                        ->nullable(),
+                    Select::make('reason_category')
+                        ->label('Cancellation Reason')
+                        ->options([
+                            'patient_request' => 'Patient request',
+                            'product_unavailable' => 'Product unavailable',
+                            'schedule_conflict' => 'Schedule conflict',
+                            'duplicate' => 'Duplicate order',
+                            'payment_issue' => 'Payment issue',
+                            'other' => 'Other',
+                        ])
+                        ->required()
+                        ->live(),
+                    Textarea::make('cancellation_details')
+                        ->label('Details')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->requiresConfirmation()
                 ->modalDescription('This will cancel the order and reverse any committed inventory.')
                 ->action(function (array $data): void {
                     try {
+                        $reason = ($data['reason_category'] ?? null) === 'other'
+                            ? ($data['cancellation_details'] ?? null)
+                            : Str::headline($data['reason_category'] ?? '');
+
                         app(CancelOpticalOrder::class)->handle(
                             $this->record,
-                            $data['cancellation_reason'] ?? null,
+                            $reason,
                             auth()->user(),
                         );
 
@@ -208,7 +227,7 @@ class EditOpticalOrder extends EditRecord
             Action::make('recordPayment')
                 ->label('Record Payment')
                 ->icon('heroicon-o-banknotes')
-                ->color('success')
+                ->color('info')
                 ->visible(fn (): bool => ($billingRecord = $this->activeBillingRecord()) !== null
                     && Gate::allows('recordPayment', $billingRecord)
                     && in_array($billingRecord->status, [

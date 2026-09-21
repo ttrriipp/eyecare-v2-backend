@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PatientAccounts\Schemas;
 
+use App\Filament\Resources\Patients\PatientResource;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -76,6 +77,9 @@ class PatientAccountForm
                         Placeholder::make('linked_patient')
                             ->label('Linked Patient')
                             ->content(fn ($record) => $record?->patient?->full_name ?? '—')
+                            ->url(fn ($record): ?string => $record?->patient === null
+                                ? null
+                                : PatientResource::getUrl('edit', ['record' => $record->patient]))
                             ->weight('bold'),
 
                         Placeholder::make('patient_number')

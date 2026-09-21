@@ -14,6 +14,7 @@ use App\Models\AppointmentType;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
+use App\Models\FrameRating;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -266,11 +267,19 @@ test('appointment statuses are seeded canonically without pruning the transition
 test('canonical seed data creates complete clinic workflow', function () {
     $this->seed(DatabaseSeeder::class);
 
+    $processingOrder = JobOrder::query()
+        ->with('billingRecord')
+        ->where('job_order_number', 'ORD-2026-000003')
+        ->firstOrFail();
+
     expect(Encounter::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(Prescription::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(JobOrder::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(BillingRecord::query()->count())->toBeGreaterThanOrEqual(1)
-        ->and(BillingPayment::query()->count())->toBeGreaterThanOrEqual(1);
+        ->and(BillingPayment::query()->count())->toBeGreaterThanOrEqual(1)
+        ->and($processingOrder->billingRecord)->not->toBeNull()
+        ->and($processingOrder->billingRecord?->status)->toBe(BillingRecordStatus::Unpaid)
+        ->and((float) $processingOrder->billingRecord?->total_amount)->toBe(4200.0);
 });
 
 test('canonical seed data creates one multi-item accessory request and visit feedback', function () {
@@ -284,6 +293,10 @@ test('canonical seed data creates one multi-item accessory request and visit fee
     $feedback = VisitRating::query()
         ->whereHas('appointment', fn ($query) => $query->where('appointment_number', 'APT-2026-000002'))
         ->firstOrFail();
+    $productRating = FrameRating::query()
+        ->where('patient_id', $patient->id)
+        ->whereHas('variant', fn ($query) => $query->where('sku', 'FRM-SOFIA-2860-GRY'))
+        ->firstOrFail();
 
     expect($request->user_id)->toBe($patient->user_id)
         ->and($request->patient_id)->toBe($patient->id)
@@ -293,7 +306,9 @@ test('canonical seed data creates one multi-item accessory request and visit fee
         ->and((float) $request->subtotal_amount)->toBe(1300.0)
         ->and($feedback->patient_id)->toBe($patient->id)
         ->and($feedback->rating)->toBe(5)
-        ->and($feedback->comment)->toBe('Friendly and thorough consultation. The prescription explanation was clear.');
+        ->and($feedback->comment)->toBe('Friendly and thorough consultation. The prescription explanation was clear.')
+        ->and($productRating->rating)->toBe(5)
+        ->and($productRating->comment)->toBe('Comfortable fit and a clear, lightweight frame.');
 });
 
 test('seed data has no legacy model references', function () {

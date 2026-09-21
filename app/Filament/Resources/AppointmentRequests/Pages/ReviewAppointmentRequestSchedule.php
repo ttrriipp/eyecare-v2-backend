@@ -106,6 +106,14 @@ class ReviewAppointmentRequestSchedule extends Page
                 ->label('Accept & Schedule')
                 ->icon('heroicon-o-check')
                 ->color('success')
+                ->requiresConfirmation()
+                ->modalHeading(fn (): string => $this->isRebooking()
+                    ? 'Reschedule this appointment?'
+                    : 'Accept and schedule this request?')
+                ->modalDescription(fn (): string => $this->isRebooking()
+                    ? 'This will move the existing appointment to the selected time.'
+                    : 'This will create a scheduled appointment at the selected time.')
+                ->modalSubmitActionLabel('Confirm')
                 ->visible(fn (): bool => $this->selectedSlotStatus()['state'] === 'available')
                 ->action(function (): void {
                     $this->accept();

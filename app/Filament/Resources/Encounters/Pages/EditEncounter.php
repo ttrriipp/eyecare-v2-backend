@@ -101,7 +101,7 @@ class EditEncounter extends EditRecord
     public function getBreadcrumbs(): array
     {
         return [
-            '/admin/encounters' => 'Consultations',
+            '/admin/consultations' => 'Consultations',
             $this->record->encounter_number,
             'Edit',
         ];

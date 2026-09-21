@@ -322,228 +322,251 @@ class EncounterForm
                 ->submitAction(view('filament.encounters.complete-visit-button'))
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
-            Section::make('Consultation Details')
+            Grid::make(['default' => 1, 'lg' => 3])
                 ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
                 ->schema([
-                    Placeholder::make('encounter_number')
-                        ->label('Consultation #')
-                        ->content(fn (Encounter $record): string => $record->encounter_number),
-                    Placeholder::make('status')
-                        ->label('Status')
-                        ->content(fn (Encounter $record): string => Str::headline($record->status->value))
-                        ->badge()
-                        ->color(fn (Encounter $record): string => match ($record->status) {
-                            EncounterStatus::Planned => 'gray',
-                            EncounterStatus::InProgress => 'warning',
-                            EncounterStatus::Completed => 'success',
-                            EncounterStatus::Cancelled => 'danger',
-                        }),
-                    Placeholder::make('appointment_type')
-                        ->label('Appointment Type')
-                        ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
-                    Placeholder::make('visit_reason')
-                        ->label('Visit Reason')
-                        ->content(fn (Encounter $record): string => $record->appointment?->reason_for_visit ?? '—')
-                        ->hidden(fn (Encounter $record): bool => $record->status !== EncounterStatus::Planned)
-                        ->columnSpanFull(),
-                    Placeholder::make('optometrist')
-                        ->label('Optometrist')
-                        ->content(fn (Encounter $record): string => $record->optometrist?->full_name ?? 'Not assigned'),
-                    Placeholder::make('started_at')
-                        ->label('Started')
-                        ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—')
-                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
-                    Placeholder::make('completed_at')
-                        ->label('Completed')
-                        ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—')
-                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
-                ])
-                ->columns(3),
-
-            Section::make('Patient')
-                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
-                ->schema([
-                    Placeholder::make('patient_name')
-                        ->label('Name')
-                        ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—')
-                        ->weight('bold'),
-                    Placeholder::make('patient_dob')
-                        ->label('Date of Birth')
-                        ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
-                    Placeholder::make('patient_gender')
-                        ->label('Gender')
-                        ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
-                    Placeholder::make('patient_phone')
-                        ->label('Phone')
-                        ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
-                    Placeholder::make('patient_email')
-                        ->label('Email')
-                        ->content(fn (Encounter $record): string => $record->patient?->contact_email ?? '—'),
-                    Placeholder::make('patient_address')
-                        ->label('Address')
-                        ->content(fn (Encounter $record): string => $record->patient?->address ?? '—')
-                        ->columnSpanFull(),
-                ])
-                ->columns(3),
-
-            Section::make('Consultation')
-                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
-                ->schema([
-                    Placeholder::make('view_chief_complaint')
-                        ->label('Chief Complaint')
-                        ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—')
-                        ->columnSpanFull(),
-                    Placeholder::make('view_past_ocular_history')
-                        ->label('Past Ocular History')
-                        ->content(fn (Encounter $record): string => $record->past_ocular_history ?? '—'),
-                    Placeholder::make('view_past_surgical_history')
-                        ->label('Past Surgical History')
-                        ->content(fn (Encounter $record): string => $record->past_surgical_history ?? '—'),
-                    Placeholder::make('view_past_medical_history')
-                        ->label('Past Medical History')
-                        ->content(fn (Encounter $record): string => $record->past_medical_history ?? '—'),
-                    Placeholder::make('view_allergies')
-                        ->label('Allergies')
-                        ->content(fn (Encounter $record): string => $record->allergies ?? '—'),
-                    Placeholder::make('view_medications')
-                        ->label('Current Medications')
-                        ->content(fn (Encounter $record): string => $record->medications ?? '—'),
-                ])
-                ->columns(2),
-
-            Section::make('Findings')
-                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
-                ->schema([
-                    Placeholder::make('view_findings')
-                        ->label('Findings')
-                        ->content(fn (Encounter $record): string => $record->findings ?? '—')
-                        ->columnSpanFull(),
-                ]),
-
-            Section::make('Addenda')
-                ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Completed && $record->addenda()->exists())
-                ->schema([
-                    Placeholder::make('addenda_list')
-                        ->label('')
-                        ->hiddenLabel()
-                        ->columnSpanFull()
-                        ->content(function (Encounter $record): HtmlString {
-                            $addenda = $record->addenda()->with('author')->get();
-
-                            if ($addenda->isEmpty()) {
-                                return new HtmlString('<p class="text-sm text-gray-500 dark:text-gray-400">No addenda.</p>');
-                            }
-
-                            $html = '<div class="space-y-3">';
-
-                            foreach ($addenda as $addendum) {
-                                $isCorrection = $addendum->type === EncounterAddendumType::Correction;
-                                $typeLabel = $isCorrection ? 'Correction' : 'Supplement';
-                                $badgeClass = $isCorrection
-                                    ? 'bg-danger-50 text-danger-700 dark:bg-danger-500/15 dark:text-danger-400'
-                                    : 'bg-info-50 text-info-700 dark:bg-info-500/15 dark:text-info-400';
-                                $borderClass = $isCorrection
-                                    ? 'border-l-danger-500'
-                                    : 'border-l-info-500';
-
-                                $author = e($addendum->author?->full_name ?? '—');
-                                $date = $addendum->authored_at?->format('M j, Y g:i A') ?? '—';
-                                $reason = e($addendum->reason ?? '');
-                                $content = e($addendum->content ?? '');
-
-                                $html .= '<div class="rounded-lg border border-gray-200 dark:border-white/10 border-l-4 '.$borderClass.' bg-white dark:bg-gray-900 p-4">';
-                                $html .= '<div class="flex items-center gap-2 mb-2">';
-                                $html .= '<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium '.$badgeClass.'">'.$typeLabel.' #'.$addendum->sequence_number.'</span>';
-                                $html .= '<span class="text-xs text-gray-500 dark:text-gray-400">by '.$author.' · '.$date.'</span>';
-                                $html .= '</div>';
-
-                                if ($reason !== '') {
-                                    $html .= '<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">'.$reason.'</p>';
-                                }
-
-                                $html .= '<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">'.$content.'</p>';
-                                $html .= '</div>';
-                            }
-
-                            $html .= '</div>';
-
-                            return new HtmlString($html);
-                        }),
-                ]),
-
-            // ── Related Records ──────────────────────────────────────────
-            Section::make('Related Records')
-                ->schema([
-                    Grid::make(4)
+                    Section::make('Consultation Details')
+                        ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
                         ->schema([
-                            Placeholder::make('link_appointment')
-                                ->label('Appointment')
-                                ->content(fn (Encounter $record): string => $record->appointment?->appointment_number ?? '—')
-                                ->url(fn (Encounter $record): ?string => $record->appointment
-                                    ? AppointmentResource::getUrl('edit', ['record' => $record->appointment])
-                                    : null),
-                            Placeholder::make('link_prescription')
-                                ->label('Prescription')
-                                ->content(function (Encounter $record): string {
-                                    $rx = $record->prescriptions()->latest('id')->first();
-
-                                    return $rx?->prescription_number ?? '—';
-                                })
-                                ->url(function (Encounter $record): ?string {
-                                    $rx = $record->prescriptions()->latest('id')->first();
-
-                                    return $rx
-                                        ? PrescriptionResource::getUrl('view', ['record' => $rx])
-                                        : null;
-                                })
+                            Placeholder::make('encounter_number')
+                                ->label('Consultation #')
+                                ->content(fn (Encounter $record): string => $record->encounter_number),
+                            Placeholder::make('status')
+                                ->label('Status')
+                                ->content(fn (Encounter $record): string => Str::headline($record->status->value))
+                                ->badge()
+                                ->color(fn (Encounter $record): string => match ($record->status) {
+                                    EncounterStatus::Planned => 'gray',
+                                    EncounterStatus::InProgress => 'warning',
+                                    EncounterStatus::Completed => 'success',
+                                    EncounterStatus::Cancelled => 'danger',
+                                }),
+                            Placeholder::make('appointment_type')
+                                ->label('Appointment Type')
+                                ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                            Placeholder::make('visit_reason')
+                                ->label('Visit Reason')
+                                ->content(fn (Encounter $record): string => $record->appointment?->reason_for_visit ?? '—')
+                                ->hidden(fn (Encounter $record): bool => $record->status !== EncounterStatus::Planned)
+                                ->columnSpanFull(),
+                            Placeholder::make('optometrist')
+                                ->label('Optometrist')
+                                ->content(fn (Encounter $record): string => $record->optometrist?->full_name ?? 'Not assigned'),
+                            Placeholder::make('started_at')
+                                ->label('Started')
+                                ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—')
                                 ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
-                            Placeholder::make('link_optical_order')
-                                ->label('Optical Order')
-                                ->content(function (Encounter $record): string {
-                                    $order = JobOrder::query()
-                                        ->where('encounter_id', $record->id)
-                                        ->latest('id')
-                                        ->first();
-
-                                    return $order?->job_order_number ?? '—';
-                                })
-                                ->url(function (Encounter $record): ?string {
-                                    $order = JobOrder::query()
-                                        ->where('encounter_id', $record->id)
-                                        ->latest('id')
-                                        ->first();
-
-                                    return $order
-                                        ? OpticalOrderResource::getUrl('edit', ['record' => $order])
-                                        : null;
-                                })
+                            Placeholder::make('completed_at')
+                                ->label('Completed')
+                                ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—')
                                 ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
-                            Placeholder::make('link_billing')
-                                ->label('Billing Record')
-                                ->content(function (Encounter $record): string {
-                                    $billing = BillingRecord::query()
-                                        ->where('encounter_id', $record->id)
-                                        ->whereNull('deleted_at')
-                                        ->latest('id')
-                                        ->first();
+                        ])
+                        ->columns(3)
+                        ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
+                            ? ['default' => 1, 'lg' => 2]
+                            : ['default' => 1, 'lg' => 'full']),
 
-                                    return $billing?->billing_record_number ?? '—';
-                                })
-                                ->url(function (Encounter $record): ?string {
-                                    $billing = BillingRecord::query()
-                                        ->where('encounter_id', $record->id)
-                                        ->whereNull('deleted_at')
-                                        ->latest('id')
-                                        ->first();
+                    Section::make('Patient')
+                        ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                        ->schema([
+                            Placeholder::make('patient_name')
+                                ->label('Name')
+                                ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—')
+                                ->weight('bold'),
+                            Placeholder::make('patient_dob')
+                                ->label('Date of Birth')
+                                ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
+                            Placeholder::make('patient_gender')
+                                ->label('Gender')
+                                ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                            Placeholder::make('patient_phone')
+                                ->label('Phone')
+                                ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
+                            Placeholder::make('patient_email')
+                                ->label('Email')
+                                ->content(fn (Encounter $record): string => $record->patient?->contact_email ?? '—'),
+                            Placeholder::make('patient_address')
+                                ->label('Address')
+                                ->content(fn (Encounter $record): string => $record->patient?->address ?? '—')
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(['default' => 1, 'md' => 2])
+                        ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
+                            ? ['default' => 1, 'lg' => 1]
+                            : ['default' => 1, 'lg' => 'full']),
 
-                                    return $billing
-                                        ? BillingRecordResource::getUrl('edit', ['record' => $billing])
-                                        : null;
-                                })
-                                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
-                        ]),
-                ])
-                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress),
+                    Section::make('Consultation')
+                        ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
+                        ->schema([
+                            Placeholder::make('view_chief_complaint')
+                                ->label('Chief Complaint')
+                                ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—')
+                                ->columnSpanFull(),
+                            Placeholder::make('view_past_ocular_history')
+                                ->label('Past Ocular History')
+                                ->content(fn (Encounter $record): string => $record->past_ocular_history ?? '—'),
+                            Placeholder::make('view_past_surgical_history')
+                                ->label('Past Surgical History')
+                                ->content(fn (Encounter $record): string => $record->past_surgical_history ?? '—'),
+                            Placeholder::make('view_past_medical_history')
+                                ->label('Past Medical History')
+                                ->content(fn (Encounter $record): string => $record->past_medical_history ?? '—'),
+                            Placeholder::make('view_allergies')
+                                ->label('Allergies')
+                                ->content(fn (Encounter $record): string => $record->allergies ?? '—'),
+                            Placeholder::make('view_medications')
+                                ->label('Current Medications')
+                                ->content(fn (Encounter $record): string => $record->medications ?? '—'),
+                        ])
+                        ->columns(2)
+                        ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
+                            ? ['default' => 1, 'lg' => 2]
+                            : ['default' => 1, 'lg' => 'full']),
+
+                    Section::make('Findings')
+                        ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
+                        ->schema([
+                            Placeholder::make('view_findings')
+                                ->label('Findings')
+                                ->content(fn (Encounter $record): string => $record->findings ?? '—')
+                                ->columnSpanFull(),
+                        ])
+                        ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
+                            ? ['default' => 1, 'lg' => 2]
+                            : ['default' => 1, 'lg' => 'full']),
+
+                    Section::make('Addenda')
+                        ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Completed && $record->addenda()->exists())
+                        ->schema([
+                            Placeholder::make('addenda_list')
+                                ->label('')
+                                ->hiddenLabel()
+                                ->columnSpanFull()
+                                ->content(function (Encounter $record): HtmlString {
+                                    $addenda = $record->addenda()->with('author')->get();
+
+                                    if ($addenda->isEmpty()) {
+                                        return new HtmlString('<p class="text-sm text-gray-500 dark:text-gray-400">No addenda.</p>');
+                                    }
+
+                                    $html = '<div class="space-y-3">';
+
+                                    foreach ($addenda as $addendum) {
+                                        $isCorrection = $addendum->type === EncounterAddendumType::Correction;
+                                        $typeLabel = $isCorrection ? 'Correction' : 'Supplement';
+                                        $badgeClass = $isCorrection
+                                            ? 'bg-danger-50 text-danger-700 dark:bg-danger-500/15 dark:text-danger-400'
+                                            : 'bg-info-50 text-info-700 dark:bg-info-500/15 dark:text-info-400';
+                                        $borderClass = $isCorrection
+                                            ? 'border-l-danger-500'
+                                            : 'border-l-info-500';
+
+                                        $author = e($addendum->author?->full_name ?? '—');
+                                        $date = $addendum->authored_at?->format('M j, Y g:i A') ?? '—';
+                                        $reason = e($addendum->reason ?? '');
+                                        $content = e($addendum->content ?? '');
+
+                                        $html .= '<div class="rounded-lg border border-gray-200 dark:border-white/10 border-l-4 '.$borderClass.' bg-white dark:bg-gray-900 p-4">';
+                                        $html .= '<div class="flex items-center gap-2 mb-2">';
+                                        $html .= '<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium '.$badgeClass.'">'.$typeLabel.' #'.$addendum->sequence_number.'</span>';
+                                        $html .= '<span class="text-xs text-gray-500 dark:text-gray-400">by '.$author.' · '.$date.'</span>';
+                                        $html .= '</div>';
+
+                                        if ($reason !== '') {
+                                            $html .= '<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">'.$reason.'</p>';
+                                        }
+
+                                        $html .= '<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">'.$content.'</p>';
+                                        $html .= '</div>';
+                                    }
+
+                                    $html .= '</div>';
+
+                                    return new HtmlString($html);
+                                }),
+                        ])
+                        ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
+                            ? ['default' => 1, 'lg' => 2]
+                            : ['default' => 1, 'lg' => 'full']),
+
+                    // ── Related Records ──────────────────────────────────────────
+                    Section::make('Related Records')
+                        ->schema([
+                            Grid::make(['default' => 1, 'md' => 2])
+                                ->schema([
+                                    Placeholder::make('link_appointment')
+                                        ->label('Appointment')
+                                        ->content(fn (Encounter $record): string => $record->appointment?->appointment_number ?? '—')
+                                        ->url(fn (Encounter $record): ?string => $record->appointment
+                                            ? AppointmentResource::getUrl('edit', ['record' => $record->appointment])
+                                            : null),
+                                    Placeholder::make('link_prescription')
+                                        ->label('Prescription')
+                                        ->content(function (Encounter $record): string {
+                                            $rx = $record->prescriptions()->latest('id')->first();
+
+                                            return $rx?->prescription_number ?? '—';
+                                        })
+                                        ->url(function (Encounter $record): ?string {
+                                            $rx = $record->prescriptions()->latest('id')->first();
+
+                                            return $rx
+                                                ? PrescriptionResource::getUrl('view', ['record' => $rx])
+                                                : null;
+                                        })
+                                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
+                                    Placeholder::make('link_optical_order')
+                                        ->label('Optical Order')
+                                        ->content(function (Encounter $record): string {
+                                            $order = JobOrder::query()
+                                                ->where('encounter_id', $record->id)
+                                                ->latest('id')
+                                                ->first();
+
+                                            return $order?->job_order_number ?? '—';
+                                        })
+                                        ->url(function (Encounter $record): ?string {
+                                            $order = JobOrder::query()
+                                                ->where('encounter_id', $record->id)
+                                                ->latest('id')
+                                                ->first();
+
+                                            return $order
+                                                ? OpticalOrderResource::getUrl('edit', ['record' => $order])
+                                                : null;
+                                        })
+                                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
+                                    Placeholder::make('link_billing')
+                                        ->label('Billing Record')
+                                        ->content(function (Encounter $record): string {
+                                            $billing = BillingRecord::query()
+                                                ->where('encounter_id', $record->id)
+                                                ->whereNull('deleted_at')
+                                                ->latest('id')
+                                                ->first();
+
+                                            return $billing?->billing_record_number ?? '—';
+                                        })
+                                        ->url(function (Encounter $record): ?string {
+                                            $billing = BillingRecord::query()
+                                                ->where('encounter_id', $record->id)
+                                                ->whereNull('deleted_at')
+                                                ->latest('id')
+                                                ->first();
+
+                                            return $billing
+                                                ? BillingRecordResource::getUrl('edit', ['record' => $billing])
+                                                : null;
+                                        })
+                                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
+                                ]),
+                        ])
+                        ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                        ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
+                            ? ['default' => 1, 'lg' => 1]
+                            : ['default' => 1, 'lg' => 'full'])
+                        ->columnStart(fn (Encounter $record): ?int => $record->status === EncounterStatus::Planned ? 3 : null),
+                ]),
 
         ]);
     }

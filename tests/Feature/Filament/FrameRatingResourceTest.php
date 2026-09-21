@@ -32,8 +32,10 @@ test('staff can see the original unsanitized frame feedback', function () {
         ->assertDontSee('This is ****.');
 });
 
-test('frame rating resource is registered', function () {
-    expect(FrameRatingResource::getModel())->toBe(FrameRating::class);
+test('product rating resource is registered in admin navigation', function () {
+    expect(FrameRatingResource::getModel())->toBe(FrameRating::class)
+        ->and(FrameRatingResource::shouldRegisterNavigation())->toBeTrue()
+        ->and(FrameRatingResource::getNavigationLabel())->toBe('Product Ratings');
 });
 
 test('staff can open a frame rating from an actionable notification link', function () {

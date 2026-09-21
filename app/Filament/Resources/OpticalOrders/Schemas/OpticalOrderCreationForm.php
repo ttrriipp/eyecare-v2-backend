@@ -180,8 +180,6 @@ final class OpticalOrderCreationForm
                     ->itemLabel(fn (array $state): string => filled($state['description'] ?? null)
                         ? Str::limit($state['description'], 60)
                         : 'New item')
-                    ->collapsible()
-                    ->collapsed(false)
                     ->schema([
                         Grid::make(['default' => 1, 'md' => 2])
                             ->columnSpanFull()

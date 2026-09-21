@@ -5,7 +5,6 @@ namespace App\Filament\Resources\AppointmentRequests\Schemas;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
-use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Support\PatientCandidateMatchCard;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Grid;
@@ -29,22 +28,32 @@ class AppointmentRequestForm
             ->visible(fn ($record): bool => $record?->patient_id !== null)
             ->schema([
                 Placeholder::make('linked_patient_name')
-                    ->label('Linked Patient')
-                    ->content(function ($record): HtmlString {
-                        if ($record?->patient === null) {
-                            return new HtmlString('—');
-                        }
-
-                        $url = PatientResource::getUrl('edit', ['record' => $record->patient]);
-
-                        return new HtmlString(
-                            '<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'
-                            .e($record->patient->full_name)
-                            .'</a>'
-                        );
-                    })
+                    ->label('Name')
+                    ->content(fn ($record): string => $record?->patient?->full_name ?? '—')
                     ->weight('bold'),
-            ]);
+
+                Placeholder::make('linked_patient_dob')
+                    ->label('Date of Birth')
+                    ->content(fn ($record): string => $record?->patient?->date_of_birth?->format('M d, Y') ?? '—'),
+
+                Placeholder::make('linked_patient_gender')
+                    ->label('Gender')
+                    ->content(fn ($record): string => Str::headline($record?->patient?->gender ?? '—')),
+
+                Placeholder::make('linked_patient_phone')
+                    ->label('Phone')
+                    ->content(fn ($record): string => $record?->patient?->phone ?? '—'),
+
+                Placeholder::make('linked_patient_email')
+                    ->label('Email')
+                    ->content(fn ($record): string => $record?->patient?->contact_email ?? '—'),
+
+                Placeholder::make('linked_patient_address')
+                    ->label('Address')
+                    ->content(fn ($record): string => $record?->patient?->address ?? '—')
+                    ->columnSpanFull(),
+            ])
+            ->columns(['default' => 1, 'md' => 2]);
 
         $patientSnapshotInformation = Section::make('Patient Information')
             ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)

@@ -23,6 +23,7 @@ use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\Encounter;
 use App\Models\EncounterAddendum;
+use App\Models\FrameRating;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
@@ -56,6 +57,7 @@ class ScenarioCoverageSeeder extends Seeder
         $this->seedJobOrderStatuses();
         $this->seedBillingRecordStatuses();
         $this->seedAccessoryOrderRequest();
+        $this->seedProductRatings();
         $this->seedVisitFeedback();
     }
 
@@ -583,6 +585,25 @@ class ScenarioCoverageSeeder extends Seeder
         );
         $this->seedBillingRecordItems($queuedBilling, $queued);
 
+        $inProgress = JobOrder::query()->where('job_order_number', 'ORD-2026-000003')->firstOrFail();
+        $inProgressBilling = BillingRecord::query()->firstOrCreate(
+            ['billing_record_number' => 'BR-2026-000004'],
+            [
+                'patient_id' => $patient->id,
+                'job_order_id' => $inProgress->id,
+                'status' => BillingRecordStatus::Unpaid,
+                'subtotal_amount' => 4200,
+                'discount_amount' => 0,
+                'total_amount' => 4200,
+                'amount_paid' => 0,
+                'balance_due' => 4200,
+                'recorded_by' => $staff->id,
+                'recorded_at' => now()->subDay(),
+                'payment_due_date' => now()->addDays(14),
+            ],
+        );
+        $this->seedBillingRecordItems($inProgressBilling, $inProgress);
+
         $dispensed = JobOrder::query()->where('job_order_number', 'ORD-2026-000004')->firstOrFail();
         $paid = BillingRecord::query()->firstOrCreate(
             ['billing_record_number' => 'BR-2026-000003'],
@@ -724,6 +745,55 @@ class ScenarioCoverageSeeder extends Seeder
                 'rating' => 5,
                 'comment' => 'Friendly and thorough consultation. The prescription explanation was clear.',
                 'service_ids' => null,
+                'is_hidden' => false,
+                'moderation_reason' => null,
+                'moderated_by' => null,
+                'moderated_at' => null,
+            ],
+        );
+    }
+
+    private function seedProductRatings(): void
+    {
+        $this->upsertProductRating(
+            patient: $this->flagshipPatient(),
+            sku: 'FRM-SOFIA-2860-GRY',
+            rating: 5,
+            comment: 'Comfortable fit and a clear, lightweight frame.',
+        );
+
+        $this->upsertProductRating(
+            patient: $this->walkInPatient(),
+            sku: 'FRM-ANTHOS-MB1399A-C4',
+            rating: 4,
+            comment: 'The frame feels sturdy and fits well for everyday wear.',
+        );
+
+        $this->upsertProductRating(
+            patient: $this->flagshipPatient(),
+            sku: 'ACC-SYSTANE-COMPLETE-PF-10ML',
+            rating: 5,
+            comment: 'Convenient to use and soothing after long screen sessions.',
+        );
+    }
+
+    private function upsertProductRating(
+        Patient $patient,
+        string $sku,
+        int $rating,
+        string $comment,
+    ): void {
+        $variant = ProductVariant::query()->where('sku', $sku)->firstOrFail();
+
+        FrameRating::query()->updateOrCreate(
+            [
+                'patient_id' => $patient->id,
+                'product_variant_id' => $variant->id,
+            ],
+            [
+                'dispensing_event_id' => null,
+                'rating' => $rating,
+                'comment' => $comment,
                 'is_hidden' => false,
                 'moderation_reason' => null,
                 'moderated_by' => null,

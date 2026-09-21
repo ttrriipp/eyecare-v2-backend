@@ -11,11 +11,13 @@ use App\Models\JobOrder;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OpticalOrdersTable
@@ -136,15 +138,33 @@ class OpticalOrdersTable
                         ->modalHeading('Cancel Order')
                         ->modalDescription('This will cancel the order and reverse any committed inventory.')
                         ->schema([
-                            Textarea::make('cancellation_reason')
-                                ->label('Reason')
-                                ->nullable(),
+                            Select::make('reason_category')
+                                ->label('Cancellation Reason')
+                                ->options([
+                                    'patient_request' => 'Patient request',
+                                    'product_unavailable' => 'Product unavailable',
+                                    'schedule_conflict' => 'Schedule conflict',
+                                    'duplicate' => 'Duplicate order',
+                                    'payment_issue' => 'Payment issue',
+                                    'other' => 'Other',
+                                ])
+                                ->required()
+                                ->live(),
+                            Textarea::make('cancellation_details')
+                                ->label('Details')
+                                ->required(fn (callable $get): bool => $get('reason_category') === 'other')
+                                ->maxLength(1000)
+                                ->columnSpanFull(),
                         ])
                         ->action(function (JobOrder $record, array $data): void {
                             try {
+                                $reason = ($data['reason_category'] ?? null) === 'other'
+                                    ? ($data['cancellation_details'] ?? null)
+                                    : Str::headline($data['reason_category'] ?? '');
+
                                 app(CancelOpticalOrder::class)->handle(
                                     $record,
-                                    $data['cancellation_reason'] ?? null,
+                                    $reason,
                                     auth()->user(),
                                 );
                                 Notification::make()->title('Order cancelled')->success()->send();

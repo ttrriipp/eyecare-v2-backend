@@ -11,21 +11,20 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class FrameRatingResource extends Resource
 {
     protected static ?string $model = FrameRating::class;
 
-    protected static bool $shouldRegisterNavigation = false;
-
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedStar;
 
-    protected static ?string $navigationLabel = 'Frame Ratings';
+    protected static ?string $navigationLabel = 'Product Ratings';
 
     protected static ?string $modelLabel = 'Rating';
 
-    protected static ?string $pluralModelLabel = 'Ratings';
+    protected static ?string $pluralModelLabel = 'Product Ratings';
 
     protected static ?int $navigationSort = 40;
 
@@ -47,6 +46,14 @@ class FrameRatingResource extends Resource
     public static function table(Table $table): Table
     {
         return FrameRatingsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with([
+            'patient',
+            'variant.product',
+        ]);
     }
 
     public static function getRelations(): array

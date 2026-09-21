@@ -14,6 +14,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Illuminate\Auth\AuthenticationException;
@@ -209,6 +210,7 @@ class StockActions
             ->schema(fn (ProductVariant $record): array => self::writeOffSchema($record))
             ->action(function (array $data, ProductVariant $record): void {
                 $record->load('product');
+                $notes = self::resolveDamageReason($data);
 
                 if ($record->isExpiryTracked()) {
                     $actor = auth()->user();
@@ -222,7 +224,7 @@ class StockActions
                         quantity: (int) $data['quantity'],
                         inventoryLotId: (int) $data['inventory_lot_id'],
                         actor: $actor,
-                        notes: (string) $data['notes'],
+                        notes: $notes,
                     );
                 } elseif ($record->isFrame() && self::hasAvailableFrameBatches($record)) {
                     $actor = auth()->user();
@@ -236,14 +238,14 @@ class StockActions
                         quantity: (int) $data['quantity'],
                         inventoryLotId: (int) $data['inventory_lot_id'],
                         actor: $actor,
-                        notes: (string) $data['notes'],
+                        notes: $notes,
                     );
                 } else {
                     app(RecordInventoryMovement::class)->handle(
                         variant: $record,
                         quantityChange: -(int) $data['quantity'],
                         type: 'damaged',
-                        notes: $data['notes'],
+                        notes: $notes,
                         actingUser: auth()->user(),
                     );
                 }
@@ -315,12 +317,59 @@ class StockActions
                 ->helperText('Choose the batch containing the damaged frames.');
         }
 
-        $fields[] = TextInput::make('notes')
+        $fields[] = Select::make('damage_reason')
             ->label('Damage reason')
-            ->required()
-            ->placeholder('e.g. Frame scratched during display, lens cracked in storage');
+            ->options(self::damageReasonOptions())
+            ->live()
+            ->required(fn (callable $get): bool => blank($get('notes')))
+            ->searchable();
+
+        $fields[] = Textarea::make('notes')
+            ->label('Details')
+            ->required(fn (callable $get): bool => blank($get('damage_reason')) || $get('damage_reason') === 'other')
+            ->visible(fn (callable $get): bool => blank($get('damage_reason')) || $get('damage_reason') === 'other')
+            ->maxLength(1000)
+            ->columnSpanFull();
 
         return $fields;
+    }
+
+    /**
+     * Resolve the selected damage preset into the existing movement notes field.
+     *
+     * The notes key remains the form state key so existing write-off callers
+     * that provide a custom reason continue to work.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private static function resolveDamageReason(array $data): string
+    {
+        $preset = $data['damage_reason'] ?? null;
+
+        if ($preset === 'other') {
+            return trim((string) ($data['notes'] ?? ''));
+        }
+
+        if (filled($preset)) {
+            return self::damageReasonOptions()[$preset] ?? trim((string) $preset);
+        }
+
+        return trim((string) ($data['notes'] ?? ''));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function damageReasonOptions(): array
+    {
+        return [
+            'frame_scratched' => 'Frame scratched during display',
+            'lens_cracked' => 'Lens cracked in storage',
+            'packaging_damaged' => 'Packaging damaged',
+            'water_damage' => 'Water or moisture damage',
+            'manufacturing_defect' => 'Manufacturing defect',
+            'other' => 'Other',
+        ];
     }
 
     private static function hasAvailableFrameBatches(ProductVariant $record): bool

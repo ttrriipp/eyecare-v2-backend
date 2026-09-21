@@ -56,7 +56,7 @@ Route::middleware(['auth', 'web'])->group(function () {
         return $pdf->prescriptionPrintout($prescription);
     })->name('pdf.prescription');
 
-    Route::get('/encounters/{encounter}/print', function (Encounter $encounter) {
+    Route::get('/consultations/{encounter}/print', function (Encounter $encounter) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
         abort_unless($encounter->status === EncounterStatus::Completed, 403);
 

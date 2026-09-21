@@ -28,6 +28,8 @@ class EncounterResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Consultations';
 
+    protected static ?string $slug = 'consultations';
+
     protected static ?string $recordTitleAttribute = 'encounter_number';
 
     protected static ?int $navigationSort = 10;

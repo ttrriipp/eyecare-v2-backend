@@ -22,9 +22,14 @@ class FrameRatingsTable
                 TextColumn::make('patient.first_name')
                     ->weight('bold')
                     ->label('Patient'),
+                TextColumn::make('variant.product.name')
+                    ->weight('bold')
+                    ->label('Product')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('variant.name')
                     ->weight('bold')
-                    ->label('Frame')
+                    ->label('Variant')
                     ->searchable(),
                 TextColumn::make('rating')
                     ->label('Stars')

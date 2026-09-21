@@ -51,7 +51,6 @@ class VisitRatingResource extends Resource
         return parent::getEloquentQuery()->with([
             'patient',
             'appointment.appointmentType',
-            'appointment.status',
             'encounter',
             'optometrist',
         ]);

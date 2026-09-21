@@ -314,7 +314,10 @@ class CreateBillingRecord extends CreateRecord
                                         }),
                                     Select::make('discount_type')
                                         ->label('Discount type')
-                                        ->options(DiscountType::options())
+                                        ->options(array_replace(
+                                            DiscountType::options(),
+                                            [DiscountType::Other->value => 'Custom'],
+                                        ))
                                         ->default(DiscountType::None->value)
                                         ->selectablePlaceholder(false)
                                         ->disabled(fn (Get $get): bool => auth()->user()?->isAdmin() !== true

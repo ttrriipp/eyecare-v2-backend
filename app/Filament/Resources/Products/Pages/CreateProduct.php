@@ -33,7 +33,6 @@ class CreateProduct extends CreateRecord
         return $schema->components([
             Wizard::make([
                 Step::make('Product')
-                    ->description('Set up the product details and defaults.')
                     ->afterValidation(function (Get $get, Set $set): void {
                         if (filled($get('variants'))) {
                             return;
@@ -55,7 +54,6 @@ class CreateProduct extends CreateRecord
                     })
                     ->schema($productComponents),
                 Step::make('Variants')
-                    ->description('Add one or more variants, or finish this later from the product page.')
                     ->schema([
                         Repeater::make('variants')
                             ->label('Product variants')
