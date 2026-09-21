@@ -17,36 +17,13 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
 class CreateProduct extends CreateRecord
 {
     protected static string $resource = ProductResource::class;
-
-    public int $currentWizardStep = 0;
-
-    protected function getFormListeners(): array
-    {
-        return [
-            'next-wizard-step' => 'onNextWizardStep',
-            'go-to-wizard-step' => 'onGoToWizardStep',
-        ];
-    }
-
-    public function onNextWizardStep(): void
-    {
-        $this->currentWizardStep++;
-    }
-
-    public function onGoToWizardStep(string $step): void
-    {
-        $steps = ['product', 'variants'];
-        $index = array_search($step, $steps);
-
-        if ($index !== false) {
-            $this->currentWizardStep = $index;
-        }
-    }
 
     public function form(Schema $schema): Schema
     {
@@ -56,7 +33,6 @@ class CreateProduct extends CreateRecord
         return $schema->components([
             Wizard::make([
                 Step::make('Product')
-                    ->key('product')
                     ->description('Set up the product details and defaults.')
                     ->afterValidation(function (Get $get, Set $set): void {
                         if (filled($get('variants'))) {
@@ -79,7 +55,6 @@ class CreateProduct extends CreateRecord
                     })
                     ->schema($productComponents),
                 Step::make('Variants')
-                    ->key('variants')
                     ->description('Add one or more variants, or finish this later from the product page.')
                     ->schema([
                         Repeater::make('variants')
@@ -113,7 +88,35 @@ class CreateProduct extends CreateRecord
                     ]),
             ])
                 ->columnSpanFull()
-                ->persistStepInQueryString('wizard-step'),
+                ->submitAction(new HtmlString(Blade::render(<<<'BLADE'
+                    <div class="flex items-center gap-x-3">
+                        <x-filament::button
+                            type="submit"
+                            size="sm"
+                        >
+                            Create
+                        </x-filament::button>
+
+                        <x-filament::button
+                            type="submit"
+                            size="sm"
+                            wire:click="createAndCreateAnother"
+                            x-on:click="setTimeout(() => $wire.set('currentWizardStep', 0), 100)"
+                        >
+                            Create & create another
+                        </x-filament::button>
+
+                        <x-filament::button
+                            type="button"
+                            size="sm"
+                            color="gray"
+                            tag="a"
+                            href="{{ route('filament.admin.resources.products.index') }}"
+                        >
+                            Cancel
+                        </x-filament::button>
+                    </div>
+BLADE))),
         ]);
     }
 
@@ -121,7 +124,7 @@ class CreateProduct extends CreateRecord
     {
         $action = parent::getCreateFormAction();
 
-        $action->hidden(fn (): bool => $this->currentWizardStep < 1);
+        $action->hidden();
 
         return $action;
     }
@@ -130,7 +133,7 @@ class CreateProduct extends CreateRecord
     {
         $action = parent::getCreateAnotherFormAction();
 
-        $action->hidden(fn (): bool => $this->currentWizardStep < 1);
+        $action->hidden();
 
         return $action;
     }
@@ -139,7 +142,7 @@ class CreateProduct extends CreateRecord
     {
         $action = parent::getCancelFormAction();
 
-        $action->hidden(fn (): bool => $this->currentWizardStep < 1);
+        $action->hidden();
 
         return $action;
     }
