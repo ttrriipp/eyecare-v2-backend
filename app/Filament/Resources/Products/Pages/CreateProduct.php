@@ -25,6 +25,29 @@ class CreateProduct extends CreateRecord
 
     public int $currentWizardStep = 0;
 
+    protected function getFormListeners(): array
+    {
+        return [
+            'next-wizard-step' => 'onNextWizardStep',
+            'go-to-wizard-step' => 'onGoToWizardStep',
+        ];
+    }
+
+    public function onNextWizardStep(): void
+    {
+        $this->currentWizardStep++;
+    }
+
+    public function onGoToWizardStep(string $step): void
+    {
+        $steps = ['product', 'variants'];
+        $index = array_search($step, $steps);
+
+        if ($index !== false) {
+            $this->currentWizardStep = $index;
+        }
+    }
+
     public function form(Schema $schema): Schema
     {
         $schema = ProductForm::configure($schema);
@@ -33,6 +56,7 @@ class CreateProduct extends CreateRecord
         return $schema->components([
             Wizard::make([
                 Step::make('Product')
+                    ->key('product')
                     ->description('Set up the product details and defaults.')
                     ->afterValidation(function (Get $get, Set $set): void {
                         if (filled($get('variants'))) {
@@ -55,6 +79,7 @@ class CreateProduct extends CreateRecord
                     })
                     ->schema($productComponents),
                 Step::make('Variants')
+                    ->key('variants')
                     ->description('Add one or more variants, or finish this later from the product page.')
                     ->schema([
                         Repeater::make('variants')
@@ -88,9 +113,7 @@ class CreateProduct extends CreateRecord
                     ]),
             ])
                 ->columnSpanFull()
-                ->afterStepUpdated(function (int $step): void {
-                    $this->currentWizardStep = $step;
-                }),
+                ->persistStepInQueryString('wizard-step'),
         ]);
     }
 
