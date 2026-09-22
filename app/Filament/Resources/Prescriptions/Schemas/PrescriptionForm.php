@@ -19,6 +19,22 @@ use Illuminate\Support\Carbon;
 
 class PrescriptionForm
 {
+    public const OTHER_AMENDMENT_REASON = 'other';
+
+    /**
+     * @return array<string, string>
+     */
+    public static function amendmentReasonOptions(): array
+    {
+        return [
+            'prescription_error' => 'Prescription error',
+            'clinical_correction' => 'Clinical correction',
+            'patient_condition_changed' => 'Patient condition changed',
+            'patient_request' => 'Patient request',
+            self::OTHER_AMENDMENT_REASON => 'Other',
+        ];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -227,17 +243,38 @@ class PrescriptionForm
                     ->label('Remarks')
                     ->disabled($disabledForExistingPrescription)
                     ->columnSpanFull(),
-                ...($forEncounter ? [] : [
+                ...($forEncounter ? [] : ($editable ? [
+                    Select::make('amendment_reason_category')
+                        ->label('Reason for Amendment')
+                        ->options(self::amendmentReasonOptions())
+                        ->placeholder('Select a reason')
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                            if ($state !== self::OTHER_AMENDMENT_REASON) {
+                                $set('custom_amendment_reason', null);
+                            }
+                        })
+                        ->visible(fn (mixed $livewire): bool => $livewire instanceof AmendPrescription)
+                        ->columnSpanFull(),
+                    Textarea::make('custom_amendment_reason')
+                        ->label('Custom Reason')
+                        ->helperText('Explain why this finalized prescription is being corrected. The original remains unchanged.')
+                        ->required(fn (Get $get): bool => $get('amendment_reason_category') === self::OTHER_AMENDMENT_REASON)
+                        ->maxLength(1000)
+                        ->visible(fn (Get $get, mixed $livewire): bool => $livewire instanceof AmendPrescription
+                            && $get('amendment_reason_category') === self::OTHER_AMENDMENT_REASON)
+                        ->columnSpanFull(),
+                ] : [
                     Textarea::make('amendment_reason')
                         ->label('Reason for Amendment')
-                        ->helperText('Explain why this finalized prescription is being corrected. The original remains unchanged.')
+                        ->helperText('Explain why this finalized prescription was corrected. The original remains unchanged.')
                         ->required()
                         ->maxLength(1000)
-                        ->visible(fn (mixed $livewire): bool => $livewire instanceof AmendPrescription
-                            || ($livewire instanceof ViewPrescription
-                                && $livewire->getRecord()->previous_prescription_id !== null))
+                        ->visible(fn (mixed $livewire): bool => $livewire instanceof ViewPrescription
+                            && $livewire->getRecord()->previous_prescription_id !== null)
                         ->columnSpanFull(),
-                ]),
+                ])),
             ]),
         ]);
     }

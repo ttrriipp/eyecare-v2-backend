@@ -325,7 +325,7 @@ test('an optometrist can amend a prescription without changing the original', fu
         ->assertFormFieldDisabled('patient_id')
         ->fillForm([
             'main_od_sphere' => '-2.50',
-            'amendment_reason' => 'Corrected transcription.',
+            'amendment_reason_category' => 'clinical_correction',
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -341,7 +341,7 @@ test('an optometrist can amend a prescription without changing the original', fu
         ->and($amendment->encounter_id)->toBe($original->encounter_id)
         ->and($amendment->appointment_id)->toBe($original->appointment_id)
         ->and($amendment->created_by)->toBe($optometrist->id)
-        ->and($amendment->amendment_reason)->toBe('Corrected transcription.')
+        ->and($amendment->amendment_reason)->toBe('Clinical correction')
         ->and(AuditLog::query()->where('subject_id', $amendment->id)->exists())->toBeTrue();
 
     Livewire::test(ViewPrescription::class, ['record' => $amendment->getRouteKey()])
@@ -349,8 +349,10 @@ test('an optometrist can amend a prescription without changing the original', fu
         ->assertFormFieldDisabled('amendment_reason')
         ->assertActionVisible('print_prescription')
         ->assertFormSet([
-            'amendment_reason' => 'Corrected transcription.',
-        ]);
+            'amendment_reason' => 'Clinical correction',
+        ])
+        ->assertSee('Amendment Reason')
+        ->assertSee('Clinical correction');
 
     Livewire::test(ViewPrescription::class, ['record' => $original->getRouteKey()])
         ->assertActionHidden('print_prescription')
@@ -366,9 +368,60 @@ test('amendment reason is required', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(AmendPrescription::class, ['previous' => $original->id])
-        ->fillForm(['amendment_reason' => null])
+        ->fillForm(['amendment_reason_category' => null])
         ->call('create')
-        ->assertHasFormErrors(['amendment_reason' => 'required']);
+        ->assertHasFormErrors(['amendment_reason_category' => 'required']);
+});
+
+test('amendment reason offers presets and only shows custom input for other', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $original = Prescription::factory()
+        ->linkedToEncounter(Encounter::factory()->completed()->create())
+        ->create();
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(AmendPrescription::class, ['previous' => $original->id])
+        ->assertFormFieldExists('amendment_reason_category', function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                'prescription_error' => 'Prescription error',
+                'clinical_correction' => 'Clinical correction',
+                'patient_condition_changed' => 'Patient condition changed',
+                'patient_request' => 'Patient request',
+                'other' => 'Other',
+            ]);
+
+            return true;
+        })
+        ->assertFormFieldHidden('custom_amendment_reason')
+        ->fillForm(['amendment_reason_category' => 'other'])
+        ->assertFormFieldVisible('custom_amendment_reason')
+        ->fillForm(['custom_amendment_reason' => null])
+        ->call('create')
+        ->assertHasFormErrors(['custom_amendment_reason' => 'required']);
+});
+
+test('other amendment reason saves the custom text', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $original = Prescription::factory()
+        ->linkedToEncounter(Encounter::factory()->completed()->create())
+        ->create();
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(AmendPrescription::class, ['previous' => $original->id])
+        ->fillForm([
+            'amendment_reason_category' => 'other',
+            'custom_amendment_reason' => 'Patient received updated clinical measurements.',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Prescription::query()
+        ->where('previous_prescription_id', $original->id)
+        ->sole()
+        ->amendment_reason)
+        ->toBe('Patient received updated clinical measurements.');
 });
 
 test('prescription finalization forms cannot create another record', function () {

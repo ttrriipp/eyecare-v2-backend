@@ -81,6 +81,7 @@ class CreatePrescription extends CreateRecord
     {
         $encounter = $this->getEncounter();
         $author = auth()->user();
+        $previousPrescription = $this->getPreviousPrescription();
 
         abort_unless($author?->isOptometrist() === true, 403);
 
@@ -104,9 +105,27 @@ class CreatePrescription extends CreateRecord
                 'remarks',
                 'expires_at',
             ]),
-            previousPrescription: $this->getPreviousPrescription(),
-            amendmentReason: $data['amendment_reason'] ?? null,
+            previousPrescription: $previousPrescription,
+            amendmentReason: $this->resolveAmendmentReason($data, $previousPrescription),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveAmendmentReason(array $data, ?Prescription $previousPrescription): ?string
+    {
+        if ($previousPrescription === null) {
+            return null;
+        }
+
+        $category = (string) ($data['amendment_reason_category'] ?? '');
+
+        if ($category === PrescriptionForm::OTHER_AMENDMENT_REASON) {
+            return trim((string) ($data['custom_amendment_reason'] ?? ''));
+        }
+
+        return PrescriptionForm::amendmentReasonOptions()[$category] ?? null;
     }
 
     protected function getCreateFormAction(): Action

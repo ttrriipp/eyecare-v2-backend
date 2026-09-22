@@ -170,6 +170,10 @@ class ViewPrescription extends ViewRecord
                     Section::make('Details')
                         ->schema([
                             Placeholder::make('prev_remarks')->label('Remarks')->content($previousPrescription->remarks ?? '—')->columnSpanFull(),
+                            Placeholder::make('amendment_reason_history')
+                                ->label('Amendment Reason')
+                                ->content($record->amendment_reason ?? '—')
+                                ->columnSpanFull(),
                         ]),
                 ]);
         }
