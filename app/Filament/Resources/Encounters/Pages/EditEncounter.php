@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Encounters\Pages;
 
-use App\Actions\BillingRecords\AddChargesToBilling;
-use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Encounters\AssignEncounterOptometrist;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\CreateEncounterAddendum;
@@ -11,16 +9,13 @@ use App\Actions\Encounters\SaveEncounterDraft;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Encounters\TransferEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
-use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterTransferReason;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
-use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\BillingRecord;
-use App\Models\JobOrder;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -39,6 +34,18 @@ class EditEncounter extends EditRecord
     private bool $isCompletingVisit = false;
 
     public bool $isSavingDraft = false;
+
+    /**
+     * @var array<string, string>
+     */
+    private const ADDENDUM_REASON_OPTIONS = [
+        'transcription_error' => 'Transcription error',
+        'incorrect_information' => 'Incorrect information',
+        'missing_information' => 'Missing information',
+        'additional_observation' => 'Additional observation',
+        'clarification' => 'Clarification',
+        'other' => 'Other',
+    ];
 
     /**
      * Only the assigned optometrist can edit an in-progress encounter.
@@ -259,15 +266,6 @@ class EditEncounter extends EditRecord
             ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
     }
 
-    private function latestBillingRecord(): ?BillingRecord
-    {
-        return BillingRecord::query()
-            ->where('encounter_id', $this->record->id)
-            ->whereNull('deleted_at')
-            ->latest('id')
-            ->first();
-    }
-
     protected function getFormActions(): array
     {
         // Hide save/cancel buttons - wizard has its own Complete Visit button
@@ -346,8 +344,9 @@ class EditEncounter extends EditRecord
                         || auth()->user()?->isStaff() === true
                         || auth()->user()?->isOptometrist() === true
                     )
-                    && ! JobOrder::query()
+                    && ! BillingRecord::query()
                         ->where('encounter_id', $this->record->id)
+                        ->where('status', '!=', BillingRecordStatus::Cancelled)
                         ->exists())
                 ->url(fn (): string => BillingRecordResource::getUrl('create', [
                     'encounter' => $this->record->id,
@@ -470,11 +469,11 @@ class EditEncounter extends EditRecord
                             : 'Adds new information without changing the original.')
                         ->live()
                         ->required(),
-                    Textarea::make('reason')
+                    Select::make('reason')
                         ->label('Reason')
+                        ->options(self::ADDENDUM_REASON_OPTIONS)
                         ->required()
-                        ->maxLength(1000)
-                        ->rows(2),
+                        ->native(false),
                     Textarea::make('content')
                         ->label('Content')
                         ->required()
@@ -489,7 +488,7 @@ class EditEncounter extends EditRecord
                             encounter: $this->record,
                             actor: auth()->user(),
                             type: $type,
-                            reason: $data['reason'],
+                            reason: self::ADDENDUM_REASON_OPTIONS[$data['reason']] ?? $data['reason'],
                             content: $data['content'],
                         );
 
@@ -500,55 +499,6 @@ class EditEncounter extends EditRecord
                         $this->refreshFormData([]);
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot add addendum')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
-            // ── Completed: add service charge ──
-            Action::make('addCharge')
-                ->label(fn (): string => $this->latestBillingRecord()?->status !== null
-                    && in_array($this->latestBillingRecord()->status, [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid], true)
-                    ? 'Add Another Service Charge'
-                    : 'Add Service Charge')
-                ->icon('heroicon-o-plus-circle')
-                ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
-                ->modalHeading('Add Service Charge')
-                ->modalWidth('3xl')
-                ->modalSubmitActionLabel('Add to Billing')
-                ->schema([
-                    ServiceChargeForm::items(),
-                    ServiceChargeForm::total(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $encounter = $this->record;
-                        $items = ServiceChargeForm::normalizeItems($data['items'] ?? [])
-                            ->map(fn (array $item): array => [
-                                ...$item,
-                                'encounter_id' => $encounter->id,
-                            ])
-                            ->values();
-
-                        $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
-                            patient: $encounter->patient,
-                            encounter: $encounter,
-                            actor: auth()->user(),
-                        );
-
-                        $billingRecord = app(AddChargesToBilling::class)->handle(
-                            billingRecord: $billingRecord,
-                            sourceKind: BillingItemSourceKind::Encounter,
-                            items: $items,
-                            actor: auth()->user(),
-                        );
-
-                        Notification::make()
-                            ->title('Charge added')
-                            ->body("Billing Record: {$billingRecord->billing_record_number}")
-                            ->success()
-                            ->send();
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
                     }
                 }),
 

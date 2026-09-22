@@ -282,6 +282,7 @@ test('prescription details emphasize the patient and link the consultation date'
             'href="'.PatientResource::getUrl('edit', ['record' => $prescription->patient]).'"',
             false,
         )
+        ->assertSee('class="text-primary-600 underline underline-offset-2', false)
         ->assertSee('Expiration Date')
         ->assertSee($prescription->expires_at->format('M j, Y'));
 });

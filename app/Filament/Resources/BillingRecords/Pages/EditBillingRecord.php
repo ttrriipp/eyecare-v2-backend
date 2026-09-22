@@ -68,11 +68,19 @@ class EditBillingRecord extends EditRecord
                         RepeatableEntry::make('items')
                             ->hiddenLabel()
                             ->table([
-                                TableColumn::make('Description'),
-                                TableColumn::make('Source'),
-                                TableColumn::make('Quantity'),
-                                TableColumn::make('Unit Price'),
-                                TableColumn::make('Amount'),
+                                TableColumn::make('Description')
+                                    ->width('46%'),
+                                TableColumn::make('Source')
+                                    ->width('18%'),
+                                TableColumn::make('Quantity')
+                                    ->width('8%')
+                                    ->alignCenter(),
+                                TableColumn::make('Unit Price')
+                                    ->width('14%')
+                                    ->alignEnd(),
+                                TableColumn::make('Amount')
+                                    ->width('14%')
+                                    ->alignEnd(),
                             ])
                             ->schema([
                                 TextEntry::make('description')
@@ -81,14 +89,20 @@ class EditBillingRecord extends EditRecord
                                 TextEntry::make('source_kind')
                                     ->hiddenLabel()
                                     ->badge()
+                                    ->extraAttributes(['class' => 'whitespace-nowrap'])
                                     ->state(fn (BillingRecordItem $record): string => $record->getSourceLabel()),
                                 TextEntry::make('quantity')
-                                    ->hiddenLabel(),
+                                    ->hiddenLabel()
+                                    ->alignCenter(),
                                 TextEntry::make('unit_price')
                                     ->hiddenLabel()
+                                    ->alignEnd()
+                                    ->extraAttributes(['class' => 'whitespace-nowrap'])
                                     ->money('PHP'),
                                 TextEntry::make('amount')
                                     ->hiddenLabel()
+                                    ->alignEnd()
+                                    ->extraAttributes(['class' => 'whitespace-nowrap'])
                                     ->money('PHP'),
                             ])
                             ->placeholder('No charges recorded.'),

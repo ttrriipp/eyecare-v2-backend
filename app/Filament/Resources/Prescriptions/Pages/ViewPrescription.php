@@ -83,8 +83,17 @@ class ViewPrescription extends ViewRecord
                             ->content($record->prescription_number ?? '—'),
                         Placeholder::make('patient_name')
                             ->label('Patient')
-                            ->content($record->patient?->full_name ?? '—')
-                            ->url($patientUrl)
+                            ->content(function () use ($record, $patientUrl): HtmlString {
+                                if ($record->patient === null || $patientUrl === null) {
+                                    return new HtmlString('—');
+                                }
+
+                                return new HtmlString(
+                                    '<a href="'.e($patientUrl).'" class="text-primary-600 underline underline-offset-2 hover:no-underline dark:text-primary-400">'
+                                    .e($record->patient->full_name)
+                                    .'</a>'
+                                );
+                            })
                             ->weight('bold'),
                         Placeholder::make('patient_number')
                             ->label('Patient Number')

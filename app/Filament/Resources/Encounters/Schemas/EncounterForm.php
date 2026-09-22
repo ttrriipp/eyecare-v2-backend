@@ -25,6 +25,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
@@ -39,6 +40,19 @@ class EncounterForm
     {
         return fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress
             && ! (auth()->user()->isOptometrist() && $record->optometrist_id === auth()->id());
+    }
+
+    private static function linkedRecordContent(?string $recordNumber, ?string $url): HtmlString
+    {
+        if (blank($recordNumber) || blank($url)) {
+            return new HtmlString('—');
+        }
+
+        return new HtmlString(
+            '<a href="'.e($url).'" class="text-primary-600 underline hover:no-underline dark:text-primary-400">'
+            .e($recordNumber)
+            .'</a>'
+        );
     }
 
     /**
@@ -362,7 +376,11 @@ class EncounterForm
                             Placeholder::make('completed_at')
                                 ->label('Completed')
                                 ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—')
-                                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
+                                ->hidden(fn (Encounter $record): bool => in_array(
+                                    $record->status,
+                                    [EncounterStatus::Planned, EncounterStatus::Cancelled],
+                                    true,
+                                )),
                         ])
                         ->columns(3)
                         ->columnSpan(fn (Encounter $record): array => $record->status === EncounterStatus::Planned
@@ -502,69 +520,63 @@ class EncounterForm
                                 ->schema([
                                     Placeholder::make('link_appointment')
                                         ->label('Appointment')
-                                        ->content(fn (Encounter $record): string => $record->appointment?->appointment_number ?? '—')
-                                        ->url(fn (Encounter $record): ?string => $record->appointment
-                                            ? AppointmentResource::getUrl('edit', ['record' => $record->appointment])
-                                            : null),
+                                        ->content(function (Encounter $record): HtmlString {
+                                            $appointment = $record->appointment;
+
+                                            return self::linkedRecordContent(
+                                                $appointment?->appointment_number,
+                                                $appointment === null
+                                                    ? null
+                                                    : AppointmentResource::getUrl('edit', ['record' => $appointment]),
+                                            );
+                                        }),
                                     Placeholder::make('link_prescription')
                                         ->label('Prescription')
-                                        ->content(function (Encounter $record): string {
+                                        ->content(function (Encounter $record): HtmlString {
                                             $rx = $record->prescriptions()->latest('id')->first();
 
-                                            return $rx?->prescription_number ?? '—';
-                                        })
-                                        ->url(function (Encounter $record): ?string {
-                                            $rx = $record->prescriptions()->latest('id')->first();
-
-                                            return $rx
-                                                ? PrescriptionResource::getUrl('view', ['record' => $rx])
-                                                : null;
+                                            return self::linkedRecordContent(
+                                                $rx?->prescription_number,
+                                                $rx === null
+                                                    ? null
+                                                    : PrescriptionResource::getUrl('view', ['record' => $rx]),
+                                            );
                                         })
                                         ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
                                     Placeholder::make('link_optical_order')
                                         ->label('Optical Order')
-                                        ->content(function (Encounter $record): string {
+                                        ->content(function (Encounter $record): HtmlString {
                                             $order = JobOrder::query()
                                                 ->where('encounter_id', $record->id)
                                                 ->latest('id')
                                                 ->first();
 
-                                            return $order?->job_order_number ?? '—';
+                                            return self::linkedRecordContent(
+                                                $order?->job_order_number,
+                                                $order === null
+                                                    ? null
+                                                    : OpticalOrderResource::getUrl('edit', ['record' => $order]),
+                                            );
                                         })
-                                        ->url(function (Encounter $record): ?string {
-                                            $order = JobOrder::query()
-                                                ->where('encounter_id', $record->id)
-                                                ->latest('id')
-                                                ->first();
-
-                                            return $order
-                                                ? OpticalOrderResource::getUrl('edit', ['record' => $order])
-                                                : null;
-                                        })
-                                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
+                                        ->hidden(fn (Encounter $record): bool => in_array(
+                                            $record->status,
+                                            [EncounterStatus::Planned, EncounterStatus::Cancelled],
+                                            true,
+                                        )),
                                     Placeholder::make('link_billing')
                                         ->label('Billing Record')
-                                        ->content(function (Encounter $record): string {
-                                            $billing = BillingRecord::query()
-                                                ->where('encounter_id', $record->id)
-                                                ->whereNull('deleted_at')
-                                                ->latest('id')
-                                                ->first();
+                                        ->content(function (Encounter $record): HtmlString {
+                                            $billing = self::latestBillingRecord($record);
 
-                                            return $billing?->billing_record_number ?? '—';
+                                            return self::linkedRecordContent(
+                                                $billing?->billing_record_number,
+                                                $billing === null
+                                                    ? null
+                                                    : BillingRecordResource::getUrl('edit', ['record' => $billing]),
+                                            );
                                         })
-                                        ->url(function (Encounter $record): ?string {
-                                            $billing = BillingRecord::query()
-                                                ->where('encounter_id', $record->id)
-                                                ->whereNull('deleted_at')
-                                                ->latest('id')
-                                                ->first();
-
-                                            return $billing
-                                                ? BillingRecordResource::getUrl('edit', ['record' => $billing])
-                                                : null;
-                                        })
-                                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
+                                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned
+                                            || self::latestBillingRecord($record) === null),
                                 ]),
                         ])
                         ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
@@ -585,8 +597,16 @@ class EncounterForm
     private static function latestBillingRecord(Encounter $record): ?BillingRecord
     {
         return BillingRecord::query()
-            ->where('encounter_id', $record->id)
+            ->where(function (Builder $query) use ($record): void {
+                $query
+                    ->where('encounter_id', $record->id)
+                    ->orWhereHas('jobOrder', function (Builder $jobOrderQuery) use ($record): void {
+                        $jobOrderQuery->where('encounter_id', $record->id);
+                    });
+            })
             ->whereNull('deleted_at')
+            ->whereNotNull('billing_record_number')
+            ->where('billing_record_number', '!=', '')
             ->latest('id')
             ->first();
     }

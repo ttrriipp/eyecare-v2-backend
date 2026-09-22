@@ -9,6 +9,7 @@ use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -53,4 +54,24 @@ test('patient, prescription, and encounter actions open the unified bill page', 
             'include_prescription_eyewear' => true,
         ])
         ->assertFormFieldDisabled('patient_id');
+});
+
+test('seeded consultations expose billing only when their consultation bill is missing', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
+    $billedEncounter = Encounter::query()->where('encounter_number', 'CON-2026-000001')->firstOrFail();
+    $unbilledEncounter = Encounter::query()->where('encounter_number', 'CON-2026-000006')->firstOrFail();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditEncounter::class, ['record' => $billedEncounter->getRouteKey()])
+        ->assertActionHidden('createBill');
+
+    Livewire::test(EditEncounter::class, ['record' => $unbilledEncounter->getRouteKey()])
+        ->assertActionVisible('createBill')
+        ->assertSee('BR-2026-000004')
+        ->assertActionHasUrl('createBill', BillingRecordResource::getUrl('create', [
+            'encounter' => $unbilledEncounter->id,
+        ]));
 });

@@ -1,12 +1,18 @@
 <?php
 
 use App\Enums\EncounterStatus;
+use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Encounters\Pages\ListEncounters;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Appointment;
 use App\Models\AuditLog;
+use App\Models\BillingRecord;
 use App\Models\Encounter;
+use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
@@ -24,6 +30,24 @@ test('optometrist can list encounters', function () {
 
     Livewire::test(ListEncounters::class)
         ->assertCanSeeTableRecords($encounters);
+});
+
+test('linked encounter exposes a view appointment action', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->create();
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(ListEncounters::class)
+        ->assertActionVisible(TestAction::make('viewAppointment')->table($encounter))
+        ->assertActionHasUrl(
+            TestAction::make('viewAppointment')->table($encounter),
+            AppointmentResource::getUrl('edit', ['record' => $appointment]),
+        );
 });
 
 test('consultation table prioritizes active work and sorts each workflow group', function (): void {
@@ -122,6 +146,126 @@ test('optometrist can view encounter details', function () {
         ->assertSee('Occupation')
         ->assertSee('Teacher')
         ->assertDontSee('Health Record Status');
+});
+
+test('encounter details renders the related appointment as an obvious link', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->create();
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+        'status' => EncounterStatus::Planned,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    $component = Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()]);
+    $appointmentUrl = AppointmentResource::getUrl('edit', ['record' => $appointment]);
+
+    expect($component->html())
+        ->toContain('href="'.$appointmentUrl.'"')
+        ->toContain('class="text-primary-600 underline');
+});
+
+test('completed encounter renders every related record as a link', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->create();
+    $encounter = Encounter::factory()->completed()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+    ]);
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
+    $opticalOrder = JobOrder::factory()->create([
+        'patient_id' => $encounter->patient_id,
+        'encounter_id' => $encounter->id,
+        'prescription_id' => $prescription->id,
+    ]);
+    $billingRecord = BillingRecord::factory()->create([
+        'patient_id' => $encounter->patient_id,
+        'job_order_id' => null,
+        'encounter_id' => $encounter->id,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    $component = Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()]);
+
+    expect($component->html())
+        ->toContain('href="'.AppointmentResource::getUrl('edit', ['record' => $appointment]).'"')
+        ->toContain('href="'.PrescriptionResource::getUrl('view', ['record' => $prescription]).'"')
+        ->toContain('href="'.OpticalOrderResource::getUrl('edit', ['record' => $opticalOrder]).'"')
+        ->toContain('href="'.BillingRecordResource::getUrl('edit', ['record' => $billingRecord]).'"')
+        ->toContain('class="text-primary-600 underline');
+});
+
+test('completed encounter resolves an optical-only billing record through its optical order', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $opticalOrder = JobOrder::factory()->create([
+        'patient_id' => $encounter->patient_id,
+        'encounter_id' => $encounter->id,
+    ]);
+    $billingRecord = BillingRecord::factory()->create([
+        'patient_id' => $encounter->patient_id,
+        'job_order_id' => $opticalOrder->id,
+        'encounter_id' => null,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    expect(Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])->html())
+        ->toContain('href="'.BillingRecordResource::getUrl('edit', ['record' => $billingRecord]).'"')
+        ->toContain($billingRecord->billing_record_number);
+});
+
+test('completed encounter hides missing or empty billing record entries', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $withoutBilling = Encounter::factory()->completed()->create();
+    $emptyBilling = Encounter::factory()->completed()->create();
+    $billingRecord = BillingRecord::factory()->create([
+        'patient_id' => $emptyBilling->patient_id,
+        'job_order_id' => null,
+        'encounter_id' => $emptyBilling->id,
+    ]);
+    $billingRecord->update(['billing_record_number' => '']);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $withoutBilling->getRouteKey()])
+        ->assertDontSee('Billing Record');
+
+    Livewire::test(EditEncounter::class, ['record' => $emptyBilling->getRouteKey()])
+        ->assertDontSee('Billing Record');
+});
+
+test('cancelled encounter does not render a completed timestamp', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->create([
+        'status' => EncounterStatus::Cancelled,
+        'started_at' => now()->subDay(),
+        'completed_at' => now()->subDay()->addHour(),
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertDontSee('Completed');
+});
+
+test('cancelled encounter does not render its optical order', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->create([
+        'status' => EncounterStatus::Cancelled,
+    ]);
+    JobOrder::factory()->create([
+        'patient_id' => $encounter->patient_id,
+        'encounter_id' => $encounter->id,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertDontSee('Optical Order');
 });
 
 test('encounter resource presents consultation terminology', function () {
