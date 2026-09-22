@@ -11,6 +11,7 @@ use App\Enums\PatientInvitationStatus;
 use App\Exceptions\PatientIdentityMismatchException;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Patients\PatientResource;
+use App\Filament\Support\PatientAccountActions;
 use App\Models\Patient;
 use App\Models\PatientInvitation;
 use App\Models\User;
@@ -19,6 +20,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Validation\ValidationException;
 
 class EditPatient extends EditRecord
@@ -137,17 +139,23 @@ class EditPatient extends EditRecord
                 ->authorize('unlinkAccount')
                 ->requiresConfirmation()
                 ->schema([
-                    Textarea::make('reason')
+                    Select::make('reason_category')
                         ->label('Reason for unlinking')
+                        ->options(PatientAccountActions::unlinkReasonOptions())
                         ->required()
-                        ->maxLength(1000),
+                        ->live(),
+                    Textarea::make('reason_details')
+                        ->label('Details')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
                     try {
                         app(UnlinkPatientAccount::class)->handle(
                             patient: $this->getRecord(),
                             admin: auth()->user(),
-                            reason: $data['reason'],
+                            reason: PatientAccountActions::resolveUnlinkReason($data),
                         );
 
                         $this->record->refresh();

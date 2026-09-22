@@ -2,14 +2,12 @@
 
 namespace App\Filament\Resources\PatientLinkRequests\Schemas;
 
-use App\Filament\Support\PatientCandidateMatchCard;
 use App\Models\PatientLinkRequest;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class PatientLinkRequestForm
@@ -43,31 +41,6 @@ class PatientLinkRequestForm
                     }),
             ])
             ->columns(2);
-
-        $candidateMatches = Section::make('Candidate Matches')
-            ->schema([
-                Placeholder::make('candidates')
-                    ->hiddenLabel()
-                    ->content(function (?PatientLinkRequest $record): HtmlString {
-                        if ($record === null) {
-                            return PatientCandidateMatchCard::render(collect(), 'No candidates.');
-                        }
-
-                        $candidates = $record->candidates()
-                            ->with('patient')
-                            ->orderBy('rank')
-                            ->get()
-                            ->map(fn ($c): array => [
-                                'patient' => $c->patient,
-                                'strength' => $c->match_strength,
-                                'reasons' => $c->reason_codes ?? [],
-                            ]);
-
-                        return PatientCandidateMatchCard::render($candidates);
-                    })
-                    ->columnSpanFull(),
-            ])
-            ->visible(fn ($record) => $record !== null);
 
         $requestSummary = Section::make('Request Summary')
             ->schema([
@@ -127,7 +100,6 @@ class PatientLinkRequestForm
                     ->columnSpan(['default' => 1, 'lg' => 2])
                     ->schema([
                         $requestSummary,
-                        $candidateMatches,
                     ]),
 
                 Grid::make(1)

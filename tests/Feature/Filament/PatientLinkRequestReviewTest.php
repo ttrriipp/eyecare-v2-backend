@@ -30,7 +30,7 @@ function unlinkedPatientAccount(): User
     return $user;
 }
 
-test('staff sees ranked candidates on the link request page', function () {
+test('staff sees the link request without candidate matches', function () {
     $staff = User::factory()->staff()->create();
     $account = unlinkedPatientAccount();
     $request = PatientLinkRequest::factory()->forAccount($account)->create();
@@ -56,10 +56,10 @@ test('staff sees ranked candidates on the link request page', function () {
 
     Livewire::test(ViewPatientLinkRequest::class, ['record' => $request->getRouteKey()])
         ->assertSuccessful()
-        ->assertSee('Ana Reyes')
-        ->assertSee('Ana Cruz')
-        ->assertSee('Strong')
-        ->assertSee('Weak');
+        ->assertSee('Request Summary')
+        ->assertDontSee('Candidate Matches')
+        ->assertDontSee('Ana Reyes')
+        ->assertDontSee('Ana Cruz');
 });
 
 test('approving a strong match does not require a decision note', function () {

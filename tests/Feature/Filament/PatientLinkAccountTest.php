@@ -124,3 +124,20 @@ test('linking a patient record from the account page associates its existing con
 
     expect($conversation->fresh()->patient_id)->toBe($patient->id);
 });
+
+test('unlinking from the account page accepts a preset reason', function (): void {
+    $admin = User::factory()->admin()->create();
+    $patientAccount = User::factory()->patient()->create();
+    $patient = $patientAccount->patient;
+
+    $this->actingAs($admin);
+
+    Livewire::test(ViewPatientAccount::class, ['record' => $patientAccount->getRouteKey()])
+        ->callAction('unlinkAccount', [
+            'reason_category' => 'patient_request',
+            'reason_details' => null,
+        ])
+        ->assertNotified('Account unlinked successfully');
+
+    expect($patient->fresh()->user_id)->toBeNull();
+});

@@ -7,12 +7,14 @@ use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Exceptions\PatientIdentityMismatchException;
 use App\Filament\Resources\PatientAccounts\PatientAccountResource;
+use App\Filament\Support\PatientAccountActions;
 use App\Models\Patient;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Validation\ValidationException;
 
 class ViewPatientAccount extends ViewRecord
@@ -99,17 +101,23 @@ class ViewPatientAccount extends ViewRecord
                 ->authorize('unlinkPatientRecord')
                 ->requiresConfirmation()
                 ->schema([
-                    Textarea::make('reason')
+                    Select::make('reason_category')
                         ->label('Reason for unlinking')
+                        ->options(PatientAccountActions::unlinkReasonOptions())
                         ->required()
-                        ->maxLength(1000),
+                        ->live(),
+                    Textarea::make('reason_details')
+                        ->label('Details')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
                     try {
                         app(UnlinkPatientAccount::class)->handle(
                             patient: $this->record->patient,
                             admin: auth()->user(),
-                            reason: $data['reason'],
+                            reason: PatientAccountActions::resolveUnlinkReason($data),
                         );
 
                         $this->record->refresh();
