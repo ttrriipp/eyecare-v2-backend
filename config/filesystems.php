@@ -66,6 +66,7 @@ return [
     'message_attachments_disk' => env('MESSAGE_ATTACHMENTS_DISK', 'message_attachments'),
     'catalog_disk' => env('CATALOG_DISK', 'public'),
     'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'payment_proofs'),
+    'discount_proof_disk' => env('DISCOUNT_PROOF_DISK', 'discount_proofs'),
 
     /*
     |--------------------------------------------------------------------------
@@ -168,6 +169,14 @@ return [
         'payment_proofs' => [
             'driver' => 'local',
             'root' => storage_path('app/payment-proofs'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'discount_proofs' => [
+            'driver' => 'local',
+            'root' => storage_path('app/discount-proofs'),
             'visibility' => 'private',
             'throw' => true,
             'report' => false,

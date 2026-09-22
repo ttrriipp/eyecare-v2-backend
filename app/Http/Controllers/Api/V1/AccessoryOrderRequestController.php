@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\AccessoryOrderRequests\CancelAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\SubmitAccessoryOrderRequest;
 use App\Enums\AccessoryOrderRequestStatus;
+use App\Enums\DiscountProofStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AccessoryOrderRequest;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +28,7 @@ class AccessoryOrderRequestController extends Controller
         $query = AccessoryOrderRequest::query()
             ->where('user_id', $account->id)
             ->where('patient_id', $account->patient?->id)
-            ->with(['items', 'jobOrder.billingRecord'])
+            ->with(['items', 'jobOrder.billingRecord', 'discountProof'])
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -92,7 +93,7 @@ class AccessoryOrderRequestController extends Controller
         );
 
         return response()->json([
-            'data' => $this->formatRequest($request->fresh(['items'])),
+            'data' => $this->formatRequest($request->fresh(['items', 'discountProof'])),
         ], 201);
     }
 
@@ -105,7 +106,7 @@ class AccessoryOrderRequestController extends Controller
             abort(404);
         }
 
-        $accessoryOrderRequest->load(['items', 'jobOrder.billingRecord']);
+        $accessoryOrderRequest->load(['items', 'jobOrder.billingRecord', 'discountProof']);
 
         return response()->json([
             'data' => $this->formatRequest($accessoryOrderRequest),
@@ -136,18 +137,31 @@ class AccessoryOrderRequestController extends Controller
         }
 
         return response()->json([
-            'data' => $this->formatRequest($accessoryOrderRequest->fresh()),
+            'data' => $this->formatRequest($accessoryOrderRequest->fresh([
+                'items',
+                'jobOrder.billingRecord',
+                'discountProof',
+            ])),
         ]);
     }
 
     private function formatRequest(AccessoryOrderRequest $request): array
     {
+        $discountProof = $request->discountProof;
+        $discountProofStatus = $request->requested_discount_type === 'none'
+            ? 'not_required'
+            : ($discountProof?->status?->value ?? 'not_submitted');
+
         return [
             'id' => $request->id,
             'request_number' => $request->request_number,
             'status' => $request->status->value,
             'subtotal_amount' => number_format((float) $request->subtotal_amount, 2, '.', ''),
             'requested_discount_type' => $request->requested_discount_type,
+            'discount_proof_status' => $discountProofStatus,
+            'discount_proof_rejection_reason' => $discountProof?->status === DiscountProofStatus::Rejected
+                ? $discountProof->rejection_reason
+                : null,
             'resolved_by' => $request->resolved_by,
             'resolved_at' => $request->resolved_at?->toISOString(),
             'items' => $request->items->map(fn ($item) => [

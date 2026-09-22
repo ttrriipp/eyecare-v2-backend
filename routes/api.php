@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\SavedFrameController;
 use App\Http\Controllers\Api\V1\AccessoryCatalogController;
 use App\Http\Controllers\Api\V1\AccessoryOrderRequestController;
+use App\Http\Controllers\Api\V1\AccessoryOrderRequestDiscountProofController;
 use App\Http\Controllers\Api\V1\OrderPaymentProofController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
@@ -184,6 +185,8 @@ Route::prefix('v1')->middleware([
         ->middleware('throttle:api-accessory-order-request');
     Route::get('accessory-order-requests/{accessoryOrderRequest}', [AccessoryOrderRequestController::class, 'show']);
     Route::post('accessory-order-requests/{accessoryOrderRequest}/cancel', [AccessoryOrderRequestController::class, 'cancel']);
+    Route::post('accessory-order-requests/{accessoryOrderRequest}/discount-proof', [AccessoryOrderRequestDiscountProofController::class, 'store'])
+        ->middleware('throttle:api-discount-proof');
 
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);

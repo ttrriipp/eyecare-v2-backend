@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\DiscountProofStatus;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ViewAccessoryOrderRequest;
 use App\Models\AccessoryOrderRequest;
+use App\Models\AccessoryOrderRequestDiscountProof;
 use App\Models\AccessoryOrderRequestItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -96,4 +98,54 @@ test('staff can reject an accessory order request with a preset reason', functio
 
     expect($request->fresh()->status->value)->toBe('rejected')
         ->and($request->fresh()->rejection_reason)->toBe('Out of stock');
+});
+
+test('staff can review a pending discount proof from the order request page', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'requested_discount_type' => 'pwd',
+    ]);
+    $proof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'status' => DiscountProofStatus::Pending,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Discount proof')
+        ->assertSee('Pending')
+        ->callAction('acceptDiscountProof')
+        ->assertNotified('Discount proof accepted');
+
+    expect($proof->fresh()->status)->toBe(DiscountProofStatus::Accepted);
+});
+
+test('staff can reject a discount proof with a reason from the order request page', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'requested_discount_type' => 'senior_citizen',
+    ]);
+    $proof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'status' => DiscountProofStatus::Pending,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->callAction('rejectDiscountProof', ['reason' => 'The ID image is not readable.'])
+        ->assertNotified('Discount proof rejected');
+
+    expect($proof->fresh()->status)->toBe(DiscountProofStatus::Rejected)
+        ->and($proof->fresh()->rejection_reason)->toBe('The ID image is not readable.');
 });

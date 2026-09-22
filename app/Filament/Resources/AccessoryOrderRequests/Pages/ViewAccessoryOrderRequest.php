@@ -3,7 +3,10 @@
 namespace App\Filament\Resources\AccessoryOrderRequests\Pages;
 
 use App\Actions\AccessoryOrderRequests\AcceptAccessoryOrderRequest;
+use App\Actions\AccessoryOrderRequests\AcceptDiscountProof;
 use App\Actions\AccessoryOrderRequests\RejectAccessoryOrderRequest;
+use App\Actions\AccessoryOrderRequests\RejectDiscountProof;
+use App\Enums\DiscountProofStatus;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -33,11 +36,98 @@ class ViewAccessoryOrderRequest extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('viewDiscountProof')
+                ->label('View discount proof')
+                ->icon('heroicon-o-identification')
+                ->color('gray')
+                ->url(fn (): string => route(
+                    'discount-proofs.download',
+                    ['proof' => $this->record->discountProof],
+                ))
+                ->openUrlInNewTab()
+                ->visible(fn (): bool => $this->canReviewCommerce() && $this->record->discountProof !== null),
+
+            Action::make('acceptDiscountProof')
+                ->label('Accept discount proof')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn (): bool => $this->canReviewCommerce()
+                    && $this->record->isPending()
+                    && $this->record->discountProof?->status === DiscountProofStatus::Pending)
+                ->requiresConfirmation()
+                ->modalHeading('Accept Discount Proof')
+                ->modalDescription('The patient can be accepted for the requested discount after this proof is verified.')
+                ->action(function (): void {
+                    try {
+                        app(AcceptDiscountProof::class)->handle(
+                            proof: $this->record->discountProof,
+                            reviewer: auth()->user(),
+                        );
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot accept discount proof')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    $this->record = $this->record->fresh(['discountProof.reviewedBy']);
+
+                    Notification::make()
+                        ->title('Discount proof accepted')
+                        ->success()
+                        ->send();
+                }),
+
+            Action::make('rejectDiscountProof')
+                ->label('Reject discount proof')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (): bool => $this->canReviewCommerce()
+                    && $this->record->isPending()
+                    && $this->record->discountProof?->status === DiscountProofStatus::Pending)
+                ->form([
+                    Textarea::make('reason')
+                        ->label('Rejection reason')
+                        ->required()
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(RejectDiscountProof::class)->handle(
+                            proof: $this->record->discountProof,
+                            reviewer: auth()->user(),
+                            reason: (string) ($data['reason'] ?? ''),
+                        );
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot reject discount proof')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    $this->record = $this->record->fresh(['discountProof.reviewedBy']);
+
+                    Notification::make()
+                        ->title('Discount proof rejected')
+                        ->success()
+                        ->send();
+                }),
+
             Action::make('accept')
                 ->label('Accept')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->isPending() && $this->canReviewCommerce())
+                ->visible(fn (): bool => $this->record->isPending()
+                    && $this->canReviewCommerce()
+                    && ($this->record->requested_discount_type === 'none'
+                        || $this->record->discountProof?->status === DiscountProofStatus::Accepted))
                 ->requiresConfirmation()
                 ->modalHeading('Accept Order Request')
                 ->modalDescription('This will create an Optical Order and Billing Record. Stock will be committed.')

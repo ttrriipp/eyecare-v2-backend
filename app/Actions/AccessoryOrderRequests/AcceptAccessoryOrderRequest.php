@@ -11,6 +11,7 @@ use App\Actions\OpticalOrders\BuildOpticalOrder;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AuditEvent;
 use App\Enums\BillingItemSourceKind;
+use App\Enums\DiscountProofStatus;
 use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\JobOrder;
@@ -76,6 +77,18 @@ class AcceptAccessoryOrderRequest
                 throw ValidationException::withMessages([
                     'request' => ['The request is no longer linked to the same patient account.'],
                 ]);
+            }
+
+            if ($lockedRequest->requested_discount_type !== 'none') {
+                $discountProof = $lockedRequest->discountProof()
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($discountProof === null || $discountProof->status !== DiscountProofStatus::Accepted) {
+                    throw ValidationException::withMessages([
+                        'discount_proof' => ['A verified discount proof is required before accepting this request.'],
+                    ]);
+                }
             }
 
             if ($discountAmount !== null

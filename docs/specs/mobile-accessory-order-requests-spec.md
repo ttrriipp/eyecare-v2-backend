@@ -1,6 +1,6 @@
 # Spec: Mobile Accessory Order Requests
 
-**Status:** Implemented; contract and regression verification in progress
+**Status:** Implemented; focused regression verification complete
 **Planning date:** 2026-09-20
 **Decision date:** 2026-09-20
 
@@ -41,9 +41,9 @@ system beside Optical Orders and Billing.
    payments, bank transfer, cards, checks, delivery fees, vouchers, or loyalty
    points are introduced by this feature. The payable balance is the final
    amount confirmed by an authorized reviewer after any approved discount.
-7. One private JPG, JPEG, or PNG proof of at most 10 MB may be submitted
-   before the deadline. Submission stops expiration; staff verification has no
-   patient-facing countdown.
+7. One private JPG, JPEG, or PNG payment proof of at most 10 MB may be
+   submitted before the deadline. Payment-proof submission stops expiration;
+   staff verification has no patient-facing countdown.
 8. Staff verify the transfer against the clinic's real GCash transaction
    history. The uploaded file is supporting evidence, not authoritative proof
    that money was received.
@@ -79,18 +79,21 @@ system beside Optical Orders and Billing.
    the request and asks the patient to submit a new one.
 4. Patients may cancel only a still-pending request. After acceptance they may
    allow the unpaid order to expire or contact the clinic.
-5. There is one proof submission and no self-service resubmission in the MVP.
-   A reviewer who is not certain that no transfer occurred leaves the proof in
-   review and escalates outside the normal action flow.
+5. There is one payment-proof submission and no self-service payment-proof
+   resubmission in the MVP. A reviewer who is not certain that no transfer
+   occurred leaves the payment proof in review and escalates outside the normal
+   action flow.
 6. A successful-transfer dispute, refund, or unmatched transfer remains an
    administrator-handled exception using existing payment correction/audit
    practices; no automated refund state machine is added.
 7. The request records only a patient declaration of `none`, `senior_citizen`,
-   or `pwd`. This feature adds no product-level discount-eligibility flag and no
-   discount-document upload. The reviewer verifies eligibility using existing
-   clinic records or the clinic's manual process, applies the existing Optical
-   Order discount controls, and confirms the final payable amount. Existing
-   authorization for applying positive discounts remains unchanged.
+   or `pwd`. For a non-`none` declaration, the patient may upload one private
+   discount proof while the request is pending. Staff/admin reviewers accept or
+   reject it; a rejected proof may be replaced while the request remains
+   pending. The reviewer verifies eligibility using existing clinic records or
+   the clinic's manual process, applies the existing Optical Order discount
+   controls, and confirms the final payable amount. Existing authorization for
+   applying positive discounts remains unchanged.
 8. A pending request remains open until staff acts or the patient cancels it.
    There is no scheduled expiry for the pre-acceptance request state.
 9. The clinic-owned GCash account name and number are deployment inputs rather
@@ -122,6 +125,25 @@ snapshot preserves history when catalog data later changes.
 
 Request rows and items are historical records. They are not soft-deleted and
 have no patient or staff edit action.
+
+### Discount proof
+
+Create one `accessory_order_request_discount_proofs` row for a request whose
+`requested_discount_type` is `senior_citizen` or `pwd`:
+
+- unique `accessory_order_request_id`
+- submitting `user_id`
+- `status`: `pending`, `accepted`, or `rejected`
+- private `file_path`, original name, MIME type, and size
+- nullable reviewer, reviewed timestamp, and bounded rejection reason
+- timestamps
+
+The accepted file types are JPG/JPEG/PNG up to 10 MB and 8,000 x 8,000 pixels.
+The object uses a dedicated private disk and is never serialized into the
+patient API. A rejected proof may be replaced while the request is pending;
+replacement resets the same row to `pending` and removes the old object.
+Request acceptance is blocked until a requested discount has an `accepted`
+proof. A `none` request cannot receive a discount proof.
 
 ### Optical Order payment stages
 
@@ -184,21 +206,23 @@ routes and never changes object visibility.
 1. Lock request, linked account/Patient relationship, and request items.
 2. Confirm the request is still pending and the account is still linked to the
    same Patient.
-3. Revalidate every live variant as an active accessory with sufficient usable
+3. If `requested_discount_type` is not `none`, require the unique discount
+   proof to exist with status `accepted`; otherwise return a validation error.
+4. Revalidate every live variant as an active accessory with sufficient usable
    stock. Staff cannot bypass unavailable or expired lots.
-4. Review the patient's discount declaration, verify it through the clinic's
+5. Review the patient's discount declaration, verify it through the clinic's
    existing manual process, and select the applicable existing Optical Order
    discount. The acceptance screen shows the resulting final payable amount
    before confirmation. No product-level eligibility engine is consulted.
-5. Create one `JobOrder` in `pending_payment`, recreate its accessory line
+6. Create one `JobOrder` in `pending_payment`, recreate its accessory line
    snapshots from the immutable request items, and commit inventory under the
    existing variant/lot locks.
-6. Create one unpaid Billing Record and corresponding optical-order billing
+7. Create one unpaid Billing Record and corresponding optical-order billing
    items using the confirmed subtotal, discount, and final payable amount.
-7. Store the request's unique `job_order_id`, mark it accepted, record the
+8. Store the request's unique `job_order_id`, mark it accepted, record the
    reviewer/time, set the payment deadline, and write identifier/status-only
    audits in the same transaction.
-8. After commit, notify the patient that the request was accepted and payment
+9. After commit, notify the patient that the request was accepted and payment
    is due. The notification points to the resulting Optical Order.
 
 Acceptance is idempotent for an already accepted request: it returns or links
@@ -212,6 +236,23 @@ record, inventory commitment, or notification.
 - The owner may cancel only a pending request. Cancellation is idempotent.
 - Neither path creates an Optical Order, billing record, payment, inventory
   movement, or stock change.
+
+### Submit discount proof
+
+1. Authorize through the active linked account and owned pending Order Request.
+2. Require a `senior_citizen` or `pwd` declaration and validate one JPG/JPEG/PNG
+   file up to 10 MB and 8,000 by 8,000 pixels.
+3. Store the object privately and create the unique proof row as `pending` in
+   one transaction. A storage or database failure must not leave a row that
+   points at a missing object; failed persistence removes the newly stored
+   object.
+4. If the existing proof is `rejected`, replace its object and reset the same
+   row to `pending`; `pending` and `accepted` proofs are returned unchanged.
+
+The first submission returns `201`; an idempotent retry returns `200`. Staff or
+administrators review the proof from the Order Request page. A rejection stores
+a bounded patient-visible reason and allows replacement while the request is
+still pending. No file metadata or path is returned to the patient.
 
 ### Submit proof
 
@@ -258,12 +299,12 @@ private object. It does not extend the original payment deadline.
 
 All routes below remain under `/api/v1` and use Sanctum plus patient-role
 authorization. Catalog browsing uses the account throttle and does not require
-an active patient link. Order requests, Optical Orders, payment-proof uploads,
-and ratings use the existing clinical throttle and require an active patient
-link. Request submission and payment-proof upload also use separate
-per-account throttles; the proof throttle permits at most five attempts per
-minute so large multipart requests cannot consume the general clinical budget
-unchecked.
+an active patient link. Order requests, Optical Orders, discount-proof and
+payment-proof uploads, and ratings use the existing clinical throttle and
+require an active patient link. Request submission and each proof upload also
+use separate per-account throttles; each proof throttle permits at most five
+attempts per minute so large multipart requests cannot consume the general
+clinical budget unchecked.
 
 ### Accessory catalog
 
@@ -306,6 +347,7 @@ GET  /accessory-order-requests
 POST /accessory-order-requests
 GET  /accessory-order-requests/{accessoryOrderRequest}
 POST /accessory-order-requests/{accessoryOrderRequest}/cancel
+POST /accessory-order-requests/{accessoryOrderRequest}/discount-proof
 ```
 
 Submission payload:
@@ -328,11 +370,31 @@ as a two-decimal monetary string, resolution fields, timestamps, and a nullable
 It never exposes cost price, exact stock, lot/expiry data, internal notes,
 staff-only audit data, or proof storage paths.
 
+Request responses also include `discount_proof_status` (`not_required`,
+`not_submitted`, `pending`, `accepted`, or `rejected`) and nullable
+`discount_proof_rejection_reason`, which is populated only for a rejected
+proof.
+
 The list is paginated and supports `filter=current|history`. `current` contains
 pending requests and accepted requests whose resulting Optical Order is not
 dispensed/cancelled. `history` contains rejected/cancelled requests and
 accepted requests whose order is dispensed/cancelled. Ordering is
 `created_at DESC, id DESC`.
+
+### Discount-proof route
+
+```text
+POST /accessory-order-requests/{accessoryOrderRequest}/discount-proof
+```
+
+The multipart field `proof` is required and must be a JPG/JPEG/PNG no larger
+than 10 MB and no larger than 8,000 by 8,000 pixels. The first valid upload
+returns `201` with the proof ID, `pending` status, and creation timestamp. A
+retry while the existing proof is `pending` or `accepted` returns the same
+record unchanged with `200`. After rejection, a patient may replace the proof
+while the request remains pending; the proof ID is reused and the old private
+object is deleted. The API never returns file paths or file metadata. A
+`none` discount request returns `DISCOUNT_PROOF_NOT_REQUESTED`.
 
 ### Payment-proof route
 
@@ -368,6 +430,7 @@ machine-readable codes:
 - `ORDER_REQUEST_NOT_ACTIONABLE`
 - `PAYMENT_WINDOW_EXPIRED`
 - `ORDER_NOT_AWAITING_PAYMENT`
+- `DISCOUNT_PROOF_NOT_REQUESTED`
 
 Ordering and commerce routes reject authenticated patient-role accounts without
 an active patient link with HTTP 403:
@@ -399,9 +462,18 @@ and view pages only.
 - Accept is all-or-nothing and delegates to the domain action; the Filament
   page never writes order, billing, or inventory rows directly.
 - Acceptance requires the authorized reviewer to resolve the discount request
-  and confirm the resulting final payable amount. Positive discounts retain
-  the existing Optical Order authorization rules.
+  and confirm the resulting final payable amount. Requested discounts also
+  require an accepted discount proof before the request can be accepted.
+  Positive discounts retain the existing Optical Order authorization rules.
 - Accepted rows link to their resulting Optical Order.
+
+### Discount-proof review
+
+The Order Request view shows the proof status and, when present, provides an
+authenticated attachment download. Active staff and administrators may accept
+or reject a pending proof. Rejection requires a bounded reason; the patient may
+replace a rejected proof while the request remains pending. Optometrist-only
+accounts cannot view or review proof objects.
 
 ### Optical Order payment review
 
@@ -427,13 +499,17 @@ Create queued, after-commit, deduplicated notifications for:
 - patient submits an order request -> staff/admin bell alert
 - staff accepts request -> patient payment-required alert
 - staff rejects request -> patient request-declined alert
-- patient submits proof -> staff/admin bell alert
-- staff accepts proof -> patient order-confirmed alert
-- proof rejection or payment expiry -> patient order-cancelled alert
+- patient submits payment proof -> staff/admin bell alert
+- staff accepts payment proof -> patient order-confirmed alert
+- payment-proof rejection or payment expiry -> patient order-cancelled alert
 
 Notification bodies contain request/order identifiers and safe statuses only.
 They omit item details, sender name, account number, GCash reference, proof
 filename/path, rejection narrative, and internal notes.
+
+Discount-proof review is represented in the Order Request status fields and
+clinic detail page; this MVP does not add a separate discount-proof
+notification type.
 
 Proof files are private data. Validate real MIME content, reject SVG and office
 documents, use generated storage names, and authorize every read. Audit entries
@@ -573,10 +649,10 @@ public function handle(
 
 ### Ask first
 
-- Any discount or refund policy, second payment method, proof resubmission,
-  automated product-level discount eligibility, discount-document upload,
-  staff line editing/substitution, multiple simultaneous pending requests,
-  pending-request expiry, delivery, or change to the 30-minute window.
+- Any discount or refund policy, second payment method, payment-proof
+  resubmission, automated product-level discount eligibility, staff line
+  editing/substitution, multiple simultaneous pending requests, pending-request
+  expiry, delivery, or change to the 30-minute window.
 - Any new dependency, public file visibility, exact-stock exposure, or change
   to existing staff-created Optical Order behavior.
 
@@ -586,7 +662,7 @@ public function handle(
 - Trust client prices, screenshot contents, or patient-supplied catalog labels.
 - Create records in the retired legacy `orders`, `order_items`, `payments`, or
   `billings` tables.
-- Auto-expire an order after proof submission.
+- Auto-expire an order after payment-proof submission.
 - Log proof contents, storage paths, GCash references, or sender names.
 - Describe ordinary accessories as prescribed, required, or
   measurement-compatible.
@@ -596,15 +672,20 @@ public function handle(
 1. A linked patient can browse active accessories, submit one immutable
    multi-item request, list/view it, and cancel it while pending; another
    account receives `404` for that request.
-2. Submission does not change stock or calculate a discount. Staff resolves any
-   declared Senior Citizen/PWD request, confirms the final payable amount, and
-   acceptance creates exactly one pending-payment Optical Order and Billing
-   Record, commits the exact accessory quantities once using current FEFO
-   rules, and starts a 30-minute deadline.
+2. Submission does not change stock or calculate a discount. A declared Senior
+   Citizen/PWD request accepts one private discount proof while pending; staff
+   resolves the request, confirms the final payable amount, and acceptance
+   requires an accepted proof. Acceptance then creates exactly one
+   pending-payment Optical Order and Billing Record, commits the exact
+   accessory quantities once using current FEFO rules, and starts a 30-minute
+   deadline.
 3. Rejection before acceptance creates no commerce or inventory records.
-4. One valid proof submitted before the deadline moves the owned order to
-   payment review without exposing the private object. Late or duplicate proof
-   attempts cannot create additional rows or extend the deadline.
+4. One valid payment proof submitted before the deadline moves the owned order
+   to payment review without exposing the private object. Late or duplicate
+   payment-proof attempts cannot create additional rows or extend the deadline.
+   A rejected discount proof may be replaced while its request remains pending;
+   accepted discount proof is required before a requested discount order can be
+   accepted.
 5. Staff acceptance records exactly one full GCash payment and moves the order
    to `queued`. Proof rejection or unpaid expiry cancels the order, restores
    exact inventory once, and voids the unpaid bill.
@@ -627,8 +708,8 @@ public function handle(
 - Frames, contact lenses, lenses, or prescription eyewear ordering
 - Automatic payment gateways, webhooks, refunds, or fraud detection
 - Partial payments, deposits, promotions, or loyalty points
-- Automated product-level discount eligibility or a discount-document upload
-- Patient proof resubmission or multiple proof files
+- Automated product-level discount eligibility or additional discount rules
+- Payment-proof resubmission or multiple payment-proof files
 - Staff edits, substitutions, or partial request acceptance
 - Personalized clinical product recommendations
 - Prescription-linked accessory placement or compatibility recommendations

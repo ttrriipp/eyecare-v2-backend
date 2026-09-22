@@ -309,8 +309,8 @@ server {
         deny all;
     }
 
-    # Keep this above the 10 MB payment-proof limit to allow multipart
-    # request overhead. The application accepts proofs up to 10 MB.
+    # Keep this above the 10 MB payment- and discount-proof limits to allow
+    # multipart request overhead. The application accepts proofs up to 10 MB.
     client_max_body_size 20M;
 }
 ```

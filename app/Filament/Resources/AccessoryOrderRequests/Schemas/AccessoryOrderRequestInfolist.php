@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AccessoryOrderRequests\Schemas;
 
 use App\Enums\AccessoryOrderRequestStatus;
+use App\Enums\DiscountProofStatus;
 use App\Models\AccessoryOrderRequest;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
@@ -72,6 +73,32 @@ class AccessoryOrderRequestInfolist
             ])
             ->columns(2);
 
+        $discountProofDetails = Section::make('Discount proof')
+            ->schema([
+                TextEntry::make('discount_proof_status')
+                    ->label('Status')
+                    ->state(fn (AccessoryOrderRequest $record): string => $record->requested_discount_type === 'none'
+                        ? 'not_required'
+                        : ($record->discountProof?->status?->value ?? 'not_submitted'))
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => Str::headline($state))
+                    ->color(fn (string $state): string => match ($state) {
+                        'accepted' => 'success',
+                        'rejected' => 'danger',
+                        'pending' => 'warning',
+                        default => 'gray',
+                    }),
+                TextEntry::make('discountProof.reviewedBy.full_name')
+                    ->label('Reviewed by')
+                    ->placeholder('Awaiting review'),
+                TextEntry::make('discountProof.rejection_reason')
+                    ->label('Rejection reason')
+                    ->placeholder('—')
+                    ->columnSpanFull()
+                    ->visible(fn (AccessoryOrderRequest $record): bool => $record->discountProof?->status === DiscountProofStatus::Rejected),
+            ])
+            ->columns(2);
+
         $orderItems = Section::make('Order items')
             ->schema([
                 RepeatableEntry::make('items')
@@ -107,6 +134,7 @@ class AccessoryOrderRequestInfolist
                     $requestDetails->columnSpan(['default' => 1, 'lg' => 2]),
                     $resolutionDetails->columnSpan(['default' => 1, 'lg' => 1]),
                 ]),
+                $discountProofDetails,
                 $orderItems,
             ]);
     }

@@ -873,6 +873,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `encrypted_cancellation_reason` (nullable encrypted patient reason, required on patient cancellation and returned as `cancellation_reason` to the owning account), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The one-active-booking rule allows one actionable pending request or one future scheduled/checked-in appointment. Only stored `pending` rows with a future `expires_at` are counted, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A patient must send nonblank `reason_details` (up to 1,000 characters) when cancelling; the reason is encrypted at rest and visible on the staff request detail screen. A patient may update only the schedule preferences on an unexpired pending row; the update preserves all identity and booking fields, recalculates `expires_at`, rechecks all candidates under locks, and writes an atomic `appointment_request.schedule_updated` audit. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `accessory_order_requests` | Immutable patient Order Requests. `request_number` (`ORQ-YYYY-NNNNNN`), `user_id`, `patient_id`, `status` (`pending`/`accepted`/`rejected`/`cancelled`), server-derived `subtotal_amount`, declared `requested_discount_type` (`none`/`senior_citizen`/`pwd`), unique nullable `job_order_id`, `resolved_by`, `resolved_at`, patient-visible `rejection_reason`, and `cancelled_at`. One pending row per account is enforced under the account lock; pending rows do not reserve stock or expire automatically. |
 | `accessory_order_request_items` | Immutable request line snapshots: `product_variant_id`, description, quantity, unit price, amount, accessory `item_kind`, and catalog `item_snapshot`. The live variant is revalidated during staff acceptance; the snapshot preserves history. |
+| `accessory_order_request_discount_proofs` | One private proof per discount-requested Order Request: submitting account, `status` (`pending`/`accepted`/`rejected`), generated private path, original name/MIME/size, reviewer/time, and bounded rejection reason. Proof metadata is never serialized into patient responses; staff/admin download uses an authenticated attachment route. A rejected proof may be replaced while its request remains pending, reusing the proof row and deleting the prior private object. |
 | `appointment_type_visit_reason_presets` | Backend-managed patient-facing suggestions belonging to an appointment type. Stores `appointment_type_id`, `label` (trimmed, nonblank, max 255 characters), `sort_order`, and `is_active`; inactive presets remain editable by clinic administrators but are excluded from the mobile appointment-type catalog. `Other` is client-provided and is never stored here. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional server-controlled `user_id` link to account. `identity_review_required` (indexed boolean) and `identity_review_required_at` track post-link incompatibility; they do not suspend access and are not mass assignable. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
@@ -1186,15 +1187,16 @@ GET    /api/v1/accessory-order-requests
 POST   /api/v1/accessory-order-requests
 GET    /api/v1/accessory-order-requests/{id}
 POST   /api/v1/accessory-order-requests/{id}/cancel
+POST   /api/v1/accessory-order-requests/{id}/discount-proof
 GET    /api/v1/optical-orders
 GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-orders/{id}/payment-proof
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 15
-active-link = **68 registered routes total**. The normal patient contract count
-is **67** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 16
+active-link = **69 registered routes total**. The normal patient contract count
+is **68** when the disabled-by-default pilot route is excluded.
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1204,7 +1206,7 @@ Authenticated API throttles use separate per-account buckets so a mobile
 bootstrap burst cannot consume the profile and clinical budgets together:
 `GET /me` allows 300 requests per minute, account-only routes allow 120 per
 minute, accessory request submission allows 10 per minute, payment-proof
-uploads allow 5 per minute, invitation OTP requests allow 5 per minute, and
+uploads allow 5 per minute each, invitation OTP requests allow 5 per minute, and
 invitation acceptance allows 120 per minute. Rate-limited
 responses include `Retry-After`; middleware-backed limits also include the
 standard `X-RateLimit-*` headers.
