@@ -82,6 +82,70 @@ test('canonical seed data creates linked and walk-in patients', function () {
         ->and($walkInPatient->user_id)->toBeNull();
 });
 
+test('canonical seed data fills the planned consultation and patient profile', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $encounter = Encounter::query()
+        ->with(['patient', 'appointment.appointmentType', 'appointment.status', 'optometrist'])
+        ->where('encounter_number', 'CON-2026-000002')
+        ->firstOrFail();
+
+    expect($encounter->patient?->full_name)->toBe('Pedro Cruz')
+        ->and($encounter->patient?->occupation)->toBe('Software Engineer')
+        ->and($encounter->patient?->address)->toBe('Quezon City, Metro Manila')
+        ->and($encounter->patient?->contact_email)->toBe('pedro.cruz@eyecare.test')
+        ->and($encounter->appointment?->appointment_number)->toBe('APT-2026-000007')
+        ->and($encounter->appointment?->appointmentType?->name)->toBe('Routine Check-up')
+        ->and($encounter->appointment?->status?->name)->toBe('checked_in')
+        ->and($encounter->appointment?->reason_for_visit)->toBe('Eye strain and intermittent blurred vision after long screen use.')
+        ->and($encounter->chief_complaint)->toBe('Eye strain and intermittent blurred vision after long screen use.')
+        ->and($encounter->optometrist?->isOptometrist())->toBeTrue();
+});
+
+test('rerunning canonical seed data repairs the planned consultation details', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $encounter = Encounter::query()
+        ->where('encounter_number', 'CON-2026-000002')
+        ->firstOrFail();
+    $encounter->patient()->update([
+        'occupation' => null,
+        'address' => null,
+        'contact_email' => null,
+    ]);
+    $encounter->appointment()->update(['reason_for_visit' => null]);
+    $encounter->update([
+        'appointment_id' => null,
+        'chief_complaint' => null,
+    ]);
+
+    $this->seed(DatabaseSeeder::class);
+
+    $repairedEncounter = Encounter::query()
+        ->with(['patient', 'appointment'])
+        ->where('encounter_number', 'CON-2026-000002')
+        ->firstOrFail();
+
+    expect($repairedEncounter->patient?->occupation)->toBe('Software Engineer')
+        ->and($repairedEncounter->patient?->address)->toBe('Quezon City, Metro Manila')
+        ->and($repairedEncounter->patient?->contact_email)->toBe('pedro.cruz@eyecare.test')
+        ->and($repairedEncounter->appointment?->appointment_number)->toBe('APT-2026-000007')
+        ->and($repairedEncounter->appointment?->reason_for_visit)->toBe('Eye strain and intermittent blurred vision after long screen use.')
+        ->and($repairedEncounter->chief_complaint)->toBe('Eye strain and intermittent blurred vision after long screen use.');
+});
+
+test('canonical seed data links the in-progress consultation to its appointment', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $encounter = Encounter::query()
+        ->with('appointment.status')
+        ->where('encounter_number', 'CON-2026-000003')
+        ->firstOrFail();
+
+    expect($encounter->appointment?->appointment_number)->toBe('APT-2026-000009')
+        ->and($encounter->appointment?->status?->name)->toBe('checked_in');
+});
+
 test('canonical seed data creates appointment types with durations', function () {
     $this->seed(DatabaseSeeder::class);
 
@@ -118,7 +182,7 @@ test('canonical seed data omits the checked-in scenario appointment', function (
 
     expect(Appointment::query()->where('appointment_number', 'APT-2026-000003')->exists())->toBeFalse()
         ->and($noShowAppointment->status?->name)->toBe('no_show')
-        ->and(Appointment::generateAppointmentNumber())->toBe('APT-2026-000007');
+        ->and(Appointment::generateAppointmentNumber())->toBe('APT-2026-000010');
 });
 
 test('canonical seed data omits the cancelled billing scenario record', function () {
@@ -135,6 +199,15 @@ test('canonical seed data creates a complete cancelled referral appointment', fu
     $appointment = Appointment::query()
         ->where('appointment_number', 'APT-2026-000004')
         ->firstOrFail();
+    $duplicateAppointment = Appointment::query()
+        ->where('appointment_number', 'APT-2026-000008')
+        ->firstOrFail();
+    $cancelledEncounter = Encounter::query()
+        ->where('encounter_number', 'CON-2026-000004')
+        ->firstOrFail();
+    $duplicateEncounter = Encounter::query()
+        ->where('encounter_number', 'CON-2026-000005')
+        ->firstOrFail();
     $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
 
     expect($appointment->patient?->full_name)->toBe('Pedro Cruz')
@@ -148,7 +221,16 @@ test('canonical seed data creates a complete cancelled referral appointment', fu
         ->and($appointment->cancelled_by_user_id)->toBe($staff->id)
         ->and($appointment->cancellation_reason_category)->toBe('schedule_conflict')
         ->and($appointment->cancellation_reason_details)->toBe('The clinic could not keep the original appointment slot.')
-        ->and($appointment->cancelled_at)->not->toBeNull();
+        ->and($appointment->cancelled_at)->not->toBeNull()
+        ->and($duplicateAppointment->patient_id)->toBe($appointment->patient_id)
+        ->and($duplicateAppointment->status?->name)->toBe('cancelled')
+        ->and($duplicateAppointment->cancelled_at)->not->toBeNull()
+        ->and($cancelledEncounter->patient_id)->toBe($appointment->patient_id)
+        ->and($cancelledEncounter->appointment_id)->toBe($appointment->id)
+        ->and($cancelledEncounter->completed_at)->toBeNull()
+        ->and($duplicateEncounter->status)->toBe(EncounterStatus::Cancelled)
+        ->and($duplicateEncounter->appointment_id)->toBe($duplicateAppointment->id)
+        ->and($duplicateEncounter->completed_at)->toBeNull();
 });
 
 test('canonical seed data creates a complete secondary consultation', function () {
@@ -188,6 +270,29 @@ test('canonical seed data creates a complete secondary consultation', function (
     }
 });
 
+test('rerunning canonical seed data repairs missing prescription expiration dates', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    Prescription::query()
+        ->whereIn('prescription_number', ['RX-2026-000001', 'RX-2026-000002'])
+        ->update(['expires_at' => null]);
+
+    $this->seed(DatabaseSeeder::class);
+
+    $prescriptions = Prescription::query()
+        ->whereIn('prescription_number', ['RX-2026-000001', 'RX-2026-000002'])
+        ->get();
+
+    expect($prescriptions)->toHaveCount(2);
+
+    $prescriptions->each(function (Prescription $prescription): void {
+        expect($prescription->expires_at)->not->toBeNull()
+            ->and($prescription->expires_at?->toDateString())->toBe(
+                $prescription->prescribed_at?->copy()->addMonthsNoOverflow(6)->toDateString(),
+            );
+    });
+});
+
 test('canonical seed data creates deterministic appointment request scenarios with complete decisions', function () {
     $this->seed(DatabaseSeeder::class);
 
@@ -216,6 +321,7 @@ test('canonical seed data creates deterministic appointment request scenarios wi
     $accepted = $requests->get('APR-2026-000002');
     $pending = $requests->get('APR-2026-000001');
     $rejected = $requests->get('APR-2026-000003');
+    $expired = $requests->get('APR-2026-000005');
     $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
     $pendingPatient = Patient::query()->where('patient_number', 'PAT-2026-000003')->firstOrFail();
 
@@ -230,7 +336,12 @@ test('canonical seed data creates deterministic appointment request scenarios wi
         ->and($rejected?->status)->toBe(AppointmentRequestStatus::Rejected)
         ->and($rejected?->resolvedBy?->id)->toBe($staff->id)
         ->and($rejected?->resolved_at)->not->toBeNull()
-        ->and($rejected?->rejection_reason)->toBe('Requested time is outside clinic hours for this appointment type.');
+        ->and($rejected?->scheduled_at?->format('H:i'))->toBe('18:00')
+        ->and($rejected?->rejection_reason)->toBe('Requested time is outside clinic hours for this appointment type.')
+        ->and($expired?->status)->toBe(AppointmentRequestStatus::Expired)
+        ->and($expired?->scheduled_at?->isPast())->toBeTrue()
+        ->and($expired?->scheduled_at?->format('H:i'))->toBe('10:00')
+        ->and($expired?->expires_at?->isPast())->toBeTrue();
 });
 
 test('rerunning the canonical seeder repairs edited appointment request demo data', function () {

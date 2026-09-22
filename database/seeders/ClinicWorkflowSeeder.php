@@ -192,6 +192,7 @@ class ClinicWorkflowSeeder extends Seeder
                 'add_os_cylinder' => '-0.50',
                 'remarks' => 'Mild myopia with astigmatism. Recommend anti-reflective coating and regular visual breaks during prolonged near work.',
                 'prescribed_at' => $encounter->completed_at,
+                'expires_at' => $encounter->completed_at?->copy()->addMonthsNoOverflow(6),
                 'created_by' => $optometrist->id,
             ],
         );

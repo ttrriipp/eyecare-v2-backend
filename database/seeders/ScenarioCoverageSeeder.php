@@ -114,6 +114,34 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
+        $duplicateAppointmentScheduledAt = now()->subDays(10)->setTime(13, 0);
+        Appointment::query()->updateOrCreate(
+            ['appointment_number' => 'APT-2026-000008'],
+            [
+                'patient_id' => $walkIn->id,
+                'created_by' => $staff->id,
+                'appointment_type_id' => $followUpType->id,
+                'duration_minutes' => $followUpType->duration_minutes,
+                'referring_source' => null,
+                'source' => 'manual',
+                'appointment_status_id' => $cancelled->id,
+                'scheduled_at' => $duplicateAppointmentScheduledAt,
+                'checked_in_at' => null,
+                'checked_in_by' => null,
+                'fulfilled_at' => null,
+                'cancelled_by' => 'clinic',
+                'cancelled_by_user_id' => $staff->id,
+                'cancellation_reason_category' => 'duplicate',
+                'cancellation_reason_details' => 'The duplicate consultation entry was merged with the correct consultation.',
+                'cancelled_at' => $duplicateAppointmentScheduledAt->copy()->addMinutes(15),
+                'no_show_by' => null,
+                'no_show_at' => null,
+                'reason_for_visit' => 'Follow-up consultation after a recent prescription change.',
+                'contact_notes' => 'Duplicate consultation entry was identified during record review.',
+                'staff_notes' => 'Use the retained consultation record for the patient history.',
+            ],
+        );
+
         $noShow = AppointmentStatus::query()->where('name', 'no_show')->firstOrFail();
         Appointment::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'appointment_status_id' => $noShow->id],
@@ -154,6 +182,10 @@ class ScenarioCoverageSeeder extends Seeder
 
         $requestedTime = now()->addDays(2)->setTime(10, 0);
         $requestExpiry = $requestedTime->copy()->addDay();
+        $outsideClinicHoursTime = now()->addDays(2)->setTime(18, 0);
+        $outsideClinicHoursExpiry = $outsideClinicHoursTime->copy()->addDay();
+        $expiredRequestTime = now()->subDay()->setTime(10, 0);
+        $expiredRequestExpiry = $expiredRequestTime->copy()->addHour();
 
         // The flagship patient already has the scheduled appointment seeded by
         // ClinicWorkflowSeeder. Keep the pending request on the separately
@@ -215,8 +247,8 @@ class ScenarioCoverageSeeder extends Seeder
             [
                 ...$sharedAttributes,
                 'appointment_id' => null,
-                'scheduled_at' => $requestedTime,
-                'expires_at' => $requestExpiry,
+                'scheduled_at' => $outsideClinicHoursTime,
+                'expires_at' => $outsideClinicHoursExpiry,
                 'encrypted_reason_for_visit' => 'Eye pain and redness needing urgent assessment.',
                 'status' => AppointmentRequestStatus::Rejected,
                 'resolved_by_user_id' => $staffId,
@@ -244,8 +276,8 @@ class ScenarioCoverageSeeder extends Seeder
             [
                 ...$sharedAttributes,
                 'appointment_id' => null,
-                'scheduled_at' => now()->subHours(2),
-                'expires_at' => now()->subHour(),
+                'scheduled_at' => $expiredRequestTime,
+                'expires_at' => $expiredRequestExpiry,
                 'encrypted_reason_for_visit' => 'Follow-up after a recent prescription change.',
                 'status' => AppointmentRequestStatus::Expired,
                 'resolved_by_user_id' => null,
@@ -325,24 +357,122 @@ class ScenarioCoverageSeeder extends Seeder
         $walkIn = $this->walkInPatient();
         $staff = $this->staff();
         $optometrist = $this->optometrist();
+        $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
+        $checkedIn = AppointmentStatus::query()->where('name', 'checked_in')->firstOrFail();
+        $cancelledAppointment = Appointment::query()
+            ->where('appointment_number', 'APT-2026-000004')
+            ->firstOrFail();
+        $duplicateCancelledAppointment = Appointment::query()
+            ->where('appointment_number', 'APT-2026-000008')
+            ->firstOrFail();
+        $plannedReason = 'Eye strain and intermittent blurred vision after long screen use.';
+        $scheduledAt = now()->subMinutes(45)->setSeconds(0);
+        $inProgressScheduledAt = now()->subMinutes(30)->setSeconds(0);
 
-        Encounter::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Planned],
-            ['encounter_number' => 'CON-2026-000002', 'optometrist_id' => $optometrist->id],
+        $inProgressAppointment = Appointment::query()->updateOrCreate(
+            ['appointment_number' => 'APT-2026-000009'],
+            [
+                'patient_id' => $walkIn->id,
+                'appointment_type_id' => $appointmentType->id,
+                'duration_minutes' => $appointmentType->duration_minutes,
+                'created_by' => $staff->id,
+                'optometrist_id' => $optometrist->id,
+                'source' => 'walk_in',
+                'referring_source' => null,
+                'appointment_status_id' => $checkedIn->id,
+                'scheduled_at' => $inProgressScheduledAt,
+                'checked_in_at' => $inProgressScheduledAt->copy()->addMinutes(5),
+                'checked_in_by' => $staff->id,
+                'fulfilled_at' => null,
+                'cancelled_by' => null,
+                'cancelled_by_user_id' => null,
+                'cancellation_reason_category' => null,
+                'cancellation_reason_details' => null,
+                'cancelled_at' => null,
+                'no_show_by' => null,
+                'no_show_at' => null,
+                'reason_for_visit' => 'Walk-in consultation for intermittent blurred vision after extended screen use.',
+                'contact_notes' => 'Patient was checked in for the active walk-in consultation.',
+                'staff_notes' => 'Complete the clinical assessment and record findings before completion.',
+            ],
         );
 
-        Encounter::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::InProgress],
-            ['encounter_number' => 'CON-2026-000003', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subMinutes(20)],
+        $plannedAppointment = Appointment::query()->updateOrCreate(
+            ['appointment_number' => 'APT-2026-000007'],
+            [
+                'patient_id' => $walkIn->id,
+                'appointment_type_id' => $appointmentType->id,
+                'duration_minutes' => $appointmentType->duration_minutes,
+                'created_by' => $staff->id,
+                'optometrist_id' => $optometrist->id,
+                'source' => 'walk_in',
+                'referring_source' => null,
+                'appointment_status_id' => $checkedIn->id,
+                'scheduled_at' => $scheduledAt,
+                'checked_in_at' => $scheduledAt->copy()->addMinutes(5),
+                'checked_in_by' => $staff->id,
+                'fulfilled_at' => null,
+                'cancelled_by' => null,
+                'cancelled_by_user_id' => null,
+                'cancellation_reason_category' => null,
+                'cancellation_reason_details' => null,
+                'cancelled_at' => null,
+                'no_show_by' => null,
+                'no_show_at' => null,
+                'reason_for_visit' => $plannedReason,
+                'contact_notes' => 'Walk-in patient reports intermittent blurred vision after extended screen use.',
+                'staff_notes' => 'Confirm current prescription and review visual ergonomics during the consultation.',
+            ],
+        );
+
+        Encounter::query()->updateOrCreate(
+            ['encounter_number' => 'CON-2026-000002'],
+            [
+                'patient_id' => $walkIn->id,
+                'appointment_id' => $plannedAppointment->id,
+                'optometrist_id' => $optometrist->id,
+                'status' => EncounterStatus::Planned,
+                'started_at' => null,
+                'completed_at' => null,
+                'chief_complaint' => $plannedReason,
+                'findings' => null,
+                'remarks' => null,
+                'past_ocular_history' => null,
+                'past_surgical_history' => null,
+                'past_medical_history' => null,
+                'allergies' => null,
+                'medications' => null,
+                'last_wizard_step' => null,
+                'draft_saved_at' => null,
+                'prescription_draft' => null,
+                'completed_by' => null,
+                'cancelled_by' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
+            ],
+        );
+
+        Encounter::query()->updateOrCreate(
+            ['encounter_number' => 'CON-2026-000003'],
+            [
+                'patient_id' => $walkIn->id,
+                'appointment_id' => $inProgressAppointment->id,
+                'status' => EncounterStatus::InProgress,
+                'optometrist_id' => $optometrist->id,
+                'started_at' => now()->subMinutes(20),
+                'completed_at' => null,
+            ],
         );
 
         Encounter::query()->updateOrCreate(
             ['encounter_number' => 'CON-2026-000004'],
             [
                 'patient_id' => $walkIn->id,
+                'appointment_id' => $cancelledAppointment->id,
                 'status' => EncounterStatus::Cancelled,
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now()->subDays(3),
+                'completed_at' => null,
             ],
         );
 
@@ -350,10 +480,11 @@ class ScenarioCoverageSeeder extends Seeder
             ['encounter_number' => 'CON-2026-000005'],
             [
                 'patient_id' => $walkIn->id,
+                'appointment_id' => $duplicateCancelledAppointment->id,
                 'status' => EncounterStatus::Cancelled,
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now()->subDays(10),
-                'completed_at' => now()->subDays(10)->addHour(),
+                'completed_at' => null,
                 'cancellation_reason' => 'Duplicate entry — merged with the correct encounter.',
             ],
         );
@@ -362,7 +493,6 @@ class ScenarioCoverageSeeder extends Seeder
         // not just the linked-account flagship), with its own prescription,
         // so the prescription-aware retail flow isn't only demonstrated
         // once. Feeds seedJobOrderStatuses() below.
-        $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
         $fulfilled = AppointmentStatus::query()->where('name', 'fulfilled')->firstOrFail();
         $scheduledAt = now()->subDays(4)->setTime(15, 0);
         $checkedInAt = $scheduledAt->copy()->addMinutes(5);
@@ -426,6 +556,7 @@ class ScenarioCoverageSeeder extends Seeder
                 'main_os_cylinder' => '-0.50',
                 'remarks' => 'Mild myopia with slight astigmatism. Single-vision distance lenses recommended.',
                 'prescribed_at' => $completedAt,
+                'expires_at' => $completedAt->copy()->addMonthsNoOverflow(6),
                 'created_by' => $optometrist->id,
             ],
         );

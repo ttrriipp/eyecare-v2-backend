@@ -177,15 +177,18 @@ class DemoUserSeeder extends Seeder
 
     private function createWalkInPatient(): void
     {
-        if (Patient::query()->where('first_name', 'Pedro')->where('last_name', 'Cruz')->doesntExist()) {
-            Patient::query()->create([
-                'patient_number' => 'PAT-2026-000002',
+        Patient::query()->updateOrCreate(
+            ['patient_number' => 'PAT-2026-000002'],
+            [
                 'first_name' => 'Pedro',
                 'last_name' => 'Cruz',
                 'phone' => '09170000004',
                 'date_of_birth' => '1985-08-20',
                 'gender' => 'male',
-            ]);
-        }
+                'occupation' => 'Software Engineer',
+                'address' => 'Quezon City, Metro Manila',
+                'contact_email' => 'pedro.cruz@eyecare.test',
+            ],
+        );
     }
 }
