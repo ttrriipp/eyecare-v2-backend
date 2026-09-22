@@ -6,6 +6,7 @@ use App\Actions\Appointments\LockAppointmentScheduleDate;
 use App\Actions\Appointments\ScheduleAppointment;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
@@ -94,6 +95,8 @@ class CreateAppointment extends CreateRecord
             ]);
         }
 
+        $this->resolveReasonForVisit($data);
+
         if ($appointmentType->requires_referral && blank($data['referring_source'] ?? null)) {
             throw ValidationException::withMessages([
                 'data.referring_source' => ['Referring source is required for this appointment type.'],
@@ -136,6 +139,30 @@ class CreateAppointment extends CreateRecord
         }
 
         return $data;
+    }
+
+    /**
+     * Convert the preset/custom form state into the appointment's persisted
+     * reason text.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveReasonForVisit(array &$data): void
+    {
+        $selectedReason = $data['reason_for_visit'] ?? null;
+        $customReason = trim((string) ($data['custom_reason_for_visit'] ?? ''));
+
+        if ($selectedReason === AppointmentForm::CUSTOM_REASON_VALUE || (blank($selectedReason) && filled($customReason))) {
+            if (blank($customReason)) {
+                throw ValidationException::withMessages([
+                    'data.custom_reason_for_visit' => ['Enter a custom reason for the visit.'],
+                ]);
+            }
+
+            $data['reason_for_visit'] = $customReason;
+        }
+
+        unset($data['custom_reason_for_visit']);
     }
 
     /**

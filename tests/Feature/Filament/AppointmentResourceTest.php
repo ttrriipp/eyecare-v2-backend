@@ -5,9 +5,11 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
+use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\AppointmentTypeVisitReasonPreset;
 use App\Models\ClinicHour;
 use App\Models\Encounter;
 use App\Models\Patient;
@@ -17,7 +19,7 @@ use Database\Seeders\ClinicHoursSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
-use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\TextSize;
@@ -180,30 +182,71 @@ test('appointment status is read only on the edit form', function () {
 
 test('appointment details includes the visit reason', function () {
     $staff = User::factory()->staff()->create();
+    $appointmentType = AppointmentType::factory()->create();
+    AppointmentTypeVisitReasonPreset::factory()->for($appointmentType)->create([
+        'label' => 'Routine eye examination',
+    ]);
     $appointment = Appointment::factory()->create([
+        'appointment_type_id' => $appointmentType->id,
         'reason_for_visit' => 'Blurred vision in the left eye',
     ]);
 
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertFormSet([
+            'reason_for_visit' => AppointmentForm::CUSTOM_REASON_VALUE,
+            'custom_reason_for_visit' => 'Blurred vision in the left eye',
+        ])
         ->assertSchemaComponentExists(
             'appointment-details',
             checkComponentUsing: function (Section $component): bool {
                 $reason = collect($component->getChildSchema()->getComponents())
-                    ->first(fn ($childComponent): bool => $childComponent instanceof Textarea
+                    ->first(fn ($childComponent): bool => $childComponent instanceof Select
                         && $childComponent->getName() === 'reason_for_visit');
 
                 expect($component->getHeading())
                     ->toBe('Appointment Details')
                     ->and($reason)
-                    ->toBeInstanceOf(Textarea::class)
+                    ->toBeInstanceOf(Select::class)
                     ->and($reason->getLabel())
-                    ->toBe('Reason for Visit');
+                    ->toBe('Reason for Visit')
+                    ->and($reason->getOptions())
+                    ->toMatchArray([
+                        'Routine eye examination' => 'Routine eye examination',
+                        '__custom__' => 'Other',
+                    ]);
 
                 return true;
             },
         );
+});
+
+test('appointment creation saves a custom reason selected as other', function (): void {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $appointmentType = AppointmentType::factory()->create();
+    AppointmentTypeVisitReasonPreset::factory()->for($appointmentType)->create([
+        'label' => 'Routine eye examination',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'patient_mode' => 'existing',
+            'patient_id' => $patient->id,
+            'is_walk_in' => 'walk_in',
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => $appointmentType->duration_minutes,
+            'reason_for_visit' => AppointmentForm::CUSTOM_REASON_VALUE,
+            'custom_reason_for_visit' => 'Eye irritation after extended screen use',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Appointment::query()->latest('id')->value('reason_for_visit'))
+        ->toBe('Eye irritation after extended screen use');
 });
 
 test('appointment table has no generic lifecycle advance actions', function () {
@@ -441,6 +484,38 @@ test('rescheduling requires clinic reason category', function () {
             'reschedule_reason' => null,
         ])
         ->assertHasTableActionErrors(['reason_category']);
+});
+
+test('rescheduling reloads the edit page with the new appointment time', function (): void {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $this->seed(ClinicHoursSeeder::class);
+
+    $scheduledAt = now()->next('Wednesday')->setTime(10, 0);
+    $newScheduledAt = $scheduledAt->copy()->addWeek()->setTime(11, 0);
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => $scheduledAt,
+        'duration_minutes' => 30,
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->mountAction('reschedule')
+        ->setActionData([
+            'scheduled_at' => $newScheduledAt->toDateString(),
+            'appointment_time' => $newScheduledAt->format('H:i'),
+            'reason_category' => 'patient_request',
+            'reschedule_reason' => null,
+        ])
+        ->callMountedAction()
+        ->assertRedirect(EditAppointment::getUrl([
+            'record' => $appointment->getRouteKey(),
+        ]));
+
+    expect($appointment->fresh()->scheduled_at->toDateTimeString())
+        ->toBe($newScheduledAt->toDateTimeString());
 });
 
 test('edit page has no editable status field', function () {

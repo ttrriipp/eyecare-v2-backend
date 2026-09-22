@@ -11,6 +11,7 @@ use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\Appointment;
@@ -37,6 +38,57 @@ class EditAppointment extends EditRecord
         $patientName = $record->patient?->full_name ?? 'Unknown patient';
 
         return 'Appointment for '.$patientName;
+    }
+
+    /**
+     * Keep existing custom reasons editable when they are not current presets.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $appointmentType = AppointmentType::query()
+            ->with('activeVisitReasonPresets')
+            ->find($data['appointment_type_id'] ?? null);
+        $reason = $data['reason_for_visit'] ?? null;
+        $presetLabels = $appointmentType?->activeVisitReasonPresets
+            ->pluck('label')
+            ->all() ?? [];
+
+        if (filled($reason) && ! in_array($reason, $presetLabels, true)) {
+            $data['reason_for_visit'] = AppointmentForm::CUSTOM_REASON_VALUE;
+            $data['custom_reason_for_visit'] = $reason;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Convert the preset/custom form state into the appointment's persisted
+     * reason text.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $selectedReason = $data['reason_for_visit'] ?? null;
+        $customReason = trim((string) ($data['custom_reason_for_visit'] ?? ''));
+
+        if ($selectedReason === AppointmentForm::CUSTOM_REASON_VALUE || (blank($selectedReason) && filled($customReason))) {
+            if (blank($customReason)) {
+                throw ValidationException::withMessages([
+                    'data.custom_reason_for_visit' => ['Enter a custom reason for the visit.'],
+                ]);
+            }
+
+            $data['reason_for_visit'] = $customReason;
+        }
+
+        unset($data['custom_reason_for_visit']);
+
+        return $data;
     }
 
     /**
@@ -238,7 +290,9 @@ class EditAppointment extends EditRecord
                             reasonCategory: $data['reason_category'],
                         );
                         Notification::make()->title('Appointment rescheduled')->success()->send();
-                        $this->refreshFormData(['current_status', 'scheduled_at']);
+                        $this->redirect(EditAppointment::getUrl([
+                            'record' => $this->getRecord()->getRouteKey(),
+                        ]));
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot reschedule appointment.';
                         Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();

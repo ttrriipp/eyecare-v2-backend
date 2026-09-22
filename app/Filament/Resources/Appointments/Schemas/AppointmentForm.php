@@ -27,6 +27,34 @@ use Illuminate\Support\Str;
 
 class AppointmentForm
 {
+    public const CUSTOM_REASON_VALUE = '__custom__';
+
+    /**
+     * @return array<string, string>
+     */
+    public static function reasonOptions(mixed $appointmentTypeId): array
+    {
+        $appointmentType = AppointmentType::query()
+            ->with('activeVisitReasonPresets')
+            ->find($appointmentTypeId);
+
+        $options = $appointmentType === null
+            ? []
+            : $appointmentType->activeVisitReasonPresets
+                ->pluck('label', 'label')
+                ->all();
+
+        return $options + [self::CUSTOM_REASON_VALUE => 'Other'];
+    }
+
+    public static function hasReasonPresets(mixed $appointmentTypeId): bool
+    {
+        $options = self::reasonOptions($appointmentTypeId);
+        unset($options[self::CUSTOM_REASON_VALUE]);
+
+        return $options !== [];
+    }
+
     private static function isScheduleEditingDisabled(?Appointment $record): bool
     {
         return $record?->isTerminal() === true || filled($record?->checked_in_at);
@@ -244,6 +272,9 @@ class AppointmentForm
                                     if ($type) {
                                         $set('duration_minutes', $type->duration_minutes);
                                     }
+
+                                    $set('reason_for_visit', null);
+                                    $set('custom_reason_for_visit', null);
                                 }),
 
                             TextInput::make('duration_minutes')
@@ -273,9 +304,24 @@ class AppointmentForm
                                 ->size(TextSize::Small)
                                 ->extraAttributes(['class' => 'appointment-status-entry'])
                                 ->hiddenOn('create'),
-                            Textarea::make('reason_for_visit')
+                            Select::make('reason_for_visit')
+                                ->label('Reason for Visit')
+                                ->options(fn (Get $get): array => self::reasonOptions($get('appointment_type_id')))
+                                ->placeholder('Select a reason')
+                                ->searchable()
+                                ->live()
+                                ->visible(fn (Get $get): bool => self::hasReasonPresets($get('appointment_type_id')))
+                                ->afterStateUpdated(function (Set $set): void {
+                                    $set('custom_reason_for_visit', null);
+                                })
+                                ->disabled(fn (?Appointment $record): bool => self::isScheduleEditingDisabled($record))
+                                ->columnSpanFull(),
+                            Textarea::make('custom_reason_for_visit')
                                 ->label('Reason for Visit')
                                 ->rows(3)
+                                ->visible(fn (Get $get): bool => ! self::hasReasonPresets($get('appointment_type_id'))
+                                    || $get('reason_for_visit') === self::CUSTOM_REASON_VALUE)
+                                ->required(fn (Get $get): bool => $get('reason_for_visit') === self::CUSTOM_REASON_VALUE)
                                 ->disabled(fn (?Appointment $record): bool => self::isScheduleEditingDisabled($record))
                                 ->columnSpanFull(),
                             TextInput::make('referring_source')
