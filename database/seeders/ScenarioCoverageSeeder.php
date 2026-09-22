@@ -336,15 +336,21 @@ class ScenarioCoverageSeeder extends Seeder
             ['encounter_number' => 'CON-2026-000003', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subMinutes(20)],
         );
 
-        Encounter::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Cancelled],
-            ['encounter_number' => 'CON-2026-000004', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subDays(3)],
+        Encounter::query()->updateOrCreate(
+            ['encounter_number' => 'CON-2026-000004'],
+            [
+                'patient_id' => $walkIn->id,
+                'status' => EncounterStatus::Cancelled,
+                'optometrist_id' => $optometrist->id,
+                'started_at' => now()->subDays(3),
+            ],
         );
 
-        Encounter::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Cancelled],
+        Encounter::query()->updateOrCreate(
+            ['encounter_number' => 'CON-2026-000005'],
             [
-                'encounter_number' => 'CON-2026-000005',
+                'patient_id' => $walkIn->id,
+                'status' => EncounterStatus::Cancelled,
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now()->subDays(10),
                 'completed_at' => now()->subDays(10)->addHour(),

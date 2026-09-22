@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\FrameRatings\Pages;
 
 use App\Filament\Resources\FrameRatings\FrameRatingResource;
-use Filament\Resources\Pages\EditRecord;
+use Filament\Resources\Pages\ViewRecord;
 
-class EditFrameRating extends EditRecord
+class EditFrameRating extends ViewRecord
 {
     protected static string $resource = FrameRatingResource::class;
 
@@ -14,6 +14,6 @@ class EditFrameRating extends EditRecord
         $record = $this->getRecord();
         $patientName = $record->patient?->full_name ?? 'Unknown patient';
 
-        return 'Edit for '.$patientName;
+        return 'View for '.$patientName;
     }
 }

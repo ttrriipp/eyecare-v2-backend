@@ -16,6 +16,22 @@ test('new consultations use the consultation number format', function (): void {
         ->toMatch('/^CON-\d{4}-\d{6}$/');
 });
 
+test('new consultation numbers skip occupied sequence values', function (): void {
+    $patientId = Patient::factory()->create()->id;
+    $year = now()->format('Y');
+
+    foreach ([1, 2, 3, 4, 6] as $sequence) {
+        Encounter::query()->create([
+            'patient_id' => $patientId,
+            'encounter_number' => sprintf('CON-%s-%06d', $year, $sequence),
+        ]);
+    }
+
+    $encounter = Encounter::query()->create(['patient_id' => $patientId]);
+
+    expect($encounter->encounter_number)->toBe(sprintf('CON-%s-000007', $year));
+});
+
 test('the migration renames existing consultation numbers and preserves encounter ids', function (): void {
     $patient = Patient::factory()->create();
     $first = Encounter::query()->create([

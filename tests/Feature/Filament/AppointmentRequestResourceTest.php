@@ -243,7 +243,9 @@ test('request queue shows availability beside each pending preferred time', func
         ->assertSee('No longer available')
         ->assertSee('Available')
         ->assertSee('Primary')
-        ->assertSee('Alt 1');
+        ->assertSee('Alt 1')
+        ->assertSee('bg-success-50', false)
+        ->assertSee('bg-danger-50', false);
 });
 
 test('request queue keeps unavailable preferred times visible without a summary', function () {

@@ -57,6 +57,13 @@ class Encounter extends Model
             ->withTrashed()
             ->count() + 1;
 
+        while (self::query()
+            ->withTrashed()
+            ->where('encounter_number', sprintf('CON-%s-%06d', $year, $sequence))
+            ->exists()) {
+            $sequence++;
+        }
+
         return sprintf('CON-%s-%06d', $year, $sequence);
     }
 

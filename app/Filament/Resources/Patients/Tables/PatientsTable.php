@@ -46,12 +46,6 @@ class PatientsTable
                     ->date()
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('identity_review_required')
-                    ->label('Identity Review')
-                    ->badge()
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Required' : 'Clear')
-                    ->color(fn (bool $state): string => $state ? 'danger' : 'gray')
-                    ->toggleable(),
                 TextColumn::make('address')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -65,9 +59,6 @@ class PatientsTable
                 Filter::make('no_visits')
                     ->label('No visits yet')
                     ->query(fn (Builder $query): Builder => $query->whereDoesntHave('appointments')),
-                Filter::make('identity_review_required')
-                    ->label('Identity review required')
-                    ->query(fn (Builder $query): Builder => $query->where('identity_review_required', true)),
             ])
             ->recordActions([
                 EditAction::make()->label('Edit'),

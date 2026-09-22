@@ -4,6 +4,7 @@ namespace App\Filament\Resources\FrameRatings;
 
 use App\Filament\Resources\FrameRatings\Pages\EditFrameRating;
 use App\Filament\Resources\FrameRatings\Pages\ListFrameRatings;
+use App\Filament\Resources\FrameRatings\Schemas\FrameRatingInfolist;
 use App\Filament\Resources\FrameRatings\Tables\FrameRatingsTable;
 use App\Models\FrameRating;
 use BackedEnum;
@@ -40,7 +41,12 @@ class FrameRatingResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([]);
+        return $schema;
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return FrameRatingInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table

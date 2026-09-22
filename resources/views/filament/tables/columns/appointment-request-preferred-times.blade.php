@@ -2,14 +2,32 @@
     $summary = $getState();
 @endphp
 
-<div class="space-y-1">
+<div class="flex flex-wrap gap-1.5">
     @forelse ($summary['preferences'] ?? [] as $preference)
-        <div class="flex min-w-0 items-center gap-x-2">
-            <span class="w-12 shrink-0 text-sm font-medium text-gray-950 dark:text-white">
+        @php
+            $chipClasses = $summary['show_availability']
+                ? match ($preference['available']) {
+                    true => 'bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400',
+                    false => 'bg-danger-50 text-danger-600 dark:bg-danger-500/15 dark:text-danger-400',
+                    default => 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400',
+                }
+                : ($preference['label'] === 'Primary'
+                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400');
+            $availabilityLabel = $preference['availability_label'] ?? 'Availability needs review';
+        @endphp
+
+        <span
+            @class([
+                'inline-flex max-w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium',
+                $chipClasses,
+            ])
+        >
+            <span class="shrink-0 font-semibold">
                 {{ $preference['label'] }}
             </span>
 
-            <span class="min-w-0 truncate text-sm text-gray-600 dark:text-gray-300">
+            <span class="truncate">
                 {{ $preference['time'] }}
             </span>
 
@@ -20,7 +38,6 @@
                         false => 'text-danger-600 dark:text-danger-400',
                         default => 'text-gray-500 dark:text-gray-400',
                     };
-                    $availabilityLabel = $preference['availability_label'] ?? 'Availability needs review';
                 @endphp
 
                 <span
@@ -42,7 +59,7 @@
                     <span class="sr-only">{{ $availabilityLabel }}</span>
                 </span>
             @endif
-        </div>
+        </span>
     @empty
         <span class="text-sm text-gray-500 dark:text-gray-400">No preferred times</span>
     @endforelse

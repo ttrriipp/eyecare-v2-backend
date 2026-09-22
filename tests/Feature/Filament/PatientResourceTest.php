@@ -14,8 +14,11 @@ test('patient records table displays patient gender', function (): void {
 
     $this->actingAs($staff);
 
-    Livewire::test(ListPatients::class)
+    $component = Livewire::test(ListPatients::class)
         ->assertCanSeeTableRecords([$patient])
         ->assertTableColumnExists('gender')
+        ->assertTableColumnDoesNotExist('identity_review_required')
         ->assertTableColumnFormattedStateSet('gender', 'Female', record: $patient);
+
+    expect($component->instance()->getTable()->getFilter('identity_review_required'))->toBeNull();
 });
