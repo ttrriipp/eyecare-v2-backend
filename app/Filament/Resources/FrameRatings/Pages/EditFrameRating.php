@@ -16,4 +16,12 @@ class EditFrameRating extends ViewRecord
 
         return 'View for '.$patientName;
     }
+
+    public function getBreadcrumbs(): array
+    {
+        return [
+            FrameRatingResource::getUrl('index') => 'Product Ratings',
+            $this->record->variant?->product?->name ?? "Rating #{$this->record->getKey()}",
+        ];
+    }
 }

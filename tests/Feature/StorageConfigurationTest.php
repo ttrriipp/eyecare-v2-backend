@@ -14,6 +14,16 @@ test('catalog and AR disks use explicit logical aliases and visibility defaults'
         ->and(config('filesystems.disks.ar_published.visibility'))->toBe('public');
 });
 
+test('private payment instruction disk serves temporary preview URLs', function (): void {
+    expect(config('filesystems.disks.payment_instructions.driver'))->toBe('local')
+        ->and(config('filesystems.disks.payment_instructions.visibility'))->toBe('private')
+        ->and(config('filesystems.disks.payment_instructions.serve'))->toBeTrue();
+
+    expect(Storage::disk('payment_instructions')
+        ->temporaryUrl('payment-methods/gcash.png', now()->addMinutes(5)))
+        ->toContain('/payment-instructions/payment-methods/gcash.png');
+});
+
 test('logical asset aliases can target S3-compatible disks without changing domain names', function (): void {
     config([
         'filesystems.catalog_disk' => 'catalog_cloud',

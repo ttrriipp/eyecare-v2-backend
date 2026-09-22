@@ -18,7 +18,7 @@ class FrameRatingInfolist
             ->columns(1)
             ->components([
                 Grid::make(['default' => 1, 'lg' => 3])->schema([
-                    Section::make('Rating context')
+                    Section::make('Product context')
                         ->schema([
                             TextEntry::make('patient.full_name')
                                 ->label('Patient')
@@ -43,10 +43,6 @@ class FrameRatingInfolist
                             TextEntry::make('variant.sku')
                                 ->label('SKU')
                                 ->placeholder('—'),
-
-                            TextEntry::make('created_at')
-                                ->label('Submitted')
-                                ->dateTime('M j, Y g:i A'),
                         ])
                         ->columns(2)
                         ->columnSpan(['default' => 1, 'lg' => 2]),
@@ -67,8 +63,12 @@ class FrameRatingInfolist
                                 ->label('Comment')
                                 ->placeholder('No comment provided')
                                 ->columnSpanFull(),
+
+                            TextEntry::make('created_at')
+                                ->label('Submitted')
+                                ->dateTime('M j, Y g:i A'),
                         ])
-                        ->columns(2)
+                        ->columns(1)
                         ->columnSpan(['default' => 1, 'lg' => 1]),
                 ]),
             ]);

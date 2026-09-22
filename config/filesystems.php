@@ -186,7 +186,9 @@ return [
         'payment_instructions' => [
             'driver' => 'local',
             'root' => storage_path('app/payment-instructions'),
+            'url' => '/payment-instructions',
             'visibility' => 'private',
+            'serve' => true,
             'throw' => true,
             'report' => false,
         ],

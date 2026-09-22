@@ -20,7 +20,7 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
 
     protected static ?int $sort = 2;
 
-    protected ?string $heading = 'Also noted';
+    protected ?string $heading = 'Needs attention';
 
     protected ?string $pollingInterval = '30s';
 

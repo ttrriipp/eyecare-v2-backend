@@ -68,8 +68,8 @@ test('secondary admin issues are grouped into a collapsed section', function () 
     $this->actingAs($admin);
 
     $component = Livewire::test(OtherIssuesWidget::class)
-        ->assertSee('Also noted')
-        ->assertSee('Draft Quotations')
+        ->assertSee('Needs attention')
+        ->assertDontSee('Draft Quotations')
         ->assertSee('Balances Due')
         ->assertSee('Low Stock');
 

@@ -18,6 +18,11 @@ test('staff can list frame ratings', function () {
 
     Livewire::test(ListFrameRatings::class)
         ->assertCanSeeTableRecords($ratings)
+        ->assertSee('Total ratings')
+        ->assertSee('Average rating')
+        ->assertSee('Low ratings')
+        ->assertTableColumnExists('patient.full_name')
+        ->assertTableColumnExists('created_at')
         ->assertTableColumnDoesNotExist('comment')
         ->assertTableColumnDoesNotExist('is_hidden')
         ->assertTableColumnDoesNotExist('moderated_at')
@@ -67,10 +72,14 @@ test('staff can view frame rating details', function () {
 
     Livewire::test(EditFrameRating::class, ['record' => $rating->getRouteKey()])
         ->assertSuccessful()
+        ->assertSee("View for {$rating->patient->full_name}")
+        ->assertSee('Product context')
+        ->assertSee('Product feedback')
         ->assertSee($rating->patient->full_name)
         ->assertSee($rating->variant->product->name)
         ->assertSee('5 of 5 stars')
         ->assertSee('Comfortable and lightweight.')
+        ->assertSee('Submitted')
         ->assertDontSee('Moderation reason')
         ->assertDontSee('Moderated')
         ->assertDontSee('Save changes');

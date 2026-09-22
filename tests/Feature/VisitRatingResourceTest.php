@@ -3,6 +3,7 @@
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Patients\PatientResource;
+use App\Filament\Resources\VisitRatings\Pages\ListVisitRatings;
 use App\Filament\Resources\VisitRatings\Pages\ViewVisitRating;
 use App\Models\Appointment;
 use App\Models\Encounter;
@@ -59,6 +60,21 @@ test('staff can navigate from feedback to its related visit records', function (
         ->assertSee('href="'.PatientResource::getUrl('edit', ['record' => $patient]).'"', false)
         ->assertSee('href="'.AppointmentResource::getUrl('edit', ['record' => $appointment]).'"', false)
         ->assertSee('href="'.EncounterResource::getUrl('edit', ['record' => $encounter]).'"', false);
+});
+
+test('staff can see rating KPIs on the visit feedback list', function (): void {
+    $staff = User::factory()->staff()->create();
+    $ratings = VisitRating::factory()->count(2)->create([
+        'rating' => 4,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListVisitRatings::class)
+        ->assertCanSeeTableRecords($ratings)
+        ->assertSee('Total ratings')
+        ->assertSee('Average rating')
+        ->assertSee('Low ratings');
 });
 
 test('staff can see the original unsanitized visit feedback', function (): void {

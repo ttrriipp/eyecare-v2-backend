@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             NotificationStatusSeeder::class,
             InventoryMovementTypeSeeder::class,
             ClinicHoursSeeder::class,
+            ClinicPaymentMethodSeeder::class,
             DemoUserSeeder::class,
             CatalogSeeder::class,
             ArAssetSeeder::class,

@@ -80,7 +80,7 @@ test('admin tables emphasize record names except optometrists', function (string
     'App\\Filament\\Resources\\Products\\RelationManagers\\VariantsRelationManager' => [VariantsRelationManager::class, ['name']],
     'App\\Filament\\Resources\\OpticalOrders\\Tables\\OpticalOrdersTable' => [OpticalOrdersTable::class, ['patient.full_name']],
     'App\\Filament\\Resources\\LensOptions\\Tables\\LensOptionsTable' => [LensOptionsTable::class, ['name']],
-    'App\\Filament\\Resources\\FrameRatings\\Tables\\FrameRatingsTable' => [FrameRatingsTable::class, ['patient.first_name', 'variant.name']],
+    'App\\Filament\\Resources\\FrameRatings\\Tables\\FrameRatingsTable' => [FrameRatingsTable::class, ['patient.full_name', 'variant.name']],
     'App\\Filament\\Resources\\InventoryMovements\\Tables\\InventoryMovementsTable' => [InventoryMovementsTable::class, ['variant.product.name', 'variant.name', 'createdBy.first_name']],
     'App\\Filament\\Resources\\ProductCategories\\Tables\\ProductCategoriesTable' => [ProductCategoriesTable::class, ['name']],
     'App\\Filament\\Resources\\ProductCategories\\RelationManagers\\ProductsRelationManager' => [ProductsRelationManager::class, ['name']],

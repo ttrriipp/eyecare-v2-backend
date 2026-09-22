@@ -17,7 +17,6 @@ use App\Models\AppointmentRequest;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
-use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Support\Icons\Heroicon;
@@ -217,8 +216,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
      *     waiting_today: int,
      *     active_encounters: int,
      *     ready_for_pickup: int,
-     *     balances_due: int,
-     *     low_stock: int
+     *     balances_due: int
      * }
      */
     private function computeStatsData(User $user, bool $isOptometristOnly): array
@@ -266,11 +264,6 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
                 ->count(),
             'balances_due' => BillingRecord::query()
                 ->whereIn('status', [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid])
-                ->count(),
-            'low_stock' => ProductVariant::query()
-                ->active()
-                ->where('low_stock_threshold', '>', 0)
-                ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
                 ->count(),
         ];
     }
