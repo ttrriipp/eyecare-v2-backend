@@ -75,6 +75,18 @@ class RescheduleAppointment
                 ]);
             }
 
+            if ($appointment->isRescheduleDateToday($scheduledAt)) {
+                throw ValidationException::withMessages([
+                    'scheduled_at' => [Appointment::RESCHEDULE_TODAY_MESSAGE],
+                ]);
+            }
+
+            if ($appointment->isRescheduleTimeSame($scheduledAt)) {
+                throw ValidationException::withMessages([
+                    'scheduled_at' => [Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE],
+                ]);
+            }
+
             $this->lockScheduleDates($appointment, $scheduledAt);
 
             try {

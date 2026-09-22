@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -63,6 +64,11 @@ class AppointmentAvailabilityRequest extends FormRequest
 
         if ($appointment->hasBeenRescheduled()) {
             $validator->errors()->add('appointment_id', Appointment::RESCHEDULE_LIMIT_MESSAGE);
+        }
+
+        if (! $validator->errors()->has('date')
+            && Carbon::parse((string) $this->input('date'), config('app.timezone'))->isToday()) {
+            $validator->errors()->add('date', Appointment::RESCHEDULE_TODAY_MESSAGE);
         }
 
         $appointmentType = AppointmentType::query()->find($appointment->appointment_type_id);

@@ -224,9 +224,15 @@ class AcceptAppointmentRequest
                 ]);
             }
 
-            if ($scheduledAt->equalTo($appointment->scheduled_at)) {
+            if ($appointment->isRescheduleDateToday($scheduledAt)) {
                 throw ValidationException::withMessages([
-                    'scheduled_at' => ['The requested time must differ from the current appointment time.'],
+                    'scheduled_at' => [Appointment::RESCHEDULE_TODAY_MESSAGE],
+                ]);
+            }
+
+            if ($appointment->isRescheduleTimeSame($scheduledAt)) {
+                throw ValidationException::withMessages([
+                    'scheduled_at' => [Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE],
                 ]);
             }
 

@@ -154,7 +154,9 @@ class AppointmentRequestScheduleCalendar extends CalendarWidget
         $startsAt = $info->event->getStart()->copy()->setTimezone(config('app.timezone'));
         $reviewedAppointment = $event->isRebooking() ? $event->appointment : null;
 
-        if ($reviewedAppointment?->scheduled_at?->equalTo($startsAt)) {
+        if ($reviewedAppointment !== null
+            && ($reviewedAppointment->isRescheduleDateToday($startsAt)
+                || $reviewedAppointment->isRescheduleTimeSame($startsAt))) {
             return false;
         }
 

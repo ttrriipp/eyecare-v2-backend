@@ -621,7 +621,7 @@ test('rescheduling reloads the edit page with the new appointment time', functio
     $this->seed(ClinicHoursSeeder::class);
 
     $scheduledAt = now()->next('Wednesday')->setTime(10, 0);
-    $newScheduledAt = $scheduledAt->copy()->addWeek()->setTime(11, 0);
+    $newScheduledAt = $scheduledAt->copy()->setTime(11, 0);
     $appointment = Appointment::factory()->create([
         'scheduled_at' => $scheduledAt,
         'duration_minutes' => 30,
@@ -647,6 +647,41 @@ test('rescheduling reloads the edit page with the new appointment time', functio
 
     expect($appointment->fresh()->scheduled_at->toDateTimeString())
         ->toBe($newScheduledAt->toDateTimeString());
+});
+
+test('rescheduling rejects the current time and today', function (): void {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => now()->addDay()->setTime(10, 0),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->mountAction('reschedule')
+        ->setActionData([
+            'scheduled_at' => $appointment->scheduled_at->toDateString(),
+            'appointment_time' => $appointment->scheduled_at->format('H:i'),
+            'reason_category' => 'patient_request',
+            'reschedule_reason' => null,
+        ])
+        ->callMountedAction()
+        ->assertNotified('Cannot reschedule');
+
+    expect(AppointmentReschedule::query()->count())->toBe(0);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->mountAction('reschedule')
+        ->setActionData([
+            'scheduled_at' => now()->toDateString(),
+            'appointment_time' => '10:00',
+            'reason_category' => 'patient_request',
+            'reschedule_reason' => null,
+        ])
+        ->callMountedAction()
+        ->assertHasActionErrors(['scheduled_at']);
+
+    expect(AppointmentReschedule::query()->count())->toBe(0);
 });
 
 test('appointment details show reschedule history below the timeline', function (): void {
@@ -713,6 +748,57 @@ test('reschedule action is unavailable after the appointment has been reschedule
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionHidden('reschedule')
         ->assertSee('This appointment has already been rescheduled and cannot be rescheduled again.');
+});
+
+test('appointment date time and duration stay locked while rescheduling is available', function (): void {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionVisible('reschedule')
+        ->assertSchemaComponentExists(
+            'appointment-details',
+            checkComponentUsing: function (Section $section): bool {
+                $fields = $section->getChildSchema()->getFlatFields(withHidden: true);
+
+                foreach (['scheduled_at', 'appointment_time', 'duration_minutes'] as $fieldName) {
+                    expect($fields[$fieldName]?->isDisabled())->toBeTrue();
+                }
+
+                return true;
+            },
+        );
+});
+
+test('rescheduled appointments disable date and time edits', function (): void {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $appointment->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $appointment->scheduled_at,
+        'initiated_by' => 'clinic',
+        'actor_id' => $staff->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSchemaComponentExists(
+            'appointment-details',
+            checkComponentUsing: function (Section $section): bool {
+                $fields = $section->getChildSchema()->getFlatFields(withHidden: true);
+
+                foreach (['scheduled_at', 'appointment_time'] as $fieldName) {
+                    expect($fields[$fieldName]?->isDisabled())->toBeTrue();
+                }
+
+                return true;
+            },
+        );
 });
 
 test('directly rescheduling confirms and rejects a fully conflicting pending request', function (): void {

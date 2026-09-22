@@ -244,6 +244,21 @@ test('a rebooking cannot submit the existing appointment time', function (): voi
     expect(AppointmentRequest::query()->count())->toBe(0);
 });
 
+test('a rebooking cannot submit a time on the current date', function (): void {
+    $user = User::factory()->patient()->create();
+    $appointment = scheduledAppointmentFor($user);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', rebookingRequestData($appointment, [
+            'scheduled_at' => '2026-07-10T10:00:00+08:00',
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['scheduled_at'])
+        ->assertJsonPath('errors.scheduled_at.0', Appointment::RESCHEDULE_TODAY_MESSAGE);
+
+    expect(AppointmentRequest::query()->count())->toBe(0);
+});
+
 test('a rebooking can request a slot that overlaps the current appointment', function (): void {
     $user = User::factory()->patient()->create();
     $appointment = scheduledAppointmentFor($user);

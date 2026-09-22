@@ -177,6 +177,40 @@ test('a linked rebooking derives duration from its appointment and excludes that
         ->and($appointment->fresh()->scheduled_at->equalTo($originalAppointmentTime))->toBeTrue();
 });
 
+test('a linked rebooking cannot update its preferences to today', function (): void {
+    $user = User::factory()->patient()->create();
+    $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 45]);
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'appointment_type_id' => $appointmentType->id,
+        'duration_minutes' => 45,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+    $request = appointmentRequestForScheduleUpdate($user, [
+        'request_type' => AppointmentRequestKind::Reschedule,
+        'appointment_type_id' => $appointmentType->id,
+        'appointment_id' => $appointment->id,
+        'original_scheduled_at' => '2026-07-13 10:00:00',
+        'scheduled_at' => '2026-07-14 10:00:00',
+        'alternative_scheduled_times' => null,
+        'provisional_duration_minutes' => 45,
+        'encrypted_reason_for_visit' => null,
+        'encrypted_referring_source' => null,
+        'encrypted_identity_snapshot' => null,
+        'expires_at' => '2026-07-14 10:00:00',
+    ]);
+
+    $this->actingAs($user)
+        ->patchJson("/api/v1/appointment-requests/{$request->id}", scheduleUpdatePayload([
+            'scheduled_at' => '2026-07-10T10:00:00+08:00',
+            'alternative_scheduled_times' => [],
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.scheduled_at.0', Appointment::RESCHEDULE_TODAY_MESSAGE);
+
+    expect($request->fresh()->scheduled_at->equalTo(Carbon::parse('2026-07-14 10:00:00')))->toBeTrue();
+});
+
 test('a linked rebooking does not use a stale duration snapshot for availability', function (): void {
     $user = User::factory()->patient()->create();
     $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 45]);

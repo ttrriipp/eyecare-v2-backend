@@ -104,6 +104,30 @@ test('accepting a rebooking moves the same appointment and records immutable his
         ->and($history->reason_details)->toBeNull();
 });
 
+test('accepting a rebooking cannot move the appointment to today', function (): void {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $type = AppointmentType::query()->where('name', 'New Patient')->firstOrFail();
+    $appointment = reviewRebookingAppointment($user, $optometrist);
+    $request = reviewRebookingRequest($user, $appointment, [
+        'scheduled_at' => '2026-07-10 10:00:00',
+        'expires_at' => '2026-07-11 10:00:00',
+    ]);
+
+    expect(fn (): Appointment => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $type,
+        durationMinutes: $type->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-10 10:00:00'),
+        optometrist: $optometrist,
+    ))->toThrow(ValidationException::class);
+
+    expect($appointment->fresh()->scheduled_at->toISOString())->toBe('2026-07-13T02:00:00.000000Z')
+        ->and(AppointmentReschedule::query()->count())->toBe(0);
+});
+
 test('accepting a second rebooking is blocked after the appointment was rescheduled', function (): void {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();

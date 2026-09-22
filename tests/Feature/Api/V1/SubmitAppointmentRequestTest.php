@@ -541,6 +541,26 @@ test('reschedule availability resolves the appointment type from the appointment
         ->assertJsonPath('data.appointment_id', $appointment->id);
 });
 
+test('reschedule availability rejects today for a linked appointment', function (): void {
+    $user = User::factory()->patient()->create();
+    $type = AppointmentType::where('name', 'New Patient')->first();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'appointment_type_id' => $type->id,
+        'duration_minutes' => $type->duration_minutes,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-10',
+            'appointment_id' => $appointment->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['date'])
+        ->assertJsonPath('errors.date.0', Appointment::RESCHEDULE_TODAY_MESSAGE);
+});
+
 test('reschedule availability rejects an appointment owned by another patient', function () {
     $user = User::factory()->patient()->create();
     $otherUser = User::factory()->patient()->create();

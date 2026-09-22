@@ -45,6 +45,10 @@ class Appointment extends Model implements Eventable
 {
     public const RESCHEDULE_LIMIT_MESSAGE = 'This appointment can only be rescheduled once.';
 
+    public const RESCHEDULE_TIME_CHANGE_MESSAGE = 'The requested time must differ from the current appointment time.';
+
+    public const RESCHEDULE_TODAY_MESSAGE = 'Rescheduling to today is not allowed. Choose a future date.';
+
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory, SoftDeletes;
 
@@ -117,6 +121,19 @@ class Appointment extends Model implements Eventable
     public function hasBeenRescheduled(): bool
     {
         return $this->reschedules()->exists();
+    }
+
+    public function isRescheduleTimeSame(CarbonInterface $scheduledAt): bool
+    {
+        return $this->scheduled_at->equalTo($scheduledAt);
+    }
+
+    public function isRescheduleDateToday(CarbonInterface $scheduledAt): bool
+    {
+        return $scheduledAt
+            ->copy()
+            ->setTimezone(config('app.timezone'))
+            ->isToday();
     }
 
     /**

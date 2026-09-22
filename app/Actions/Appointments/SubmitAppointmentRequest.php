@@ -350,13 +350,19 @@ class SubmitAppointmentRequest
         Appointment $appointment,
         int $durationMinutes,
     ): void {
-        $currentStart = $appointment->scheduled_at;
         foreach ($allTimes as $index => $timeString) {
             $time = Carbon::parse($timeString, config('app.timezone'));
+            $attribute = $index === 0 ? 'scheduled_at' : 'alternative_scheduled_times';
 
-            if ($time->equalTo($currentStart)) {
+            if ($appointment->isRescheduleDateToday($time)) {
                 throw ValidationException::withMessages([
-                    'scheduled_at' => ['The requested time must differ from the current appointment time.'],
+                    $attribute => [Appointment::RESCHEDULE_TODAY_MESSAGE],
+                ]);
+            }
+
+            if ($appointment->isRescheduleTimeSame($time)) {
+                throw ValidationException::withMessages([
+                    $attribute => [Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE],
                 ]);
             }
 

@@ -57,7 +57,14 @@ class AppointmentForm
 
     private static function isScheduleEditingDisabled(?Appointment $record): bool
     {
-        return $record?->isTerminal() === true || filled($record?->checked_in_at);
+        return $record?->isTerminal() === true
+            || filled($record?->checked_in_at)
+            || $record?->hasBeenRescheduled() === true;
+    }
+
+    private static function isScheduleFieldLockedForEdit(?Appointment $record): bool
+    {
+        return $record !== null;
     }
 
     public static function configure(Schema $schema): Schema
@@ -290,7 +297,7 @@ class AppointmentForm
                                 ->step(5)
                                 ->default(30)
                                 ->required()
-                                ->disabled(fn (?Appointment $record): bool => self::isScheduleEditingDisabled($record))
+                                ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in')
                                 ->dehydrated(),
                             TextEntry::make('current_status')
@@ -345,7 +352,7 @@ class AppointmentForm
                                 ->placeholder('Choose an appointment date')
                                 ->suffixIcon('heroicon-o-calendar-days')
                                 ->minDate(today())
-                                ->disabled(fn (?Appointment $record): bool => self::isScheduleEditingDisabled($record))
+                                ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
                                 ->rule(fn (string $operation): string => $operation === 'create' ? 'after_or_equal:today' : '')
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
@@ -361,7 +368,7 @@ class AppointmentForm
                                         $component->state($record->scheduled_at->format('H:i'));
                                     }
                                 })
-                                ->disabled(fn (?Appointment $record): bool => self::isScheduleEditingDisabled($record))
+                                ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
                             Textarea::make('staff_notes')

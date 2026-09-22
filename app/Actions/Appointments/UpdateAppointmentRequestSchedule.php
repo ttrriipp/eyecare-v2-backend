@@ -98,7 +98,11 @@ class UpdateAppointmentRequestSchedule
             $this->lockScheduleDates($preferences, $linkedAppointment);
 
             foreach ($preferences as $index => $time) {
-                if ($linkedAppointment !== null && $time->equalTo($linkedAppointment->scheduled_at)) {
+                if ($linkedAppointment !== null && $linkedAppointment->isRescheduleDateToday($time)) {
+                    $this->throwRescheduleDateToday($index);
+                }
+
+                if ($linkedAppointment !== null && $linkedAppointment->isRescheduleTimeSame($time)) {
                     $this->throwSameAppointmentTime($index);
                 }
 
@@ -215,9 +219,23 @@ class UpdateAppointmentRequestSchedule
             : sprintf('alternative_scheduled_times.%d', $preferenceIndex - 1);
 
         throw new HttpResponseException(response()->json([
-            'message' => 'The requested time must differ from the current appointment time.',
+            'message' => Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE,
             'errors' => [
-                $attribute => ['The requested time must differ from the current appointment time.'],
+                $attribute => [Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE],
+            ],
+        ], 422));
+    }
+
+    private function throwRescheduleDateToday(int $preferenceIndex): never
+    {
+        $attribute = $preferenceIndex === 0
+            ? 'scheduled_at'
+            : sprintf('alternative_scheduled_times.%d', $preferenceIndex - 1);
+
+        throw new HttpResponseException(response()->json([
+            'message' => Appointment::RESCHEDULE_TODAY_MESSAGE,
+            'errors' => [
+                $attribute => [Appointment::RESCHEDULE_TODAY_MESSAGE],
             ],
         ], 422));
     }

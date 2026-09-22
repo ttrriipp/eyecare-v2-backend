@@ -240,10 +240,17 @@ class ReviewAppointmentRequestSchedule extends Page
         $evaluator = app(EvaluateAppointmentAvailability::class);
         $reviewedAppointment = $this->reviewedAppointment();
 
-        if ($reviewedAppointment?->scheduled_at?->equalTo($startsAt)) {
+        if ($reviewedAppointment !== null && $reviewedAppointment->isRescheduleDateToday($startsAt)) {
             return [
                 'state' => 'unavailable',
-                'label' => 'Choose a time different from the current appointment',
+                'label' => Appointment::RESCHEDULE_TODAY_MESSAGE,
+            ];
+        }
+
+        if ($reviewedAppointment?->isRescheduleTimeSame($startsAt)) {
+            return [
+                'state' => 'unavailable',
+                'label' => Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE,
             ];
         }
 

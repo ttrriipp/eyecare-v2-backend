@@ -244,6 +244,26 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
+        if ($appointment->isRescheduleDateToday($newStart)) {
+            Notification::make()
+                ->title('Cannot reschedule')
+                ->body(Appointment::RESCHEDULE_TODAY_MESSAGE)
+                ->warning()
+                ->send();
+
+            return false;
+        }
+
+        if ($appointment->isRescheduleTimeSame($newStart)) {
+            Notification::make()
+                ->title('Cannot reschedule')
+                ->body(Appointment::RESCHEDULE_TIME_CHANGE_MESSAGE)
+                ->warning()
+                ->send();
+
+            return false;
+        }
+
         $appointment->loadMissing('optometrist');
 
         try {
