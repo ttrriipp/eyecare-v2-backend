@@ -58,8 +58,12 @@ class OpticalOrderForm
                                     JobOrderStatus::Cancelled => 'danger',
                                 }),
                             Placeholder::make('fulfillment_mode')
-                                ->label('Fulfillment')
-                                ->content(fn (JobOrder $record): string => Str::headline($record->fulfillment_mode)
+                                ->label('Processing Method')
+                                ->content(fn (JobOrder $record): string => match ($record->fulfillment_mode) {
+                                    'immediate' => 'Immediate Release',
+                                    'prepared' => 'Prepare Order',
+                                    default => Str::headline($record->fulfillment_mode),
+                                }
                                     .($record->uses_external_supplier ? ' (External Supplier)' : ''))
                                 ->badge()
                                 ->color(fn (JobOrder $record): string => $record->uses_external_supplier ? 'warning' : 'info'),
@@ -82,7 +86,10 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => $record->prescription?->prescription_number ?? '—')
                                 ->url(fn (JobOrder $record): ?string => $record->prescription
                                     ? PrescriptionResource::getUrl('view', ['record' => $record->prescription])
-                                    : null),
+                                    : null)
+                                ->extraAttributes([
+                                    'class' => 'text-primary-600 underline hover:no-underline dark:text-primary-400',
+                                ]),
                             Placeholder::make('prescribed_at')
                                 ->label('Prescribed')
                                 ->content(fn (JobOrder $record): string => $record->prescription?->prescribed_at?->format('M j, Y') ?? '—'),

@@ -7,6 +7,7 @@ use App\Models\AccessoryOrderRequest;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class AccessoryOrderRequestsTable
 {
@@ -31,6 +32,7 @@ class AccessoryOrderRequestsTable
                 TextColumn::make('requested_discount_type')
                     ->label('Discount')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => Str::headline($state))
                     ->color(fn (string $state): string => match ($state) {
                         'none' => 'gray',
                         'senior_citizen' => 'warning',
@@ -38,6 +40,7 @@ class AccessoryOrderRequestsTable
                     }),
                 TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn (AccessoryOrderRequestStatus $state): string => Str::headline($state->value))
                     ->color(fn (AccessoryOrderRequestStatus $state): string => match ($state) {
                         AccessoryOrderRequestStatus::Pending => 'warning',
                         AccessoryOrderRequestStatus::Accepted => 'success',

@@ -49,7 +49,7 @@ class EncounterForm
         }
 
         return new HtmlString(
-            '<a href="'.e($url).'" class="text-primary-600 underline hover:no-underline dark:text-primary-400">'
+            '<a href="'.e($url).'" class="text-primary-600 underline underline-offset-2 decoration-primary-300 inline-flex items-center rounded-md px-1.5 py-0.5 font-medium transition hover:bg-primary-50 hover:text-primary-700 hover:decoration-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 dark:text-primary-400 dark:hover:bg-white/5 dark:hover:text-primary-300 dark:hover:decoration-primary-300">'
             .e($recordNumber)
             .'</a>'
         );

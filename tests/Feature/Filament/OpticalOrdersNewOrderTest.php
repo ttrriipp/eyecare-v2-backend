@@ -5,7 +5,9 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
+use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
+use App\Models\BillingRecord;
 use App\Models\InventoryLot;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
@@ -402,6 +404,28 @@ test('optical order list exposes payment lifecycle tabs and status labels', func
         ->assertCanNotSeeTableRecords([$awaitingPayment, $confirmed]);
 });
 
+test('dispense modal enables balance release override when a balance remains', function () {
+    $admin = User::factory()->admin()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::ReadyForDispensing,
+        'total_amount' => 10000,
+    ]);
+
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 10000,
+        'amount_paid' => 5000,
+        'balance_due' => 5000,
+        'status' => BillingRecordStatus::PartiallyPaid,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->mountAction('dispense')
+        ->assertActionDataSet(['admin_override' => true]);
+});
+
 test('immediate checkout paid in full is dispensed with a zero balance', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
@@ -471,7 +495,7 @@ test('direct order page reveals the dedicated eyewear builder for a selected pre
             'Include prescription eyewear',
             'Prescription Eyewear',
             'Other Items',
-            'Fulfillment',
+            'Processing Method',
             'Payment',
             'Create Order & Billing',
         ])

@@ -294,13 +294,13 @@ class CreateOpticalOrder extends CreateRecord
                     Grid::make(1)
                         ->columnSpan(['default' => 1, 'lg' => 1])
                         ->schema([
-                            Section::make('Fulfillment')
+                            Section::make('Processing Method')
                                 ->schema([
                                     Radio::make('fulfillment_mode')
-                                        ->label('Fulfillment')
+                                        ->label('Processing Method')
                                         ->options([
-                                            'immediate' => 'Complete sale now',
-                                            'prepared' => 'Prepare for pickup',
+                                            'immediate' => 'Immediate Release',
+                                            'prepared' => 'Prepare Order',
                                         ])
                                         ->disableOptionWhen(fn (string $value, Get $get): bool => $value === 'immediate'
                                             && $prescriptionEyewearResolver($get))

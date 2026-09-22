@@ -318,7 +318,7 @@ class EditOpticalOrder extends EditRecord
                     Toggle::make('admin_override')
                         ->label('Release with outstanding balance')
                         ->helperText('Administrator-only exception. The order will be released while the remaining balance stays due.')
-                        ->default(false)
+                        ->default(fn (): bool => $this->outstandingBalance() > 0)
                         ->live()
                         ->visible(fn (): bool => auth()->user()?->isAdmin() === true && $this->outstandingBalance() > 0),
                     Textarea::make('override_reason')
