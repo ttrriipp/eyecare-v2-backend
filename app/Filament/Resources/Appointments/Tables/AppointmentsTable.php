@@ -6,6 +6,7 @@ use App\Actions\Appointments\AssignAppointmentOptometrist;
 use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
+use App\Actions\Appointments\ResolveConflictingAppointmentRequests;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
 use App\Enums\AppointmentStatusName;
@@ -219,6 +220,26 @@ class AppointmentsTable
                         ->icon('heroicon-o-calendar-days')
                         ->color('info')
                         ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
+                        ->registerModalActions([
+                            Action::make('confirmReschedule')
+                                ->requiresConfirmation()
+                                ->modalHeading('Confirm reschedule')
+                                ->modalDescription(fn (Appointment $record, array $mountedActions): string => self::getRescheduleConflictDescription(
+                                    $record,
+                                    self::getPendingRescheduleData($mountedActions),
+                                ))
+                                ->modalSubmitActionLabel('Reschedule')
+                                ->modalCancelActionLabel('Go back')
+                                ->color('info')
+                                ->overlayParentActions()
+                                ->cancelParentActions()
+                                ->action(function (Appointment $record, array $mountedActions): void {
+                                    self::performReschedule(
+                                        $record,
+                                        self::getPendingRescheduleData($mountedActions),
+                                    );
+                                }),
+                        ])
                         ->schema([
                             DatePicker::make('scheduled_at')
                                 ->label('New appointment date')
@@ -253,23 +274,14 @@ class AppointmentsTable
                                 ->maxLength(1000)
                                 ->columnSpanFull(),
                         ])
-                        ->action(function (Appointment $record, array $data): void {
-                            try {
-                                app(RescheduleAppointment::class)->handle(
-                                    appointment: $record,
-                                    scheduledAt: AppointmentTime::combine(
-                                        $data['scheduled_at'],
-                                        $data['appointment_time'],
-                                    ),
-                                    customerInitiated: false,
-                                    rescheduleReason: $data['reschedule_reason'] ?? null,
-                                    reasonCategory: $data['reason_category'],
-                                );
-                                Notification::make()->title('Appointment rescheduled')->success()->send();
-                            } catch (ValidationException $e) {
-                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot reschedule appointment.';
-                                Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
+                        ->action(function (Appointment $record, array $data, Component $livewire): void {
+                            if (self::getRescheduleConflictCount($record, $data) > 0) {
+                                $livewire->mountAction('confirmReschedule');
+
+                                return;
                             }
+
+                            self::performReschedule($record, $data);
                         }),
                     Action::make('noShow')
                         ->label('Mark No-show')
@@ -425,5 +437,72 @@ class AppointmentsTable
                     ->orderBy("{$appointmentTable}.scheduled_at")
                     ->orderBy("{$appointmentTable}.id");
             });
+    }
+
+    /**
+     * @param  array<int, Action>  $mountedActions
+     * @return array<string, mixed>
+     */
+    private static function getPendingRescheduleData(array $mountedActions): array
+    {
+        return ($mountedActions[0] ?? null)?->getRawData() ?? [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function getRescheduleConflictCount(Appointment $record, array $data): int
+    {
+        $date = $data['scheduled_at'] ?? null;
+        $time = $data['appointment_time'] ?? null;
+        $duration = (int) ($record->duration_minutes ?? 0);
+
+        if (blank($date) || blank($time) || $duration < 5) {
+            return 0;
+        }
+
+        try {
+            $scheduledAt = AppointmentTime::combine((string) $date, (string) $time);
+        } catch (\Throwable) {
+            return 0;
+        }
+
+        return app(ResolveConflictingAppointmentRequests::class)
+            ->findPotentialConflicts($scheduledAt, $duration)
+            ->count();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function getRescheduleConflictDescription(Appointment $record, array $data): string
+    {
+        $count = self::getRescheduleConflictCount($record, $data);
+        $requestLabel = $count === 1 ? 'appointment request includes' : 'appointment requests include';
+
+        return "{$count} pending {$requestLabel} this time. Continuing will automatically reject any affected request that has no remaining available preference because this time is no longer available.";
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function performReschedule(Appointment $record, array $data): void
+    {
+        try {
+            app(RescheduleAppointment::class)->handle(
+                appointment: $record,
+                scheduledAt: AppointmentTime::combine(
+                    $data['scheduled_at'],
+                    $data['appointment_time'],
+                ),
+                customerInitiated: false,
+                rescheduleReason: $data['reschedule_reason'] ?? null,
+                reasonCategory: $data['reason_category'],
+            );
+            Notification::make()->title('Appointment rescheduled')->success()->send();
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Cannot reschedule appointment.';
+            Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
+        }
     }
 }

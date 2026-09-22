@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AppointmentRequestStatus;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
@@ -7,6 +8,7 @@ use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Models\Appointment;
+use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\AppointmentTypeVisitReasonPreset;
@@ -247,6 +249,48 @@ test('appointment creation saves a custom reason selected as other', function ()
 
     expect(Appointment::query()->latest('id')->value('reason_for_visit'))
         ->toBe('Eye irritation after extended screen use');
+});
+
+test('directly creating an appointment rejects a fully conflicting pending request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $requester = User::factory()->patient()->create();
+    $appointmentType = AppointmentType::factory()->create([
+        'duration_minutes' => 30,
+    ]);
+    $scheduledAt = today()->addDay()->setTime(10, 0);
+
+    AppointmentRequest::factory()->create([
+        'user_id' => $requester->id,
+        'patient_id' => $requester->patient->id,
+        'appointment_type_id' => $appointmentType->id,
+        'provisional_duration_minutes' => 30,
+        'scheduled_at' => $scheduledAt,
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => $scheduledAt->copy()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'patient_mode' => 'existing',
+            'patient_id' => Patient::factory()->create()->id,
+            'is_walk_in' => 'scheduled',
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => 30,
+            'scheduled_at' => $scheduledAt->toDateString(),
+            'appointment_time' => '10:00',
+            'optometrist_id' => $optometrist->id,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $request = AppointmentRequest::query()->latest('id')->firstOrFail();
+
+    expect($request->status)->toBe(AppointmentRequestStatus::Rejected)
+        ->and($request->rejection_reason)
+        ->toBe('This time is no longer available because another appointment was scheduled for this time.');
 });
 
 test('appointment table has no generic lifecycle advance actions', function () {
@@ -516,6 +560,59 @@ test('rescheduling reloads the edit page with the new appointment time', functio
 
     expect($appointment->fresh()->scheduled_at->toDateTimeString())
         ->toBe($newScheduledAt->toDateTimeString());
+});
+
+test('directly rescheduling confirms and rejects a fully conflicting pending request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $requester = User::factory()->patient()->create();
+    $appointmentType = AppointmentType::factory()->create([
+        'duration_minutes' => 30,
+    ]);
+    $scheduledAt = now()->next('Wednesday')->setTime(10, 0);
+    $newScheduledAt = $scheduledAt->copy()->addWeek()->setTime(11, 0);
+    $appointment = Appointment::factory()->create([
+        'appointment_type_id' => $appointmentType->id,
+        'scheduled_at' => $scheduledAt,
+        'duration_minutes' => 30,
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    AppointmentRequest::factory()->create([
+        'user_id' => $requester->id,
+        'patient_id' => $requester->patient->id,
+        'appointment_type_id' => $appointmentType->id,
+        'provisional_duration_minutes' => 30,
+        'scheduled_at' => $newScheduledAt,
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => $newScheduledAt->copy()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->mountAction('reschedule')
+        ->setActionData([
+            'scheduled_at' => $newScheduledAt->toDateString(),
+            'appointment_time' => $newScheduledAt->format('H:i'),
+            'reason_category' => 'patient_request',
+            'reschedule_reason' => null,
+        ])
+        ->callMountedAction()
+        ->assertMountedActionModalSee('1 pending appointment request includes this time.');
+
+    expect($component->instance()->mountedActions)->toHaveCount(2);
+
+    $component->callMountedAction()
+        ->assertRedirect(EditAppointment::getUrl([
+            'record' => $appointment->getRouteKey(),
+        ]));
+
+    $request = AppointmentRequest::query()->latest('id')->firstOrFail();
+
+    expect($request->status)->toBe(AppointmentRequestStatus::Rejected)
+        ->and($request->rejection_reason)
+        ->toBe('This time is no longer available because another appointment was scheduled for this time.');
 });
 
 test('edit page has no editable status field', function () {

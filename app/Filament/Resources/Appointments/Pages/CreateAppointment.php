@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Actions\Appointments\LockAppointmentScheduleDate;
+use App\Actions\Appointments\ResolveConflictingAppointmentRequests;
 use App\Actions\Appointments\ScheduleAppointment;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
@@ -14,6 +15,7 @@ use App\Models\AppointmentType;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -141,6 +143,35 @@ class CreateAppointment extends CreateRecord
         return $data;
     }
 
+    protected function getCreateFormAction(): Action
+    {
+        return parent::getCreateFormAction()
+            ->submit(null)
+            ->registerModalActions([
+                Action::make('confirmCreate')
+                    ->requiresConfirmation()
+                    ->modalHeading('Confirm appointment creation')
+                    ->modalDescription(fn (): ?string => $this->getPendingRequestConflictDescription())
+                    ->modalSubmitActionLabel('Create appointment')
+                    ->modalCancelActionLabel('Go back')
+                    ->color('primary')
+                    ->overlayParentActions()
+                    ->cancelParentActions()
+                    ->action(function (): void {
+                        $this->create();
+                    }),
+            ])
+            ->action(function (): void {
+                if ($this->getPendingRequestConflictCount() > 0) {
+                    $this->mountAction('confirmCreate');
+
+                    return;
+                }
+
+                $this->create();
+            });
+    }
+
     /**
      * Convert the preset/custom form state into the appointment's persisted
      * reason text.
@@ -173,7 +204,9 @@ class CreateAppointment extends CreateRecord
         // Defensive: ensure scheduled_at is always set
         $data['scheduled_at'] ??= now();
 
-        return DB::transaction(function () use ($data): Appointment {
+        $reviewer = auth()->user();
+
+        return DB::transaction(function () use ($data, $reviewer): Appointment {
             // Walk-ins are immediate — skip schedule locking and conflict checks
             if (empty($data['checked_in_at'])) {
                 app(LockAppointmentScheduleDate::class)->handle($data['scheduled_at']);
@@ -203,6 +236,15 @@ class CreateAppointment extends CreateRecord
 
             $appointment = Appointment::query()->create($data);
 
+            if (empty($data['checked_in_at']) && $reviewer instanceof User) {
+                app(ResolveConflictingAppointmentRequests::class)->handle(
+                    acceptedRequest: null,
+                    reviewer: $reviewer,
+                    scheduledAt: $appointment->scheduled_at,
+                    durationMinutes: (int) $appointment->duration_minutes,
+                );
+            }
+
             // Create planned encounter for walk-ins
             if (! empty($data['checked_in_at'])) {
                 Encounter::query()->create([
@@ -216,5 +258,43 @@ class CreateAppointment extends CreateRecord
 
             return $appointment;
         }, attempts: 3);
+    }
+
+    private function getPendingRequestConflictCount(): int
+    {
+        if (($this->data['is_walk_in'] ?? null) === 'walk_in') {
+            return 0;
+        }
+
+        $date = $this->data['scheduled_at'] ?? null;
+        $time = $this->data['appointment_time'] ?? null;
+        $duration = (int) ($this->data['duration_minutes'] ?? 0);
+
+        if (blank($date) || blank($time) || $duration < 5) {
+            return 0;
+        }
+
+        try {
+            $scheduledAt = AppointmentTime::combine((string) $date, (string) $time);
+        } catch (\Throwable) {
+            return 0;
+        }
+
+        return app(ResolveConflictingAppointmentRequests::class)
+            ->findPotentialConflicts($scheduledAt, $duration)
+            ->count();
+    }
+
+    private function getPendingRequestConflictDescription(): ?string
+    {
+        $count = $this->getPendingRequestConflictCount();
+
+        if ($count === 0) {
+            return null;
+        }
+
+        $requestLabel = $count === 1 ? 'appointment request includes' : 'appointment requests include';
+
+        return "{$count} pending {$requestLabel} this time. Continuing will automatically reject any affected request that has no remaining available preference because this time is no longer available.";
     }
 }

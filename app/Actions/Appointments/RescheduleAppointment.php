@@ -11,6 +11,7 @@ use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
+use App\Models\User;
 use App\Services\SmsMessageFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -25,6 +26,7 @@ class RescheduleAppointment
         private readonly CreateAuditLog $createAuditLog,
         private readonly NotifyAdminUsers $notifyAdminUsers,
         private readonly NotifyPatientAccount $notifyPatientAccount,
+        private readonly ResolveConflictingAppointmentRequests $resolveConflicts,
     ) {}
 
     public function handle(
@@ -59,8 +61,9 @@ class RescheduleAppointment
         $appointment->loadMissing(['appointmentType', 'optometrist', 'patient']);
 
         $previousScheduledAtForNotification = $appointment->scheduled_at->format('M d, Y g:i A');
+        $reviewer = auth()->user();
 
-        $rescheduledAppointment = DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason, $reasonCategory): Appointment {
+        $rescheduledAppointment = DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason, $reasonCategory, $reviewer): Appointment {
             $this->lockScheduleDates($appointment, $scheduledAt);
 
             try {
@@ -85,6 +88,15 @@ class RescheduleAppointment
             }
 
             $appointment->update($attributes);
+
+            if (! $customerInitiated && $reviewer instanceof User) {
+                $this->resolveConflicts->handle(
+                    acceptedRequest: null,
+                    reviewer: $reviewer,
+                    scheduledAt: $scheduledAt,
+                    durationMinutes: (int) $appointment->duration_minutes,
+                );
+            }
 
             // Create immutable reschedule history
             AppointmentReschedule::query()->create([
