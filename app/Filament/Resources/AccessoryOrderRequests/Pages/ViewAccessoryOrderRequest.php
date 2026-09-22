@@ -6,15 +6,29 @@ use App\Actions\AccessoryOrderRequests\AcceptAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\RejectAccessoryOrderRequest;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Utilities\Get;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ViewAccessoryOrderRequest extends ViewRecord
 {
     protected static string $resource = AccessoryOrderRequestResource::class;
+
+    /**
+     * @var array<string, string>
+     */
+    private const REJECTION_REASON_OPTIONS = [
+        'product_unavailable' => 'Product unavailable',
+        'out_of_stock' => 'Out of stock',
+        'duplicate' => 'Duplicate request',
+        'patient_request' => 'Patient request',
+        'other' => 'Other',
+    ];
 
     protected function getHeaderActions(): array
     {
@@ -64,17 +78,28 @@ class ViewAccessoryOrderRequest extends ViewRecord
                 ->color('danger')
                 ->visible(fn (): bool => $this->record->isPending() && $this->canReviewCommerce())
                 ->form([
-                    Textarea::make('reason')
+                    Select::make('reason_category')
                         ->label('Rejection reason')
+                        ->options(self::REJECTION_REASON_OPTIONS)
                         ->required()
-                        ->maxLength(1000),
+                        ->live(),
+                    Textarea::make('rejection_details')
+                        ->label('Details')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
                     try {
+                        $category = $data['reason_category'] ?? null;
+                        $reason = $category === 'other'
+                            ? trim((string) ($data['rejection_details'] ?? ''))
+                            : self::REJECTION_REASON_OPTIONS[$category] ?? Str::headline((string) $category);
+
                         app(RejectAccessoryOrderRequest::class)->handle(
                             orderRequest: $this->record,
                             reviewer: auth()->user(),
-                            reason: $data['reason'],
+                            reason: $reason,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()

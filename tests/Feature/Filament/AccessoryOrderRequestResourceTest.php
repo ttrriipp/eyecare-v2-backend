@@ -52,5 +52,48 @@ test('staff can view the accessory order request details', function (): void {
         ->assertSee($request->request_number)
         ->assertSee($account->patient->full_name)
         ->assertSee('Pending')
-        ->assertSee('Hydrating Eye Drops — 10 mL');
+        ->assertSee('Hydrating Eye Drops — 10 mL')
+        ->assertSee('Submitted')
+        ->assertDontSee('Resolved by')
+        ->assertDontSee('Resolved at')
+        ->assertDontSee('Rejection reason');
+});
+
+test('staff can view resolution details for a resolved accessory order request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->rejected()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Resolution details')
+        ->assertSee('Submitted')
+        ->assertSee('Resolved by')
+        ->assertSee('Resolved at')
+        ->assertSee('Rejection reason')
+        ->assertSee('Test rejection');
+});
+
+test('staff can reject an accessory order request with a preset reason', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->callAction('reject', ['reason_category' => 'out_of_stock'])
+        ->assertHasNoActionErrors()
+        ->assertNotified('Request rejected');
+
+    expect($request->fresh()->status->value)->toBe('rejected')
+        ->and($request->fresh()->rejection_reason)->toBe('Out of stock');
 });
