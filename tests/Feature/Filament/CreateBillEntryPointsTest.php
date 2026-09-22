@@ -10,6 +10,8 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
+use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Radio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -74,4 +76,26 @@ test('seeded consultations expose billing only when their consultation bill is m
         ->assertActionHasUrl('createBill', BillingRecordResource::getUrl('create', [
             'encounter' => $unbilledEncounter->id,
         ]));
+});
+
+test('create bill items use the service-style source selector layout', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateBillingRecord::class);
+    $itemSource = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn (Field $field, string $key): bool => str_ends_with($key, '.item_kind'));
+
+    expect($itemSource)
+        ->toBeInstanceOf(Radio::class)
+        ->and($itemSource->getLabel())
+        ->toBe('Item source')
+        ->and($itemSource->isInline())
+        ->toBeTrue()
+        ->and($itemSource->getOptions())
+        ->toBe([
+            'catalog' => 'Catalog item',
+            'custom' => 'Custom item',
+        ]);
 });

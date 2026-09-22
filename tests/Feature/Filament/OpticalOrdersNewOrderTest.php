@@ -17,6 +17,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -71,6 +72,28 @@ test('discount selector offers the Philippine statutory choices and an admin cus
                 return true;
             },
         );
+});
+
+test('direct order items use the service-style source selector layout', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateOpticalOrder::class);
+    $itemSource = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn (Field $field, string $key): bool => str_ends_with($key, '.item_kind'));
+
+    expect($itemSource)
+        ->toBeInstanceOf(Radio::class)
+        ->and($itemSource->getLabel())
+        ->toBe('Item source')
+        ->and($itemSource->isInline())
+        ->toBeTrue()
+        ->and($itemSource->getOptions())
+        ->toBe([
+            'catalog' => 'Catalog item',
+            'custom' => 'Custom item',
+        ]);
 });
 
 test('selecting a patient aged 60 automatically selects the senior citizen discount', function () {

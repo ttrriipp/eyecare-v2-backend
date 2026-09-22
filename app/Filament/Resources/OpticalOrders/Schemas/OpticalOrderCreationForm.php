@@ -9,6 +9,7 @@ use App\Models\Service;
 use Closure;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -181,127 +182,129 @@ final class OpticalOrderCreationForm
                         ? Str::limit($state['description'], 60)
                         : 'New item')
                     ->schema([
-                        Grid::make(['default' => 1, 'md' => 2])
-                            ->columnSpanFull()
-                            ->schema([
-                                Select::make('item_kind')
-                                    ->label('Item Type')
-                                    ->options(fn (Get $get): array => self::itemKindOptions(
-                                        $get,
-                                        $prescriptionEyewearResolver,
-                                        $dedicatedPrescriptionEyewear,
-                                        $includeServices,
-                                    ))
-                                    ->default($includeServices ? 'catalog' : 'catalog')
-                                    ->required()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, mixed $state) use ($prescriptionEyewearResolver, $dedicatedPrescriptionEyewear): void {
-                                        $set('product_variant_id', null);
-                                        $set('lens_category_id', null);
-                                        $set('lens_option_id', null);
-                                        $set('service_id', null);
-                                        $set('catalog_product_type', null);
-                                        $set('description', null);
-                                        $set('unit_price', null);
-                                        $set('line_total', null);
+                        Radio::make('item_kind')
+                            ->label('Item source')
+                            ->options(fn (Get $get): array => self::itemKindOptions(
+                                $get,
+                                $prescriptionEyewearResolver,
+                                $dedicatedPrescriptionEyewear,
+                                $includeServices,
+                            ))
+                            ->default('catalog')
+                            ->required()
+                            ->dehydrated()
+                            ->inline()
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $state) use ($prescriptionEyewearResolver, $dedicatedPrescriptionEyewear): void {
+                                $set('product_variant_id', null);
+                                $set('lens_category_id', null);
+                                $set('lens_option_id', null);
+                                $set('service_id', null);
+                                $set('catalog_product_type', null);
+                                $set('description', null);
+                                $set('unit_price', null);
+                                $set('line_total', null);
 
-                                        if ($prescriptionEyewearResolver($get)
-                                            && ! $dedicatedPrescriptionEyewear
-                                            && $state === 'custom_product') {
-                                            $set('quantity', 1);
-                                        }
-                                    }),
-                                Hidden::make('catalog_product_type')
-                                    ->dehydrated(false),
-                                Select::make('product_variant_id')
-                                    ->label(fn (Get $get): string => $prescriptionEyewearResolver($get)
-                                        && ! $dedicatedPrescriptionEyewear ? 'Frame' : 'Catalog Item')
-                                    ->options(fn (Get $get): array => self::productVariantOptions(
-                                        $get,
-                                        $prescriptionEyewearResolver,
-                                        $dedicatedPrescriptionEyewear,
-                                        $excludeFramesFromOtherItems,
-                                    ))
-                                    ->searchable()
-                                    ->preload()
-                                    ->required(fn (Get $get): bool => $get('item_kind') === 'catalog')
-                                    ->visible(fn (Get $get): bool => $get('item_kind') === 'catalog')
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                        $variant = ProductVariant::query()->active()->with('product')->find($state);
+                                if ($prescriptionEyewearResolver($get)
+                                    && ! $dedicatedPrescriptionEyewear
+                                    && $state === 'custom_product') {
+                                    $set('quantity', 1);
+                                }
+                            })
+                            ->columnSpanFull(),
+                        Hidden::make('catalog_product_type')
+                            ->dehydrated(false),
+                        Select::make('product_variant_id')
+                            ->label(fn (Get $get): string => $prescriptionEyewearResolver($get)
+                                && ! $dedicatedPrescriptionEyewear ? 'Frame' : 'Catalog Item')
+                            ->options(fn (Get $get): array => self::productVariantOptions(
+                                $get,
+                                $prescriptionEyewearResolver,
+                                $dedicatedPrescriptionEyewear,
+                                $excludeFramesFromOtherItems,
+                            ))
+                            ->searchable()
+                            ->preload()
+                            ->required(fn (Get $get): bool => $get('item_kind') === 'catalog')
+                            ->visible(fn (Get $get): bool => $get('item_kind') === 'catalog')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                $variant = ProductVariant::query()->active()->with('product')->find($state);
 
-                                        if ($variant === null) {
-                                            return;
-                                        }
+                                if ($variant === null) {
+                                    return;
+                                }
 
-                                        $set('catalog_product_type', $variant->product->product_type);
-                                        $set('description', "{$variant->product->name} — {$variant->name}");
-                                        $set('unit_price', $variant->price);
+                                $set('catalog_product_type', $variant->product->product_type);
+                                $set('description', "{$variant->product->name} — {$variant->name}");
+                                $set('unit_price', $variant->price);
 
-                                        if ($variant->product->product_type === 'frame') {
-                                            $set('quantity', 1);
-                                        }
+                                if ($variant->product->product_type === 'frame') {
+                                    $set('quantity', 1);
+                                }
 
-                                        $set('line_total', number_format(
-                                            ((float) ($get('quantity') ?? 1)) * ((float) $variant->price),
-                                            2,
-                                        ));
-                                    }),
-                                Select::make('lens_option_id')
-                                    ->label('Lens Option')
-                                    ->options(fn (): array => LensOption::query()
-                                        ->active()
-                                        ->orderBy('name')
-                                        ->pluck('name', 'id')
-                                        ->all())
-                                    ->searchable()
-                                    ->preload()
-                                    ->required(fn (Get $get): bool => $get('item_kind') === 'lens_option')
-                                    ->visible(fn (Get $get): bool => $get('item_kind') === 'lens_option')
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                        $lensOption = LensOption::query()->active()->find($state);
+                                $set('line_total', number_format(
+                                    ((float) ($get('quantity') ?? 1)) * ((float) $variant->price),
+                                    2,
+                                ));
+                            })
+                            ->columnSpanFull(),
+                        Select::make('lens_option_id')
+                            ->label('Lens Option')
+                            ->options(fn (): array => LensOption::query()
+                                ->active()
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->searchable()
+                            ->preload()
+                            ->required(fn (Get $get): bool => $get('item_kind') === 'lens_option')
+                            ->visible(fn (Get $get): bool => $get('item_kind') === 'lens_option')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                $lensOption = LensOption::query()->active()->find($state);
 
-                                        if ($lensOption === null) {
-                                            return;
-                                        }
+                                if ($lensOption === null) {
+                                    return;
+                                }
 
-                                        $set('description', $lensOption->name);
-                                        $set('unit_price', $lensOption->price);
-                                        $set('line_total', number_format(
-                                            ((float) ($get('quantity') ?? 1)) * ((float) $lensOption->price),
-                                            2,
-                                        ));
-                                    }),
-                                ...($includeServices ? [
-                                    Select::make('service_id')
-                                        ->label('Service')
-                                        ->options(fn (): array => Service::query()
-                                            ->active()
-                                            ->orderBy('name')
-                                            ->pluck('name', 'id')
-                                            ->all())
-                                        ->searchable()
-                                        ->preload()
-                                        ->required(fn (Get $get): bool => $get('item_kind') === 'service')
-                                        ->visible(fn (Get $get): bool => $get('item_kind') === 'service')
-                                        ->live()
-                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                            $service = Service::query()->active()->find($state);
+                                $set('description', $lensOption->name);
+                                $set('unit_price', $lensOption->price);
+                                $set('line_total', number_format(
+                                    ((float) ($get('quantity') ?? 1)) * ((float) $lensOption->price),
+                                    2,
+                                ));
+                            })
+                            ->columnSpanFull(),
+                        ...($includeServices ? [
+                            Select::make('service_id')
+                                ->label('Service')
+                                ->options(fn (): array => Service::query()
+                                    ->active()
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all())
+                                ->searchable()
+                                ->preload()
+                                ->required(fn (Get $get): bool => $get('item_kind') === 'service')
+                                ->visible(fn (Get $get): bool => $get('item_kind') === 'service')
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                    $service = Service::query()->active()->find($state);
 
-                                            if ($service === null) {
-                                                return;
-                                            }
+                                    if ($service === null) {
+                                        return;
+                                    }
 
-                                            $set('description', $service->name);
-                                            $set('unit_price', $service->price);
-                                            $set('line_total', number_format(
-                                                ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
-                                                2,
-                                            ));
-                                        }),
-                                ] : []),
-                            ]),
+                                    $set('description', $service->name);
+                                    $set('unit_price', $service->price);
+                                    $set('line_total', number_format(
+                                        ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
+                                        2,
+                                    ));
+                                })
+                                ->columnSpanFull(),
+                        ] : []),
                         TextInput::make('description')
                             ->label('Description')
                             ->required(fn (Get $get): bool => in_array($get('item_kind'), $customItemKinds, true))
@@ -326,56 +329,60 @@ final class OpticalOrderCreationForm
                             ->dehydrated()
                             ->dehydratedWhenHidden()
                             ->columnSpanFull(),
-                        TextInput::make('quantity')
-                            ->label('Quantity')
-                            ->required()
-                            ->integer()
-                            ->minValue(1)
-                            ->maxValue(fn (Get $get): int => self::hasFixedQuantity(
-                                $get,
-                                $prescriptionEyewearResolver,
-                                $dedicatedPrescriptionEyewear,
-                                $allowCatalogFrameQuantity,
-                            ) ? 1 : 999)
-                            ->default(1)
-                            ->disabled(fn (Get $get): bool => self::hasFixedQuantity(
-                                $get,
-                                $prescriptionEyewearResolver,
-                                $dedicatedPrescriptionEyewear,
-                                $allowCatalogFrameQuantity,
-                            ))
-                            ->dehydrated()
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Set $set, Get $get): void {
-                                $set('line_total', number_format(
-                                    ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                    2,
-                                ));
-                            }),
-                        TextInput::make('unit_price')
-                            ->label('Unit Price')
-                            ->prefix('₱')
-                            ->required()
-                            ->numeric()
-                            ->minValue(0)
-                            ->step(0.01)
-                            ->extraInputAttributes(['class' => 'price-input'])
-                            ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
-                            ->dehydrated()
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Set $set, Get $get): void {
-                                $set('line_total', number_format(
-                                    ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                    2,
-                                ));
-                            }),
-                        TextInput::make('line_total')
-                            ->label('Line Total')
-                            ->prefix('₱')
-                            ->disabled()
-                            ->dehydrated(false),
+                        Grid::make(3)
+                            ->columnSpanFull()
+                            ->schema([
+                                TextInput::make('quantity')
+                                    ->label('Quantity')
+                                    ->required()
+                                    ->integer()
+                                    ->minValue(1)
+                                    ->maxValue(fn (Get $get): int => self::hasFixedQuantity(
+                                        $get,
+                                        $prescriptionEyewearResolver,
+                                        $dedicatedPrescriptionEyewear,
+                                        $allowCatalogFrameQuantity,
+                                    ) ? 1 : 999)
+                                    ->default(1)
+                                    ->disabled(fn (Get $get): bool => self::hasFixedQuantity(
+                                        $get,
+                                        $prescriptionEyewearResolver,
+                                        $dedicatedPrescriptionEyewear,
+                                        $allowCatalogFrameQuantity,
+                                    ))
+                                    ->dehydrated()
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                        $set('line_total', number_format(
+                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                            2,
+                                        ));
+                                    }),
+                                TextInput::make('unit_price')
+                                    ->label('Unit Price')
+                                    ->prefix('₱')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->step(0.01)
+                                    ->extraInputAttributes(['class' => 'price-input'])
+                                    ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
+                                    ->dehydrated()
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                        $set('line_total', number_format(
+                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                            2,
+                                        ));
+                                    }),
+                                TextInput::make('line_total')
+                                    ->label('Line Total')
+                                    ->prefix('₱')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                            ]),
                     ])
-                    ->columns(['default' => 1, 'md' => 3])
+                    ->columns(2)
                     ->defaultItems(fn (Get $get): int => $allowEmpty
                         ? 1
                         : ($dedicatedPrescriptionEyewear
