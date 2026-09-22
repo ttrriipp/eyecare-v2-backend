@@ -83,6 +83,44 @@ test('the wizard creates the product and its variants together', function (): vo
         ]);
 });
 
+test('the product wizard uses working create and create-another handlers', function (): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->assertSeeHtml('wire:submit="create"')
+        ->fillForm([
+            'product_type' => 'frame',
+            'name' => 'Standard Create Frame',
+            'slug' => 'standard-create-frame',
+            'brand_id' => $brand->id,
+            'is_active' => false,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    expect(Product::query()->where('slug', 'standard-create-frame')->exists())->toBeTrue();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->assertSeeHtml('wire:click="createAnother"')
+        ->assertDontSeeHtml('wire:click="createAndCreateAnother"')
+        ->assertDontSeeHtml('currentWizardStep')
+        ->fillForm([
+            'product_type' => 'frame',
+            'name' => 'Create Another Frame',
+            'slug' => 'create-another-frame',
+            'brand_id' => $brand->id,
+            'is_active' => false,
+        ])
+        ->call('createAnother')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Product created');
+
+    expect(Product::query()->where('slug', 'create-another-frame')->exists())->toBeTrue();
+});
+
 test('the wizard rejects an active product without an active variant', function (): void {
     $brand = Brand::factory()->create();
 

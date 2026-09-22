@@ -49,9 +49,13 @@ class EditBillingRecord extends EditRecord
                         Placeholder::make('job_order_number')
                             ->label('Optical Order')
                             ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—')
+                            ->visible(fn (BillingRecord $record): bool => $record->jobOrder !== null)
                             ->url(fn (BillingRecord $record): ?string => $record->jobOrder
                                 ? OpticalOrderResource::getUrl('edit', ['record' => $record->jobOrder])
-                                : null),
+                                : null)
+                            ->extraAttributes([
+                                'class' => 'text-primary-600 underline hover:no-underline dark:text-primary-400',
+                            ]),
                         Placeholder::make('status')
                             ->label('Status')
                             ->content(fn (BillingRecord $record): string => $record->status->getLabel())

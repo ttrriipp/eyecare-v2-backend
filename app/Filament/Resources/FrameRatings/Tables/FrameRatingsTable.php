@@ -21,12 +21,10 @@ class FrameRatingsTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('variant.product.name')
-                    ->weight('bold')
                     ->label('Product')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('variant.name')
-                    ->weight('bold')
                     ->label('Variant')
                     ->searchable(),
                 TextColumn::make('created_at')

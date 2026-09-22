@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AccessoryOrderRequests\Schemas;
 
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\DiscountProofStatus;
+use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use App\Models\AccessoryOrderRequest;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
@@ -22,7 +23,10 @@ class AccessoryOrderRequestInfolist
                 TextEntry::make('request_number')
                     ->label('Request #')
                     ->copyable()
-                    ->weight('bold'),
+                    ->weight('bold')
+                    ->url(fn (AccessoryOrderRequest $record): string => AccessoryOrderRequestResource::getUrl('view', [
+                        'record' => $record,
+                    ])),
                 TextEntry::make('status')
                     ->badge()
                     ->formatStateUsing(fn (AccessoryOrderRequestStatus $state): string => Str::headline($state->value))

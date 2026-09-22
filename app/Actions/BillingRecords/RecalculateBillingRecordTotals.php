@@ -72,7 +72,7 @@ class RecalculateBillingRecordTotals
             return BillingRecordStatus::Cancelled;
         }
 
-        if ($balanceDue <= 0 && $amountPaid > 0) {
+        if ($balanceDue <= 0) {
             return BillingRecordStatus::Paid;
         }
 

@@ -57,6 +57,28 @@ test('recalculate with discount', function () {
         ->and((float) $result->total_amount)->toBe(8500.0);
 });
 
+test('a full discount marks the bill as paid with no balance due', function () {
+    $billing = BillingRecord::factory()->create([
+        'subtotal_amount' => 0,
+        'discount_amount' => 0,
+        'total_amount' => 0,
+        'balance_due' => 0,
+        'amount_paid' => 0,
+        'status' => BillingRecordStatus::Unpaid,
+    ]);
+
+    BillingRecordItem::factory()->create([
+        'billing_record_id' => $billing->id,
+        'amount' => 800,
+    ]);
+
+    $result = $this->recalculate->handle($billing, discountAmount: 800);
+
+    expect((float) $result->total_amount)->toBe(0.0)
+        ->and((float) $result->balance_due)->toBe(0.0)
+        ->and($result->status)->toBe(BillingRecordStatus::Paid);
+});
+
 test('recalculate preserves posted payments', function () {
     $billing = BillingRecord::factory()->create([
         'subtotal_amount' => 10000,

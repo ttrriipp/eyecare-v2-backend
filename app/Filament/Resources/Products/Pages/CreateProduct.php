@@ -96,10 +96,9 @@ class CreateProduct extends CreateRecord
                         </x-filament::button>
 
                         <x-filament::button
-                            type="submit"
+                            type="button"
                             size="sm"
-                            wire:click="createAndCreateAnother"
-                            x-on:click="setTimeout(() => $wire.set('currentWizardStep', 0), 100)"
+                            wire:click="createAnother"
                         >
                             Create & create another
                         </x-filament::button>

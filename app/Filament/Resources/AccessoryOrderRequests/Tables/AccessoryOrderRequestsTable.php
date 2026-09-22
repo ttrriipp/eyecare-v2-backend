@@ -21,7 +21,8 @@ class AccessoryOrderRequestsTable
                     ->sortable(),
                 TextColumn::make('patient.full_name')
                     ->label('Patient')
-                    ->searchable(),
+                    ->searchable()
+                    ->weight('bold'),
                 TextColumn::make('items_summary')
                     ->label('Items')
                     ->state(fn (AccessoryOrderRequest $record): string => $record->items->count().' items'),

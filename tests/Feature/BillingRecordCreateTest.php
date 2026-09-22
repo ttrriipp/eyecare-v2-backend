@@ -127,6 +127,44 @@ test('an administrator can create a bill with an optical order and services', fu
         ->and((float) $billingRecord->total_amount)->toBe(1600.0);
 });
 
+test('an administrator can fully discount a bill and it is marked as paid', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(30),
+    ]);
+    $service = Service::factory()->create([
+        'name' => 'Comprehensive Eye Exam',
+        'price' => 800,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateBillingRecord::class)
+        ->fillForm([
+            'patient_id' => $patient->id,
+            'items' => [],
+            'service_items' => [[
+                'service_source' => 'catalog',
+                'service_id' => $service->id,
+                'quantity' => 1,
+            ]],
+            'discount_type' => 'other',
+            'discount_amount' => 800,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Bill created')
+        ->assertRedirect();
+
+    $billingRecord = BillingRecord::query()
+        ->where('patient_id', $patient->id)
+        ->firstOrFail();
+
+    expect($billingRecord->status)->toBe(BillingRecordStatus::Paid)
+        ->and((float) $billingRecord->total_amount)->toBe(0.0)
+        ->and((float) $billingRecord->balance_due)->toBe(0.0);
+});
+
 test('bill preview requires an optical order or service line', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
