@@ -9,6 +9,7 @@ use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\AppointmentTypeVisitReasonPreset;
@@ -153,6 +154,54 @@ test('closed clinic day validation remains attached to the appointment date', fu
         ])
         ->call('create')
         ->assertHasFormErrors(['scheduled_at']);
+});
+
+test('invalid new patient phone shows a validation warning on the appointment form', function () {
+    $staff = User::factory()->staff()->create();
+    $appointmentType = AppointmentType::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'patient_mode' => 'new',
+            'new_patient_first_name' => 'Ana',
+            'new_patient_last_name' => 'Reyes',
+            'new_patient_phone' => '123',
+            'new_patient_date_of_birth' => '1990-05-15',
+            'is_walk_in' => 'walk_in',
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => $appointmentType->duration_minutes,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['new_patient_phone' => 'regex'])
+        ->assertSee('Enter a valid 10-digit Philippine phone number');
+});
+
+test('admins cannot create a second active appointment for the same patient', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $appointmentType = AppointmentType::factory()->create();
+
+    Appointment::factory()->create([
+        'patient_id' => $patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'patient_mode' => 'existing',
+            'patient_id' => $patient->id,
+            'is_walk_in' => 'walk_in',
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => $appointmentType->duration_minutes,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['patient_id'])
+        ->assertSee('This patient already has an active appointment');
+
+    expect(Appointment::query()->where('patient_id', $patient->id)->count())->toBe(1);
 });
 
 test('appointment status is read only on the edit form', function () {
@@ -390,6 +439,42 @@ test('cancellation records actor reason and time', function () {
         ->and($appointment->cancelled_at)->not->toBeNull();
 });
 
+test('cancelling an appointment with an in-progress consultation cancels both records', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->checkedIn()->create();
+    $encounter = Encounter::factory()->inProgress()->create([
+        'appointment_id' => $appointment->id,
+        'patient_id' => $appointment->patient_id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertActionVisible(TestAction::make('cancel')->table($appointment))
+        ->callTableAction('cancel', $appointment, [
+            'reason_category' => 'medical_reason',
+            'cancellation_details' => 'Patient reported an immediate medical emergency.',
+        ])
+        ->assertNotified('Appointment cancelled');
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionHidden('cancel');
+
+    expect($appointment->fresh()->status->name)->toBe('cancelled')
+        ->and($encounter->fresh()->status)->toBe(EncounterStatus::Cancelled)
+        ->and($encounter->fresh()->cancelled_by)->toBe($staff->id)
+        ->and($encounter->fresh()->cancellation_reason)
+        ->toBe('Patient reported an immediate medical emergency.')
+        ->and($encounter->fresh()->cancelled_at)->not->toBeNull();
+
+    $this->assertDatabaseHas('audit_logs', [
+        'subject_type' => Encounter::class,
+        'subject_id' => $encounter->id,
+        'action' => 'encounter.cancelled',
+        'actor_id' => $staff->id,
+    ]);
+});
+
 test('cancelling from the edit page immediately shows the cancelled state', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
@@ -547,6 +632,8 @@ test('rescheduling reloads the edit page with the new appointment time', functio
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->mountAction('reschedule')
+        ->assertMountedActionModalSee('One-time reschedule')
+        ->assertMountedActionModalSee('This appointment can only be rescheduled once.')
         ->setActionData([
             'scheduled_at' => $newScheduledAt->toDateString(),
             'appointment_time' => $newScheduledAt->format('H:i'),
@@ -560,6 +647,72 @@ test('rescheduling reloads the edit page with the new appointment time', functio
 
     expect($appointment->fresh()->scheduled_at->toDateTimeString())
         ->toBe($newScheduledAt->toDateTimeString());
+});
+
+test('appointment details show reschedule history below the timeline', function (): void {
+    $staff = User::factory()->staff()->create();
+    $scheduledAt = now()->next('Wednesday')->setTime(10, 0);
+    $rescheduledAt = $scheduledAt->copy()->addWeek()->setTime(11, 0);
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => $rescheduledAt,
+    ]);
+
+    $history = AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $scheduledAt,
+        'new_scheduled_at' => $rescheduledAt,
+        'initiated_by' => 'clinic',
+        'actor_id' => $staff->id,
+        'reason_category' => 'schedule_conflict',
+        'reason_details' => 'The clinic needed to adjust the schedule.',
+        'rescheduled_at' => now(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('Timeline')
+        ->assertSee('Reschedule History')
+        ->assertSee($history->previous_scheduled_at->format('M j, Y g:i A'))
+        ->assertSee($history->new_scheduled_at->format('M j, Y g:i A'))
+        ->assertSee('Clinic')
+        ->assertSee('Schedule Conflict')
+        ->assertSee('The clinic needed to adjust the schedule.')
+        ->assertSee($staff->full_name);
+
+    expect(strpos($component->html(), 'Timeline'))
+        ->toBeLessThan(strpos($component->html(), 'Reschedule History'));
+});
+
+test('appointment details show an empty reschedule history state', function (): void {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('Reschedule History')
+        ->assertSee('This appointment can only be rescheduled once.')
+        ->assertSee('No reschedules recorded.');
+});
+
+test('reschedule action is unavailable after the appointment has been rescheduled', function (): void {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $appointment->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $appointment->scheduled_at,
+        'initiated_by' => 'clinic',
+        'actor_id' => $staff->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionHidden('reschedule')
+        ->assertSee('This appointment has already been rescheduled and cannot be rescheduled again.');
 });
 
 test('directly rescheduling confirms and rejects a fully conflicting pending request', function (): void {

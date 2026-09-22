@@ -16,6 +16,27 @@
             </div>
         </div>
 
+        @if ($this->isRebooking())
+            <div
+                role="alert"
+                class="rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 dark:border-warning-500/30 dark:bg-warning-500/10"
+            >
+                <div class="flex items-start gap-3">
+                    <x-heroicon-o-exclamation-triangle class="mt-0.5 h-5 w-5 shrink-0 text-warning-600 dark:text-warning-400" />
+                    <div>
+                        <p class="text-sm font-semibold text-warning-900 dark:text-warning-100">One-time reschedule</p>
+                        <p class="mt-1 text-sm text-warning-700 dark:text-warning-300">
+                            @if ($record->appointment?->hasBeenRescheduled())
+                                This appointment has already been rescheduled and cannot be rescheduled again.
+                            @else
+                                This appointment can only be rescheduled once. Confirm the final slot before accepting.
+                            @endif
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="grid gap-6 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.5fr)]">
             <div class="space-y-6">
                 <x-filament::section heading="Patient request">

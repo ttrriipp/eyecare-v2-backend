@@ -35,6 +35,8 @@ class CancelAppointment
             ]);
         }
 
+        $appointment->loadMissing('encounter');
+
         if ($initiator === 'patient' && blank($reasonDetails)) {
             throw ValidationException::withMessages([
                 'reason_details' => ['Please provide a reason for cancelling the appointment.'],
@@ -64,7 +66,7 @@ class CancelAppointment
             ]);
         }
 
-        $cancelledAppointment = DB::transaction(function () use ($appointment, $initiator, $actor, $reasonCategory, $reasonDetails, $currentStatus): Appointment {
+        $cancelledAppointment = DB::transaction(function () use ($appointment, $initiator, $actor, $reasonCategory, $reasonDetails): Appointment {
             $cancelledStatus = AppointmentStatus::query()
                 ->where('name', 'cancelled')
                 ->firstOrFail();
@@ -78,15 +80,29 @@ class CancelAppointment
                 'cancelled_at' => now(),
             ]);
 
-            // Cancel planned encounter if exists
-            if ($currentStatus === 'checked_in') {
-                $encounter = $appointment->encounter;
+            $encounter = $appointment->encounter;
+            $cancelledEncounter = $encounter !== null
+                && in_array($encounter->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true);
 
-                if ($encounter !== null && $encounter->status === EncounterStatus::Planned) {
-                    $encounter->update([
-                        'status' => EncounterStatus::Cancelled,
-                    ]);
-                }
+            if ($cancelledEncounter) {
+                $encounter->update([
+                    'status' => EncounterStatus::Cancelled,
+                    'cancelled_by' => $actor?->id,
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => $reasonDetails ?? $reasonCategory ?? 'Appointment cancelled.',
+                ]);
+
+                app(CreateAuditLog::class)->handle(
+                    subject: $encounter,
+                    action: AuditEvent::EncounterCancelled->value,
+                    metadata: [
+                        'appointment_id' => $appointment->id,
+                        'cancelled_by' => $actor?->id,
+                        'reason' => $reasonCategory,
+                        'source' => 'appointment_cancellation',
+                    ],
+                    actorId: $actor?->id,
+                );
             }
 
             // Audit
@@ -98,7 +114,7 @@ class CancelAppointment
                     'actor_id' => $actor?->id,
                     'reason_category' => $reasonCategory,
                     'reason_details' => $reasonDetails,
-                    'cancelled_encounter' => $currentStatus === 'checked_in',
+                    'cancelled_encounter' => $cancelledEncounter,
                 ]),
                 actorId: $actor?->id,
             );

@@ -26,6 +26,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Callout;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -243,7 +244,9 @@ class EditAppointment extends EditRecord
                 ->label('Reschedule')
                 ->icon('heroicon-o-calendar-days')
                 ->color('info')
-                ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled')
+                ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled'
+                    && ! $this->getRecord()->hasBeenRescheduled())
+                ->modalDescription('This appointment can only be rescheduled once. Choose the final time carefully.')
                 ->registerModalActions([
                     Action::make('confirmReschedule')
                         ->requiresConfirmation()
@@ -263,6 +266,10 @@ class EditAppointment extends EditRecord
                         }),
                 ])
                 ->schema([
+                    Callout::make('One-time reschedule')
+                        ->warning()
+                        ->description('This appointment can only be rescheduled once. Confirm the final date and time before continuing.')
+                        ->columnSpanFull(),
                     DatePicker::make('scheduled_at')
                         ->label('New appointment date')
                         ->required()

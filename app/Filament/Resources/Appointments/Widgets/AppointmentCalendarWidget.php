@@ -234,6 +234,16 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
+        if ($appointment->hasBeenRescheduled()) {
+            Notification::make()
+                ->title('Cannot reschedule')
+                ->body(Appointment::RESCHEDULE_LIMIT_MESSAGE)
+                ->warning()
+                ->send();
+
+            return false;
+        }
+
         $appointment->loadMissing('optometrist');
 
         try {

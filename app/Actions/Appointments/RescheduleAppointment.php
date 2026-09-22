@@ -64,6 +64,17 @@ class RescheduleAppointment
         $reviewer = auth()->user();
 
         $rescheduledAppointment = DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason, $reasonCategory, $reviewer): Appointment {
+            $appointment = Appointment::query()
+                ->with(['appointmentType', 'optometrist', 'patient', 'status'])
+                ->lockForUpdate()
+                ->findOrFail($appointment->id);
+
+            if ($appointment->hasBeenRescheduled()) {
+                throw ValidationException::withMessages([
+                    'appointment' => [Appointment::RESCHEDULE_LIMIT_MESSAGE],
+                ]);
+            }
+
             $this->lockScheduleDates($appointment, $scheduledAt);
 
             try {

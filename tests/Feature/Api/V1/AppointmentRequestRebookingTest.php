@@ -4,6 +4,7 @@ use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\User;
@@ -103,6 +104,53 @@ test('only one pending rebooking request can target an appointment', function ()
         ->assertJsonValidationErrors(['appointment_id']);
 
     expect(AppointmentRequest::query()->count())->toBe(1);
+});
+
+test('a patient cannot request a second rebooking after one reschedule', function (): void {
+    $user = User::factory()->patient()->create();
+    $appointment = scheduledAppointmentFor($user);
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $appointment->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $appointment->scheduled_at,
+        'initiated_by' => 'patient',
+    ]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', rebookingRequestData($appointment))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_id'])
+        ->assertJsonPath(
+            'errors.appointment_id.0',
+            'This appointment can only be rescheduled once.',
+        );
+
+    expect(AppointmentRequest::query()->count())->toBe(0);
+});
+
+test('reschedule availability warns after the appointment has already been rescheduled', function (): void {
+    $user = User::factory()->patient()->create();
+    $appointment = scheduledAppointmentFor($user);
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $appointment->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $appointment->scheduled_at,
+        'initiated_by' => 'patient',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-14',
+            'appointment_id' => $appointment->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_id'])
+        ->assertJsonPath(
+            'errors.appointment_id.0',
+            'This appointment can only be rescheduled once.',
+        );
 });
 
 test('ordinary appointment requests remain new requests', function (): void {

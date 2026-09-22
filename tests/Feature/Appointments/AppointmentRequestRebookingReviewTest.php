@@ -104,6 +104,30 @@ test('accepting a rebooking moves the same appointment and records immutable his
         ->and($history->reason_details)->toBeNull();
 });
 
+test('accepting a second rebooking is blocked after the appointment was rescheduled', function (): void {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $type = AppointmentType::query()->where('name', 'New Patient')->firstOrFail();
+    $appointment = reviewRebookingAppointment($user, $optometrist);
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $appointment->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $appointment->scheduled_at,
+        'initiated_by' => 'patient',
+    ]);
+
+    $request = reviewRebookingRequest($user, $appointment);
+
+    expect(fn (): Appointment => acceptReviewRebooking($request, $reviewer, $type, $optometrist))
+        ->toThrow(ValidationException::class);
+
+    expect($appointment->fresh()->scheduled_at->toISOString())->toBe('2026-07-13T02:00:00.000000Z')
+        ->and($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending)
+        ->and(AppointmentReschedule::query()->count())->toBe(1);
+});
+
 test('accepting a rebooking notifies the patient without copying the request note', function (): void {
     $user = User::factory()->patient()->create(['phone' => '+639171234567']);
     $user->patient->update(['phone' => '+639171234567']);

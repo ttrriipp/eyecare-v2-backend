@@ -5,7 +5,6 @@ namespace App\Actions\Appointments;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\User;
-use Illuminate\Support\Carbon;
 
 /**
  * Evaluate a patient account's booking eligibility.
@@ -69,19 +68,7 @@ class EvaluateBookingEligibility
         }
 
         return Appointment::query()
-            ->where('patient_id', $patientId)
-            ->whereHas('status', function ($query): void {
-                $query->whereIn('name', ['scheduled', 'checked_in']);
-            })
-            ->where(function ($query): void {
-                // Future scheduled appointments are active.
-                $query->where(function ($q): void {
-                    $q->whereHas('status', fn ($s) => $s->where('name', 'scheduled'))
-                        ->where('scheduled_at', '>', Carbon::now());
-                });
-                // Checked-in appointments are active regardless of time.
-                $query->orWhereHas('status', fn ($s) => $s->where('name', 'checked_in'));
-            })
+            ->activeForPatient($patientId)
             ->first();
     }
 }

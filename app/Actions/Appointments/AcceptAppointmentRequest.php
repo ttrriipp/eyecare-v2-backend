@@ -211,6 +211,12 @@ class AcceptAppointmentRequest
                 ]);
             }
 
+            if ($appointment->hasBeenRescheduled()) {
+                throw ValidationException::withMessages([
+                    'request' => [Appointment::RESCHEDULE_LIMIT_MESSAGE],
+                ]);
+            }
+
             if ($lockedRequest->original_scheduled_at === null
                 || ! $lockedRequest->original_scheduled_at->equalTo($appointment->scheduled_at)) {
                 throw ValidationException::withMessages([

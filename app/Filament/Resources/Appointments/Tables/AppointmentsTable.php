@@ -27,6 +27,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Callout;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -220,7 +221,9 @@ class AppointmentsTable
                         ->label('Reschedule')
                         ->icon('heroicon-o-calendar-days')
                         ->color('info')
-                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled'
+                            && ! $record->hasBeenRescheduled())
+                        ->modalDescription('This appointment can only be rescheduled once. Choose the final time carefully.')
                         ->registerModalActions([
                             Action::make('confirmReschedule')
                                 ->requiresConfirmation()
@@ -242,6 +245,10 @@ class AppointmentsTable
                                 }),
                         ])
                         ->schema([
+                            Callout::make('One-time reschedule')
+                                ->warning()
+                                ->description('This appointment can only be rescheduled once. Confirm the final date and time before continuing.')
+                                ->columnSpanFull(),
                             DatePicker::make('scheduled_at')
                                 ->label('New appointment date')
                                 ->required()

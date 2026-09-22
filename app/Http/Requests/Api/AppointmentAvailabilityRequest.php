@@ -61,6 +61,10 @@ class AppointmentAvailabilityRequest extends FormRequest
             $validator->errors()->add('appointment_id', 'This appointment cannot be rescheduled.');
         }
 
+        if ($appointment->hasBeenRescheduled()) {
+            $validator->errors()->add('appointment_id', Appointment::RESCHEDULE_LIMIT_MESSAGE);
+        }
+
         $appointmentType = AppointmentType::query()->find($appointment->appointment_type_id);
 
         if ($this->filled('appointment_type_id')

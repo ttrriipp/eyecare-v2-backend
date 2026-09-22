@@ -209,6 +209,18 @@ class CreateAppointment extends CreateRecord
         $reviewer = auth()->user();
 
         return DB::transaction(function () use ($data, $reviewer): Appointment {
+            $patientId = (int) $data['patient_id'];
+
+            Patient::query()
+                ->lockForUpdate()
+                ->findOrFail($patientId);
+
+            if (Appointment::query()->activeForPatient($patientId)->exists()) {
+                throw ValidationException::withMessages([
+                    'data.patient_id' => ['This patient already has an active appointment. Cancel or complete it before creating another.'],
+                ]);
+            }
+
             // Walk-ins are immediate — skip schedule locking and conflict checks
             if (empty($data['checked_in_at'])) {
                 app(LockAppointmentScheduleDate::class)->handle($data['scheduled_at']);

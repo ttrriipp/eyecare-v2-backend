@@ -111,10 +111,11 @@ class ReviewAppointmentRequestSchedule extends Page
                     ? 'Reschedule this appointment?'
                     : 'Accept and schedule this request?')
                 ->modalDescription(fn (): string => $this->isRebooking()
-                    ? 'This will move the existing appointment to the selected time.'
+                    ? 'This appointment can only be rescheduled once. This will move the existing appointment to the selected time.'
                     : 'This will create a scheduled appointment at the selected time.')
                 ->modalSubmitActionLabel('Confirm')
-                ->visible(fn (): bool => $this->selectedSlotStatus()['state'] === 'available')
+                ->visible(fn (): bool => $this->selectedSlotStatus()['state'] === 'available'
+                    && (! $this->isRebooking() || ! $this->reviewedAppointment()?->hasBeenRescheduled()))
                 ->action(function (): void {
                     $this->accept();
                 }),

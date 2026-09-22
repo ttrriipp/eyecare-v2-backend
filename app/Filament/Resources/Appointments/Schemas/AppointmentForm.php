@@ -111,6 +111,11 @@ class AppointmentForm
                                     ? '+63'.preg_replace('/[^0-9]/', '', $state)
                                     : null
                                 )
+                                ->rule('regex:/^[0-9]{10}$/')
+                                ->validationAttribute('phone number')
+                                ->validationMessages([
+                                    'regex' => 'Enter a valid 10-digit Philippine phone number after +63 (e.g. 9171234567).',
+                                ])
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
                                 ->live(onBlur: true)
                                 ->dehydrated(false),
@@ -410,6 +415,26 @@ class AppointmentForm
                             Placeholder::make('updated_at')
                                 ->label('Last updated')
                                 ->content(fn (?Appointment $record): string => $record?->updated_at?->diffForHumans() ?? '—'),
+                        ]),
+
+                    Section::make('Reschedule History')
+                        ->hiddenOn('create')
+                        ->schema([
+                            Placeholder::make('reschedule_history')
+                                ->hiddenLabel()
+                                ->content(function (?Appointment $record): HtmlString {
+                                    if ($record === null) {
+                                        return new HtmlString(
+                                            '<p class="text-sm text-gray-500 dark:text-gray-400">No reschedules recorded.</p>',
+                                        );
+                                    }
+
+                                    $record->loadMissing('reschedules.actor');
+
+                                    return new HtmlString(view('filament.components.appointment-reschedule-history', [
+                                        'reschedules' => $record->reschedules,
+                                    ])->render());
+                                }),
                         ]),
 
                 ]),

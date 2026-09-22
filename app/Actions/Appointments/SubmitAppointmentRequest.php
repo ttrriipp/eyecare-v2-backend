@@ -221,6 +221,12 @@ class SubmitAppointmentRequest
                 ]);
             }
 
+            if ($lockedAppointment->hasBeenRescheduled()) {
+                throw ValidationException::withMessages([
+                    'appointment_id' => [Appointment::RESCHEDULE_LIMIT_MESSAGE],
+                ]);
+            }
+
             $maxActive = 1;
             $eligibility = $this->evaluateEligibility->handle($account);
 

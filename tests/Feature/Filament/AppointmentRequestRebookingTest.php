@@ -4,6 +4,7 @@ use App\Filament\Resources\AppointmentRequests\Pages\ListAppointmentRequests;
 use App\Filament\Resources\AppointmentRequests\Pages\ReviewAppointmentRequestSchedule;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentReschedule;
 use App\Models\AppointmentType;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -77,7 +78,29 @@ test('rebooking review derives and locks appointment details', function (): void
         ->set('optometristId', null)
         ->assertSet('optometristId', $fixture['optometrist']->id)
         ->assertSee('Current appointment')
-        ->assertSee($fixture['appointment']->scheduled_at->format('M j, Y \a\t g:i A'));
+        ->assertSee($fixture['appointment']->scheduled_at->format('M j, Y \a\t g:i A'))
+        ->assertSee('One-time reschedule')
+        ->assertSee('This appointment can only be rescheduled once. Confirm the final slot before accepting.');
+});
+
+test('rebooking review hides acceptance after the appointment was rescheduled', function (): void {
+    $fixture = filamentRebookingFixture();
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $fixture['appointment']->id,
+        'previous_scheduled_at' => $fixture['appointment']->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $fixture['appointment']->scheduled_at,
+        'initiated_by' => 'clinic',
+    ]);
+
+    $this->actingAs($fixture['staff']);
+
+    Livewire::test(ReviewAppointmentRequestSchedule::class, [
+        'record' => $fixture['request']->getRouteKey(),
+    ])
+        ->assertActionHidden('accept')
+        ->assertSee('One-time reschedule')
+        ->assertSee('This appointment has already been rescheduled and cannot be rescheduled again.');
 });
 
 test('rebooking availability ignores the appointment being moved', function (): void {

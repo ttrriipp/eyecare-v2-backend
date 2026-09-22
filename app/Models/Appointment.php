@@ -43,6 +43,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Appointment extends Model implements Eventable
 {
+    public const RESCHEDULE_LIMIT_MESSAGE = 'This appointment can only be rescheduled once.';
+
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory, SoftDeletes;
 
@@ -110,6 +112,41 @@ class Appointment extends Model implements Eventable
             AppointmentStatusName::Cancelled->value,
             AppointmentStatusName::NoShow->value,
         ], true);
+    }
+
+    public function hasBeenRescheduled(): bool
+    {
+        return $this->reschedules()->exists();
+    }
+
+    /**
+     * Scope appointments that block a patient's next booking.
+     *
+     * A future scheduled appointment or any checked-in appointment is active.
+     * Terminal appointments remain available as patient history.
+     */
+    public function scopeActiveForPatient(Builder $query, int $patientId): Builder
+    {
+        return $query
+            ->where('patient_id', $patientId)
+            ->whereHas('status', function (Builder $statusQuery): void {
+                $statusQuery->whereIn('name', [
+                    AppointmentStatusName::Scheduled->value,
+                    AppointmentStatusName::CheckedIn->value,
+                ]);
+            })
+            ->where(function (Builder $query): void {
+                $query->where(function (Builder $query): void {
+                    $query->whereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where(
+                        'name',
+                        AppointmentStatusName::Scheduled->value,
+                    ))
+                        ->where('scheduled_at', '>', now());
+                })->orWhereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where(
+                    'name',
+                    AppointmentStatusName::CheckedIn->value,
+                ));
+            });
     }
 
     /**

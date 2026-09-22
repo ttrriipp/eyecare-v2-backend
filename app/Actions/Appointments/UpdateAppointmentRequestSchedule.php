@@ -13,6 +13,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class UpdateAppointmentRequestSchedule
 {
@@ -72,6 +73,13 @@ class UpdateAppointmentRequestSchedule
 
             if ($lockedRequest->isRebooking()) {
                 $linkedAppointment = $this->lockedLinkedAppointment($lockedRequest);
+
+                if ($linkedAppointment->hasBeenRescheduled()) {
+                    throw ValidationException::withMessages([
+                        'request' => [Appointment::RESCHEDULE_LIMIT_MESSAGE],
+                    ]);
+                }
+
                 $excludeAppointmentId = $linkedAppointment->id;
                 $durationMinutes = (int) ($linkedAppointment->duration_minutes
                     ?? $linkedAppointment->appointmentType?->duration_minutes

@@ -5,6 +5,7 @@ use App\Enums\AppointmentRequestStatus;
 use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentReschedule;
 use App\Models\AppointmentType;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -214,6 +215,48 @@ test('a linked rebooking does not use a stale duration snapshot for availability
 
     expect($response->json('errors'))->toHaveKey('alternative_scheduled_times.0')
         ->and($request->fresh()->scheduled_at->equalTo(Carbon::parse('2026-07-14 10:00:00')))->toBeTrue();
+});
+
+test('a pending rebooking cannot be updated after the appointment was rescheduled', function (): void {
+    $user = User::factory()->patient()->create();
+    $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 45]);
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'appointment_type_id' => $appointmentType->id,
+        'duration_minutes' => 45,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+    $request = appointmentRequestForScheduleUpdate($user, [
+        'request_type' => AppointmentRequestKind::Reschedule,
+        'appointment_type_id' => $appointmentType->id,
+        'appointment_id' => $appointment->id,
+        'original_scheduled_at' => '2026-07-13 10:00:00',
+        'scheduled_at' => '2026-07-14 10:00:00',
+        'alternative_scheduled_times' => null,
+        'provisional_duration_minutes' => 45,
+        'encrypted_reason_for_visit' => null,
+        'encrypted_referring_source' => null,
+        'encrypted_identity_snapshot' => null,
+        'expires_at' => '2026-07-14 10:00:00',
+    ]);
+
+    AppointmentReschedule::factory()->create([
+        'appointment_id' => $appointment->id,
+        'previous_scheduled_at' => $appointment->scheduled_at->copy()->subWeek(),
+        'new_scheduled_at' => $appointment->scheduled_at,
+        'initiated_by' => 'clinic',
+    ]);
+
+    $this->actingAs($user)
+        ->patchJson("/api/v1/appointment-requests/{$request->id}", scheduleUpdatePayload())
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['request'])
+        ->assertJsonPath(
+            'errors.request.0',
+            'This appointment can only be rescheduled once.',
+        );
+
+    expect($request->fresh()->scheduled_at->equalTo(Carbon::parse('2026-07-14 10:00:00')))->toBeTrue();
 });
 
 test('every submitted replacement time must be available and grid aligned', function (): void {
