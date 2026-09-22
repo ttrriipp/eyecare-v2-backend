@@ -29,10 +29,6 @@ class FrameRatingsTable
                 TextColumn::make('rating')
                     ->label('Stars')
                     ->sortable(),
-                TextColumn::make('comment')
-                    ->label('Comment')
-                    ->limit(50)
-                    ->placeholder('—'),
             ])
             ->recordActions([
                 Action::make('view')

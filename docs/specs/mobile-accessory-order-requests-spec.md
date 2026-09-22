@@ -256,11 +256,14 @@ private object. It does not extend the original payment deadline.
 
 ## Mobile API contract
 
-All routes below remain under `/api/v1`, use Sanctum, the existing clinical
-throttle, and `require.patient.link`. Request submission and payment-proof
-upload also use separate per-account throttles; the proof throttle permits at
-most five attempts per minute so large multipart requests cannot consume the
-general clinical budget unchecked.
+All routes below remain under `/api/v1` and use Sanctum plus patient-role
+authorization. Catalog browsing uses the account throttle and does not require
+an active patient link. Order requests, Optical Orders, payment-proof uploads,
+and ratings use the existing clinical throttle and require an active patient
+link. Request submission and payment-proof upload also use separate
+per-account throttles; the proof throttle permits at most five attempts per
+minute so large multipart requests cannot consume the general clinical budget
+unchecked.
 
 ### Accessory catalog
 
@@ -273,6 +276,10 @@ The catalog returns active accessory Products with active variants. Variant
 responses expose price, attributes, patient-safe images, and an `availability`
 value (`available`, `low_stock`, or `unavailable`) without exact stock or lot
 details. Expiry and purchase dates remain internal.
+
+Authenticated patient-role accounts may browse the catalog while unlinked or
+pending a link. Unauthenticated requests return `401`; an active patient link
+is not required. Catalog reads are query-only and never reserve stock.
 
 List query parameters:
 
@@ -361,6 +368,18 @@ machine-readable codes:
 - `ORDER_REQUEST_NOT_ACTIONABLE`
 - `PAYMENT_WINDOW_EXPIRED`
 - `ORDER_NOT_AWAITING_PAYMENT`
+
+Ordering and commerce routes reject authenticated patient-role accounts without
+an active patient link with HTTP 403:
+
+```json
+{
+  "error": {
+    "code": "ACTIVE_PATIENT_LINK_REQUIRED",
+    "message": "An active patient link is required."
+  }
+}
+```
 
 API field names and enum values remain snake_case to match the existing v1
 contract. Existing routes and response fields are not removed or retyped.

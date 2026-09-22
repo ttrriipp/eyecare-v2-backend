@@ -151,8 +151,23 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
     });
 });
 
+// Patient-role catalog browsing is available before a patient record is linked.
+Route::prefix('v1')->middleware([
+    'auth:sanctum',
+    'throttle:api-account',
+    'require.patient.role',
+])->group(function (): void {
+    Route::get('accessories', [AccessoryCatalogController::class, 'index']);
+    Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
+});
+
 // Authenticated clinical routes (active patient link required)
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'require.patient.link'])->group(function (): void {
+Route::prefix('v1')->middleware([
+    'auth:sanctum',
+    'throttle:api-clinical',
+    'require.patient.link',
+    'require.patient.role',
+])->group(function (): void {
     Route::get('appointment-availability', AppointmentAvailabilityController::class);
 
     // Confirmed appointments only (no direct booking - use appointment requests)
@@ -163,9 +178,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('prescriptions', [PrescriptionController::class, 'index']);
     Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show']);
 
-    // Accessory catalog and order requests require an active patient link.
-    Route::get('accessories', [AccessoryCatalogController::class, 'index']);
-    Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
+    // Accessory order requests require an active patient link.
     Route::get('accessory-order-requests', [AccessoryOrderRequestController::class, 'index']);
     Route::post('accessory-order-requests', [AccessoryOrderRequestController::class, 'store'])
         ->middleware('throttle:api-accessory-order-request');

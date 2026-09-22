@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Prescriptions\Pages;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
+use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Prescription;
 use Filament\Actions\Action;
@@ -66,6 +67,9 @@ class ViewPrescription extends ViewRecord
     public function content(Schema $schema): Schema
     {
         $record = $this->getRecord();
+        $patientUrl = $record->patient === null
+            ? null
+            : PatientResource::getUrl('edit', ['record' => $record->patient]);
 
         $components = [
             Grid::make(3)->schema([
@@ -80,6 +84,7 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('patient_name')
                             ->label('Patient')
                             ->content($record->patient?->full_name ?? '—')
+                            ->url($patientUrl)
                             ->weight('bold'),
                         Placeholder::make('patient_number')
                             ->label('Patient Number')

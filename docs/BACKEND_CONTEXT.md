@@ -1163,6 +1163,16 @@ Frame browsing remains account-only and does not require an active patient link,
 and Saved Frames are account-owned preferences that do not require an active
 patient link. Staff see them only through a Patient's current link.
 
+### Authenticated Patient Account (token + patient role)
+```
+GET    /api/v1/accessories
+GET    /api/v1/accessories/{id}
+```
+
+Accessory catalog reads require authentication and the patient role, but no
+active patient link. They expose only patient-safe availability, pricing,
+images, and ratings, and never reserve stock.
+
 ### Active Patient Link Required (token + active link)
 ```
 GET    /api/v1/appointment-availability              Rebooking availability
@@ -1172,8 +1182,6 @@ POST   /api/v1/appointments/{id}/cancel
 POST   /api/v1/appointments/{id}/rating
 GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
-GET    /api/v1/accessories
-GET    /api/v1/accessories/{id}
 GET    /api/v1/accessory-order-requests
 POST   /api/v1/accessory-order-requests
 GET    /api/v1/accessory-order-requests/{id}
@@ -1184,7 +1192,7 @@ POST   /api/v1/optical-orders/{id}/payment-proof
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 17
+**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 15
 active-link = **68 registered routes total**. The normal patient contract count
 is **67** when the disabled-by-default pilot route is excluded.
 

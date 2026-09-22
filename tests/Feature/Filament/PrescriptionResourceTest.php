@@ -4,6 +4,7 @@ use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Patients\Pages\EditPatient;
+use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
 use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
 use App\Filament\Resources\Prescriptions\Pages\CreatePrescription;
@@ -275,6 +276,10 @@ test('prescription details emphasize the patient and link the consultation date'
         ->assertSee("{$encounter->encounter_number} ({$consultationStartedAt->format('M j, Y')})")
         ->assertSee(
             'href="'.EncounterResource::getUrl('edit', ['record' => $encounter]).'"',
+            false,
+        )
+        ->assertSee(
+            'href="'.PatientResource::getUrl('edit', ['record' => $prescription->patient]).'"',
             false,
         )
         ->assertSee('Expiration Date')

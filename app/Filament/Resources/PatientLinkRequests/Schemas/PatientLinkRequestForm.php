@@ -68,31 +68,32 @@ class PatientLinkRequestForm
                     ->content(fn (?PatientLinkRequest $record): string => $record?->expiryReasonLabel() ?? '—')
                     ->visible(fn (?PatientLinkRequest $record): bool => $record?->isExpired() ?? false)
                     ->columnSpanFull(),
-            ])
-            ->columns(3);
 
-        $decisionDetails = Section::make('Decision Details')
-            ->schema([
-                Placeholder::make('linked_patient')
-                    ->label('Linked Patient')
-                    ->content(fn ($record) => $record?->reviewedPatient?->full_name ?? '—')
-                    ->weight('bold'),
+                Section::make('Decision Details')
+                    ->schema([
+                        Placeholder::make('linked_patient')
+                            ->label('Linked Patient')
+                            ->content(fn ($record) => $record?->reviewedPatient?->full_name ?? '—')
+                            ->weight('bold'),
 
-                Placeholder::make('reviewer')
-                    ->label('Reviewed By')
-                    ->content(fn ($record): string => $record?->reviewer?->full_name ?? '—'),
+                        Placeholder::make('reviewer')
+                            ->label('Reviewed By')
+                            ->content(fn ($record): string => $record?->reviewer?->full_name ?? '—'),
 
-                Placeholder::make('reviewed_at')
-                    ->label('Reviewed At')
-                    ->content(fn ($record): string => $record?->reviewed_at?->format('M j, Y g:i A') ?? '—'),
+                        Placeholder::make('reviewed_at')
+                            ->label('Reviewed At')
+                            ->content(fn ($record): string => $record?->reviewed_at?->format('M j, Y g:i A') ?? '—'),
 
-                Textarea::make('decision_note')
-                    ->label('Decision Note')
-                    ->disabled()
+                        Textarea::make('decision_note')
+                            ->label('Decision Note')
+                            ->disabled()
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->visible(fn ($record) => $record !== null && $record->status !== 'pending')
                     ->columnSpanFull(),
             ])
-            ->columns(2)
-            ->visible(fn ($record) => $record !== null && $record->status !== 'pending');
+            ->columns(3);
 
         return $schema->columns(1)->components([
             Grid::make(['default' => 1, 'lg' => 3])->schema([
@@ -106,7 +107,6 @@ class PatientLinkRequestForm
                     ->columnSpan(['default' => 1, 'lg' => 1])
                     ->schema([
                         $accountInformation,
-                        $decisionDetails,
                     ]),
             ]),
         ]);

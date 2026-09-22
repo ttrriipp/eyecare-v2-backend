@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\AccessoryOrderRequest;
+use App\Models\InventoryLot;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -51,18 +55,50 @@ test('unlinked account cannot access appointments', function () {
         ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
 });
 
-test('unlinked account cannot access accessory ordering surfaces', function () {
+test('unlinked patient account can browse accessories but cannot access accessory ordering surfaces', function () {
     $user = User::factory()->create();
+    $user->roles()->attach(Role::where('name', Role::Patient)->firstOrFail());
+
+    $accessory = Product::factory()->accessory()->create();
+    $variant = ProductVariant::factory()->for($accessory, 'product')->create([
+        'is_active' => true,
+        'stock_quantity' => 10,
+    ]);
+    InventoryLot::factory()->for($variant, 'variant')->create([
+        'received_by' => $user->id,
+        'quantity_on_hand' => 10,
+        'expires_on' => now()->addMonths(6)->toDateString(),
+    ]);
+    $orderRequest = AccessoryOrderRequest::factory()->create();
 
     $this->actingAs($user)
         ->getJson('/api/v1/accessories')
-        ->assertForbidden()
-        ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $accessory->id);
 
     $this->actingAs($user)
-        ->getJson('/api/v1/accessory-order-requests')
-        ->assertForbidden()
-        ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
+        ->getJson("/api/v1/accessories/{$accessory->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $accessory->id);
+
+    $commerceRoutes = [
+        ['GET', '/api/v1/accessory-order-requests', []],
+        ['POST', '/api/v1/accessory-order-requests', []],
+        ['GET', "/api/v1/accessory-order-requests/{$orderRequest->id}", []],
+        ['POST', "/api/v1/accessory-order-requests/{$orderRequest->id}/cancel", []],
+    ];
+
+    foreach ($commerceRoutes as [$method, $uri, $payload]) {
+        $this->actingAs($user)
+            ->json($method, $uri, $payload)
+            ->assertForbidden()
+            ->assertJson([
+                'error' => [
+                    'code' => 'ACTIVE_PATIENT_LINK_REQUIRED',
+                    'message' => 'An active patient link is required.',
+                ],
+            ]);
+    }
 });
 
 test('unlinked account can access its account-owned conversation', function () {

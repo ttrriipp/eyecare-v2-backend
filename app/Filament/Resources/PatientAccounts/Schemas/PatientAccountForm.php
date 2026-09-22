@@ -77,6 +77,7 @@ class PatientAccountForm
                         Placeholder::make('linked_patient')
                             ->label('Linked Patient')
                             ->content(fn ($record) => $record?->patient?->full_name ?? '—')
+                            ->visible(fn ($record): bool => $record?->patient !== null)
                             ->url(fn ($record): ?string => $record?->patient === null
                                 ? null
                                 : PatientResource::getUrl('edit', ['record' => $record->patient]))
@@ -84,6 +85,7 @@ class PatientAccountForm
 
                         Placeholder::make('patient_number')
                             ->label('Patient Number')
+                            ->visible(fn ($record): bool => $record?->patient !== null)
                             ->content(fn ($record) => $record?->patient?->patient_number ?? '—'),
                     ]),
                 ]),

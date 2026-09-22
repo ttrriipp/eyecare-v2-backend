@@ -18,13 +18,14 @@ test('staff can list frame ratings', function () {
 
     Livewire::test(ListFrameRatings::class)
         ->assertCanSeeTableRecords($ratings)
+        ->assertTableColumnDoesNotExist('comment')
         ->assertTableColumnDoesNotExist('is_hidden')
         ->assertTableColumnDoesNotExist('moderated_at')
         ->assertTableActionDoesNotExist('hideComment')
         ->assertTableActionDoesNotExist('restoreComment');
 });
 
-test('staff can see the original unsanitized frame feedback', function () {
+test('staff cannot see frame feedback comments in the ratings table', function () {
     $staff = User::factory()->staff()->create();
     $rating = FrameRating::factory()->create([
         'comment' => 'This is PORN.',
@@ -33,7 +34,7 @@ test('staff can see the original unsanitized frame feedback', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListFrameRatings::class)
-        ->assertSee('This is PORN.')
+        ->assertDontSee('This is PORN.')
         ->assertDontSee('This is ****.');
 });
 
@@ -46,9 +47,12 @@ test('product rating resource is registered in admin navigation', function () {
 test('staff can open a frame rating from an actionable notification link', function () {
     $staff = User::factory()->staff()->create();
     $rating = FrameRating::factory()->create();
+    $url = FrameRatingResource::getUrl('edit', ['record' => $rating], panel: 'admin');
+
+    expect($url)->toContain('/product-ratings/');
 
     $this->actingAs($staff)
-        ->get(FrameRatingResource::getUrl('edit', ['record' => $rating], panel: 'admin'))
+        ->get($url)
         ->assertSuccessful();
 });
 

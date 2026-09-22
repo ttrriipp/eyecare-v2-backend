@@ -69,6 +69,26 @@ test('accessory catalog exposes patient-safe variants and rating aggregates', fu
         ->and($variantData)->not->toHaveKey('low_stock_threshold');
 });
 
+test('accessory catalog requires authentication', function (): void {
+    $variant = createAccessoryVariant($this->account, ['name' => 'Authentication Kit']);
+    $accessory = $variant->product;
+
+    $this->getJson('/api/v1/accessories')
+        ->assertUnauthorized();
+
+    $this->getJson("/api/v1/accessories/{$accessory->id}")
+        ->assertUnauthorized();
+});
+
+test('accessory catalog remains restricted to patient-role accounts', function (): void {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff)
+        ->getJson('/api/v1/accessories')
+        ->assertForbidden()
+        ->assertJsonPath('error.code', 'PATIENT_ROLE_REQUIRED');
+});
+
 test('rejects the retired prescription placement filter', function (): void {
     $this->actingAs($this->account)
         ->getJson('/api/v1/accessories?placement=prescription')

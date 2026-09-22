@@ -19,6 +19,17 @@ class ViewPatientLinkRequest extends ViewRecord
 {
     protected static string $resource = PatientLinkRequestResource::class;
 
+    /**
+     * @var array<string, string>
+     */
+    private const REJECTION_REASON_OPTIONS = [
+        'identity_mismatch' => 'Identity details do not match',
+        'no_matching_record' => 'No matching patient record',
+        'duplicate_request' => 'Duplicate request',
+        'insufficient_information' => 'Insufficient information',
+        'other' => 'Other',
+    ];
+
     public function getTitle(): string
     {
         $record = $this->getRecord();
@@ -123,17 +134,29 @@ class ViewPatientLinkRequest extends ViewRecord
                 ->color('danger')
                 ->visible(fn () => $this->record->status === 'pending')
                 ->schema([
-                    Textarea::make('note')
+                    Select::make('reason_category')
                         ->label('Rejection Reason')
-                        ->required(),
+                        ->options(self::REJECTION_REASON_OPTIONS)
+                        ->required()
+                        ->live(),
+                    Textarea::make('rejection_details')
+                        ->label('Details')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->requiresConfirmation()
                 ->action(function (array $data): void {
                     try {
+                        $category = $data['reason_category'] ?? null;
+                        $reason = $category === 'other'
+                            ? trim((string) ($data['rejection_details'] ?? ''))
+                            : self::REJECTION_REASON_OPTIONS[$category] ?? Str::headline((string) $category);
+
                         app(ReviewPatientLinkRequest::class)->reject(
                             linkRequest: $this->record,
                             reviewer: auth()->user(),
-                            note: $data['note'],
+                            note: $reason,
                         );
 
                         $this->record->refresh();

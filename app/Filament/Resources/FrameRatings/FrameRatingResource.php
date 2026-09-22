@@ -19,6 +19,8 @@ class FrameRatingResource extends Resource
 {
     protected static ?string $model = FrameRating::class;
 
+    protected static ?string $slug = 'product-ratings';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedStar;
 
     protected static ?string $navigationLabel = 'Product Ratings';

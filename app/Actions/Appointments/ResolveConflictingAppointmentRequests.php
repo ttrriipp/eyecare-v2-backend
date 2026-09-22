@@ -142,7 +142,7 @@ class ResolveConflictingAppointmentRequests
 
         return AppointmentRequest::query()
             ->actionablePending()
-            ->with(['appointmentType', 'appointment.status', 'user'])
+            ->with(['appointmentType', 'appointment.status', 'patient', 'user'])
             ->orderBy('id')
             ->get()
             ->filter(function (AppointmentRequest $request) use ($startsAt, $endsAt): bool {
@@ -155,6 +155,28 @@ class ResolveConflictingAppointmentRequests
                 }
             })
             ->values();
+    }
+
+    /**
+     * Build the confirmation copy for a set of requests that overlap a slot.
+     *
+     * @param  Collection<int, AppointmentRequest>  $requests
+     */
+    public function getPotentialConflictDescription(Collection $requests): string
+    {
+        $count = $requests->count();
+        $requestLabel = $count === 1 ? 'request includes' : 'requests include';
+        $requestList = $requests
+            ->map(function (AppointmentRequest $request): string {
+                $patientName = $request->patient?->full_name
+                    ?? $request->getSnapshotDisplayName()
+                    ?? 'Unlinked patient';
+
+                return "{$request->request_number} — {$patientName}";
+            })
+            ->implode('; ');
+
+        return "The following {$count} pending appointment {$requestLabel} this time: {$requestList}. Continuing will automatically reject any affected request that has no remaining available preference because this time is no longer available.";
     }
 
     private function hasConflictingPreference(

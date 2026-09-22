@@ -148,13 +148,6 @@ class PatientForm
                                     default => 'gray',
                                 })
                                 ->size(TextSize::Large),
-                            Placeholder::make('identity_review_status')
-                                ->label('Identity Review')
-                                ->content(fn ($record): string => $record?->identity_review_required
-                                    ? 'Required — compare current account and patient details.'
-                                    : 'Clear')
-                                ->badge()
-                                ->color(fn ($record): string => $record?->identity_review_required ? 'danger' : 'gray'),
                         ]),
                 ]),
             ]),

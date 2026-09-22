@@ -14,6 +14,7 @@ use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\Appointment;
+use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -453,23 +454,31 @@ class AppointmentsTable
      */
     private static function getRescheduleConflictCount(Appointment $record, array $data): int
     {
+        return self::getRescheduleConflicts($record, $data)->count();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return Collection<int, AppointmentRequest>
+     */
+    private static function getRescheduleConflicts(Appointment $record, array $data): Collection
+    {
         $date = $data['scheduled_at'] ?? null;
         $time = $data['appointment_time'] ?? null;
         $duration = (int) ($record->duration_minutes ?? 0);
 
         if (blank($date) || blank($time) || $duration < 5) {
-            return 0;
+            return collect();
         }
 
         try {
             $scheduledAt = AppointmentTime::combine((string) $date, (string) $time);
         } catch (\Throwable) {
-            return 0;
+            return collect();
         }
 
         return app(ResolveConflictingAppointmentRequests::class)
-            ->findPotentialConflicts($scheduledAt, $duration)
-            ->count();
+            ->findPotentialConflicts($scheduledAt, $duration);
     }
 
     /**
@@ -477,10 +486,8 @@ class AppointmentsTable
      */
     private static function getRescheduleConflictDescription(Appointment $record, array $data): string
     {
-        $count = self::getRescheduleConflictCount($record, $data);
-        $requestLabel = $count === 1 ? 'appointment request includes' : 'appointment requests include';
-
-        return "{$count} pending {$requestLabel} this time. Continuing will automatically reject any affected request that has no remaining available preference because this time is no longer available.";
+        return app(ResolveConflictingAppointmentRequests::class)
+            ->getPotentialConflictDescription(self::getRescheduleConflicts($record, $data));
     }
 
     /**

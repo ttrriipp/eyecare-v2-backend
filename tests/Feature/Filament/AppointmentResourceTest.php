@@ -578,7 +578,7 @@ test('directly rescheduling confirms and rejects a fully conflicting pending req
         'optometrist_id' => $optometrist->id,
     ]);
 
-    AppointmentRequest::factory()->create([
+    $pendingRequest = AppointmentRequest::factory()->create([
         'user_id' => $requester->id,
         'patient_id' => $requester->patient->id,
         'appointment_type_id' => $appointmentType->id,
@@ -599,7 +599,11 @@ test('directly rescheduling confirms and rejects a fully conflicting pending req
             'reschedule_reason' => null,
         ])
         ->callMountedAction()
-        ->assertMountedActionModalSee('1 pending appointment request includes this time.');
+        ->assertMountedActionModalSee([
+            '1 pending appointment request includes this time',
+            $pendingRequest->request_number,
+            $requester->patient->full_name,
+        ]);
 
     expect($component->instance()->mountedActions)->toHaveCount(2);
 

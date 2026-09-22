@@ -62,6 +62,24 @@ test('staff sees the link request without candidate matches', function () {
         ->assertDontSee('Ana Cruz');
 });
 
+test('decision details render below the request summary', function () {
+    $staff = User::factory()->staff()->create();
+    $request = PatientLinkRequest::factory()
+        ->forAccount(unlinkedPatientAccount())
+        ->approved()
+        ->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ViewPatientLinkRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSee('Request Summary')
+        ->assertSee('Decision Details');
+
+    $html = $component->html();
+
+    expect(strpos($html, 'Request Summary'))->toBeLessThan(strpos($html, 'Decision Details'));
+});
+
 test('approving a strong match does not require a decision note', function () {
     $staff = User::factory()->staff()->create();
     $account = unlinkedPatientAccount();
@@ -114,6 +132,21 @@ test('approving an unranked patient is rejected even when a decision note is sup
         ->assertHasActionErrors(['patient_id']);
 
     expect($request->fresh()->status)->toBe('pending');
+});
+
+test('rejecting a link request stores the selected preset reason', function () {
+    $staff = User::factory()->staff()->create();
+    $request = PatientLinkRequest::factory()->forAccount(unlinkedPatientAccount())->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewPatientLinkRequest::class, ['record' => $request->getRouteKey()])
+        ->callAction('reject', ['reason_category' => 'no_matching_record'])
+        ->assertHasNoActionErrors()
+        ->assertNotified('Link request rejected');
+
+    expect($request->fresh()->status)->toBe('rejected')
+        ->and($request->fresh()->decision_note)->toBe('No matching patient record');
 });
 
 test('expired requests are clearly labelled and have no review actions', function () {

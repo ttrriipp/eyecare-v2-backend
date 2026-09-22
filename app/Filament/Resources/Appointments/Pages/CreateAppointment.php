@@ -10,6 +10,7 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
+use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\Encounter;
@@ -19,6 +20,7 @@ use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
@@ -262,8 +264,16 @@ class CreateAppointment extends CreateRecord
 
     private function getPendingRequestConflictCount(): int
     {
+        return $this->getPendingRequestConflicts()->count();
+    }
+
+    /**
+     * @return Collection<int, AppointmentRequest>
+     */
+    private function getPendingRequestConflicts(): Collection
+    {
         if (($this->data['is_walk_in'] ?? null) === 'walk_in') {
-            return 0;
+            return collect();
         }
 
         $date = $this->data['scheduled_at'] ?? null;
@@ -271,30 +281,28 @@ class CreateAppointment extends CreateRecord
         $duration = (int) ($this->data['duration_minutes'] ?? 0);
 
         if (blank($date) || blank($time) || $duration < 5) {
-            return 0;
+            return collect();
         }
 
         try {
             $scheduledAt = AppointmentTime::combine((string) $date, (string) $time);
         } catch (\Throwable) {
-            return 0;
+            return collect();
         }
 
         return app(ResolveConflictingAppointmentRequests::class)
-            ->findPotentialConflicts($scheduledAt, $duration)
-            ->count();
+            ->findPotentialConflicts($scheduledAt, $duration);
     }
 
     private function getPendingRequestConflictDescription(): ?string
     {
-        $count = $this->getPendingRequestConflictCount();
+        $conflicts = $this->getPendingRequestConflicts();
 
-        if ($count === 0) {
+        if ($conflicts->isEmpty()) {
             return null;
         }
 
-        $requestLabel = $count === 1 ? 'appointment request includes' : 'appointment requests include';
-
-        return "{$count} pending {$requestLabel} this time. Continuing will automatically reject any affected request that has no remaining available preference because this time is no longer available.";
+        return app(ResolveConflictingAppointmentRequests::class)
+            ->getPotentialConflictDescription($conflicts);
     }
 }

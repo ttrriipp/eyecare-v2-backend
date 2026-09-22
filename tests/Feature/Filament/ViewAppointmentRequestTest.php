@@ -21,12 +21,34 @@ uses(RefreshDatabase::class);
 
 test('link-to-patient new patient phone uses the standard Philippine phone input', function () {
     $staff = User::factory()->staff()->create();
-    $request = AppointmentRequest::factory()->create(['patient_id' => null]);
+    $account = User::factory()->patient()->create([
+        'first_name' => 'Maria',
+        'middle_name' => 'Clara',
+        'last_name' => 'Santos',
+        'phone' => '+639171234567',
+        'email' => 'maria@example.com',
+        'date_of_birth' => '1990-05-15',
+        'address' => '123 Main Street',
+    ]);
+    $request = AppointmentRequest::factory()->create([
+        'patient_id' => null,
+        'user_id' => $account->id,
+        'encrypted_identity_snapshot' => null,
+    ]);
 
     $this->actingAs($staff);
 
     $component = Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
-        ->mountAction('linkToPatient');
+        ->mountAction('linkToPatient')
+        ->assertActionDataSet([
+            'new_patient_first_name' => 'Maria',
+            'new_patient_middle_name' => 'Clara',
+            'new_patient_last_name' => 'Santos',
+            'new_patient_phone' => '9171234567',
+            'new_patient_contact_email' => 'maria@example.com',
+            'new_patient_date_of_birth' => '1990-05-15',
+            'new_patient_address' => '123 Main Street',
+        ]);
     $schema = $component->instance()->getSchema('mountedActionSchema0');
     $phone = $schema?->getComponent('new_patient_phone', withHidden: true);
 

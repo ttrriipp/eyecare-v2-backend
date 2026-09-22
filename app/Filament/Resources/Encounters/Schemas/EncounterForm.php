@@ -159,6 +159,9 @@ class EncounterForm
                                 Placeholder::make('summary_patient_gender')
                                     ->label('Gender')
                                     ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                                Placeholder::make('summary_patient_occupation')
+                                    ->label('Occupation')
+                                    ->content(fn (Encounter $record): string => $record->patient?->occupation ?? '—'),
                                 Placeholder::make('summary_patient_phone')
                                     ->label('Phone')
                                     ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
@@ -379,6 +382,9 @@ class EncounterForm
                             Placeholder::make('patient_gender')
                                 ->label('Gender')
                                 ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                            Placeholder::make('patient_occupation')
+                                ->label('Occupation')
+                                ->content(fn (Encounter $record): string => $record->patient?->occupation ?? '—'),
                             Placeholder::make('patient_phone')
                                 ->label('Phone')
                                 ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),

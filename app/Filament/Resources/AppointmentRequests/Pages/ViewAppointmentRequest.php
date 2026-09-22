@@ -67,6 +67,21 @@ class ViewAppointmentRequest extends ViewRecord
                     }
 
                     $snapshot = $this->record->encrypted_identity_snapshot ?? [];
+                    $requester = $this->record->user;
+                    $requesterPatient = $requester?->patient;
+                    $defaults = [
+                        'first_name' => $snapshot['first_name'] ?? $requester?->first_name ?? $requesterPatient?->first_name,
+                        'middle_name' => $snapshot['middle_name'] ?? $requester?->middle_name ?? $requesterPatient?->middle_name,
+                        'last_name' => $snapshot['last_name'] ?? $requester?->last_name ?? $requesterPatient?->last_name,
+                        'phone' => $snapshot['phone'] ?? $requester?->phone ?? $requesterPatient?->phone,
+                        'email' => $snapshot['email'] ?? $requester?->email ?? $requesterPatient?->contact_email,
+                        'date_of_birth' => $snapshot['date_of_birth']
+                            ?? $requester?->date_of_birth?->toDateString()
+                            ?? $requesterPatient?->date_of_birth?->toDateString(),
+                        'gender' => $snapshot['gender'] ?? $requesterPatient?->gender,
+                        'occupation' => $snapshot['occupation'] ?? $requesterPatient?->occupation,
+                        'address' => $snapshot['address'] ?? $requester?->address ?? $requesterPatient?->address,
+                    ];
 
                     return [
                         ToggleButtons::make('patient_mode')
@@ -91,23 +106,23 @@ class ViewAppointmentRequest extends ViewRecord
 
                         TextInput::make('new_patient_first_name')
                             ->label('First Name')
-                            ->default($snapshot['first_name'] ?? null)
+                            ->default($defaults['first_name'])
                             ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         TextInput::make('new_patient_middle_name')
                             ->label('Middle Name')
-                            ->default($snapshot['middle_name'] ?? null)
+                            ->default($defaults['middle_name'])
                             ->nullable()
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         TextInput::make('new_patient_last_name')
                             ->label('Last Name')
-                            ->default($snapshot['last_name'] ?? null)
+                            ->default($defaults['last_name'])
                             ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         TextInput::make('new_patient_phone')
                             ->label('Phone')
                             ->tel()
-                            ->default($this->record->getSnapshotPhone())
+                            ->default($defaults['phone'])
                             ->prefix('+63')
                             ->formatStateUsing(fn (?string $state): ?string => $state !== null
                                 ? preg_replace('/^\+63/', '', $state)
@@ -122,12 +137,12 @@ class ViewAppointmentRequest extends ViewRecord
                         TextInput::make('new_patient_contact_email')
                             ->label('Email')
                             ->email()
-                            ->default($this->record->getSnapshotEmail())
+                            ->default($defaults['email'])
                             ->nullable()
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         DatePicker::make('new_patient_date_of_birth')
                             ->label('Date of Birth')
-                            ->default($this->record->getSnapshotDateOfBirth())
+                            ->default($defaults['date_of_birth'])
                             ->maxDate(now())
                             ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
@@ -138,17 +153,17 @@ class ViewAppointmentRequest extends ViewRecord
                                 'female' => 'Female',
                                 'other' => 'Other',
                             ])
-                            ->default($this->record->getSnapshotGender())
+                            ->default($defaults['gender'])
                             ->nullable()
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         TextInput::make('new_patient_occupation')
                             ->label('Occupation')
-                            ->default($this->record->getSnapshotOccupation())
+                            ->default($defaults['occupation'])
                             ->nullable()
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         TextInput::make('new_patient_address')
                             ->label('Address')
-                            ->default($this->record->getSnapshotAddress())
+                            ->default($defaults['address'])
                             ->nullable()
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                     ];

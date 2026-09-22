@@ -9,6 +9,7 @@ use App\Exceptions\PatientIdentityMismatchException;
 use App\Http\Middleware\ConfigureTrustedProxies;
 use App\Http\Middleware\RejectPhoneAuthenticationDuringPilot;
 use App\Http\Middleware\RequireActivePatientLink;
+use App\Http\Middleware\RequirePatientRole;
 use App\Http\Middleware\RequireStepUpToken;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'require.patient.link' => RequireActivePatientLink::class,
+            'require.patient.role' => RequirePatientRole::class,
             'require.step-up' => RequireStepUpToken::class,
             'reject.phone.auth' => RejectPhoneAuthenticationDuringPilot::class,
         ]);

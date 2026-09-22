@@ -105,7 +105,7 @@ test('consultation table prioritizes active work and sorts each workflow group',
 
 test('optometrist can view encounter details', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['occupation' => 'Teacher']);
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
         'status' => EncounterStatus::Planned,
@@ -119,6 +119,8 @@ test('optometrist can view encounter details', function () {
         ->assertSee('Consultation Details')
         ->assertDontSee('Encounter Details')
         ->assertSee('Patient')
+        ->assertSee('Occupation')
+        ->assertSee('Teacher')
         ->assertDontSee('Health Record Status');
 });
 

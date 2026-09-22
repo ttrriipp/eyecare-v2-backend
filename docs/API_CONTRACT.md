@@ -17,11 +17,11 @@
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
 > from the mobile notification feed. The normal patient-mobile contract has 67
-> routes (8 public + 42 account-only + 17 active-link). One additive,
+> routes (8 public + 44 account-only + 15 active-link). One additive,
 > pilot-only public route is also registered, making 68 routes in the registry;
 > it is disabled by default and excluded from the normal contract count. The
-> seven active-link additions are the accessory catalog, request lifecycle, and
-> payment-proof upload routes documented below.
+> accessory catalog is account-only; the request lifecycle and payment-proof
+> routes remain active-link commerce routes documented below.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
 > cancellation of a confirmed appointment or pending appointment request is
@@ -2422,8 +2422,10 @@ the patient's.
 
 ## 13b. Accessories and Order Requests
 
-**Active patient link required for every endpoint in this section.** All
-routes use Sanctum, the clinical account throttle, and the active-link gate.
+All endpoints in this section use Sanctum and patient-role authorization.
+Catalog browsing is account-only: it uses the account throttle and does not
+require an active patient link. Order requests, Optical Orders, payment-proof
+uploads, and ratings use the clinical account throttle and the active-link gate.
 Request submission is additionally limited to 10 attempts per account per
 minute. Payment-proof multipart uploads are additionally limited to 5 attempts
 per account per minute.
@@ -2456,7 +2458,8 @@ ratings are excluded and an unrated Product has `average_rating: null`.
 Prescription-linked placement is outside this accessory catalog contract. The
 retired `placement` query parameter is prohibited and returns HTTP 422 when
 sent. The catalog does not read prescription measurements, infer compatibility,
-or bind an accessory order request to a Prescription.
+or bind an accessory order request to a Prescription. Catalog reads are
+query-only and never reserve stock; unauthenticated requests return `401`.
 
 ### Order request lifecycle
 
@@ -3239,6 +3242,7 @@ metadata may appear beside `code` and `message`, as with
 | `PATIENT_RESOLUTION_REQUIRED` | 422 | Unlinked request must be resolved to a patient first |
 | `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
 | `REQUEST_NOT_RESCHEDULABLE` | 422 | Appointment request is expired, terminal, stale, or otherwise no longer pending |
+| `PATIENT_ROLE_REQUIRED` | 403 | Authenticated account does not have the patient role |
 | `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
 | `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
@@ -3248,6 +3252,18 @@ metadata may appear beside `code` and `message`, as with
 | `ORDER_REQUEST_NOT_ACTIONABLE` | 422 | An Order Request is no longer pending/cancellable |
 | `PAYMENT_WINDOW_EXPIRED` | 422 | The accepted order's 30-minute payment window has passed |
 | `ORDER_NOT_AWAITING_PAYMENT` | 422 | The order is not an accepted pending-payment accessory order |
+
+An authenticated patient-role account without an active patient link receives
+HTTP 403 on an ordering or commerce route:
+
+```json
+{
+  "error": {
+    "code": "ACTIVE_PATIENT_LINK_REQUIRED",
+    "message": "An active patient link is required."
+  }
+}
+```
 
 ### Standard HTTP Status Codes
 
@@ -3409,9 +3425,10 @@ never signed in by the registration endpoint.
 ### Active patient link boundary
 Patient-specific clinical resources and confirmed appointments require an
 active patient link (`patients.user_id`). Appointment requests, frame catalog
-browsing, and Saved Frames are account-only routes, so an authenticated
-unlinked account may browse frames and save preferences. The `link_status`
-field on `/me` reflects the current state.
+browsing, accessory catalog browsing, and Saved Frames are account-only routes,
+so an authenticated unlinked account may browse catalogs and save preferences.
+The `link_status` field on `/me` reflects the current state. Commerce routes
+remain link-gated.
 
 ### Appointment requests vs confirmed appointments
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
@@ -3580,6 +3597,17 @@ Rate-limited responses include `Retry-After` in seconds. Middleware-backed
 limits also include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
 `X-RateLimit-Reset`.
 
+### Authenticated Patient Account (token + patient role)
+
+```
+GET    /api/v1/accessories                    List accessory catalog
+GET    /api/v1/accessories/{id}               Get accessory detail
+```
+
+These catalog reads allow linked, pending-link, and unlinked patient-role
+accounts. They do not expose exact stock, costs, expiry dates, lots, or storage
+paths and never reserve stock.
+
 ### Active Patient Link Required (token + active link)
 
 ```
@@ -3591,8 +3619,6 @@ POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
-GET    /api/v1/accessories                    List accessory catalog
-GET    /api/v1/accessories/{id}               Get accessory detail
 GET    /api/v1/accessory-order-requests       List Order Requests
 POST   /api/v1/accessory-order-requests       Submit Order Request
 GET    /api/v1/accessory-order-requests/{id}  Get Order Request
@@ -3604,6 +3630,6 @@ POST   /api/v1/optical-orders/{id}/payment-proof  Upload GCash proof
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 17
+**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 15
 active-link = **68 registered routes total**. The normal patient-mobile
 contract is **67 routes** when the disabled-by-default pilot route is excluded.
