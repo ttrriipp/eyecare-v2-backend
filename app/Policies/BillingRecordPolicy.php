@@ -19,7 +19,8 @@ class BillingRecordPolicy
 
     public function recordPayment(User $user): bool
     {
-        return $user->hasPanelRole();
+        return $user->is_active
+            && ($user->isAdmin() || $user->isStaff());
     }
 
     public function voidPayment(User $user): bool

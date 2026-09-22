@@ -32,6 +32,7 @@ pest()->group('critical')->in(
     'Feature/Auth/VerifyOtpChallengeTest.php',
     'Feature/Auth/DeliverOtpChallengeTest.php',
     'Feature/Security/RoleAssignmentTest.php',
+    'Feature/Security/PanelOperationalAuthorizationTest.php',
     'Feature/Api/V1/PatientRegistrationTest.php',
     'Feature/Api/V1/PatientLoginTest.php',
     'Feature/Api/V1/PatientContactTest.php',

@@ -19,23 +19,26 @@ class AppointmentRequestPolicy
 
     public function accept(User $user, AppointmentRequest $request): bool
     {
-        return $user->is_active
-            && $user->hasPanelRole()
+        return $this->canManageScheduling($user)
             && $request->isReadyForScheduleReview();
     }
 
     public function reject(User $user, AppointmentRequest $request): bool
     {
-        return $user->is_active
-            && $user->hasPanelRole()
+        return $this->canManageScheduling($user)
             && $request->isPending();
     }
 
     public function link(User $user, AppointmentRequest $request): bool
     {
-        return $user->is_active
-            && $user->hasPanelRole()
+        return $this->canManageScheduling($user)
             && $request->isPending()
             && $request->needsPatientResolution();
+    }
+
+    private function canManageScheduling(User $user): bool
+    {
+        return $user->is_active
+            && ($user->isAdmin() || $user->isStaff());
     }
 }
