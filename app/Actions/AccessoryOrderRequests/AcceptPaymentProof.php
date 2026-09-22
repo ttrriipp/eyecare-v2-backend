@@ -9,6 +9,7 @@ use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
+use App\Enums\OrderPaymentMethod;
 use App\Enums\OrderPaymentProofStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\BillingPayment;
@@ -33,7 +34,10 @@ class AcceptPaymentProof
     ): OrderPaymentProof {
         $this->assertReviewer($reviewer);
 
-        $lockKey = 'gcash-reference:'.hash('sha256', mb_strtolower(trim((string) $proof->reference_number)));
+        $paymentMethod = $proof->payment_method instanceof OrderPaymentMethod
+            ? $proof->payment_method
+            : OrderPaymentMethod::tryFrom((string) $proof->payment_method) ?? OrderPaymentMethod::GCash;
+        $lockKey = 'payment-reference:'.$paymentMethod->value.':'.hash('sha256', mb_strtolower(trim((string) $proof->reference_number)));
 
         return Cache::lock($lockKey, 15)->block(5, function () use ($proof, $reviewer): OrderPaymentProof {
             return DB::transaction(function () use ($proof, $reviewer): OrderPaymentProof {
@@ -81,21 +85,27 @@ class AcceptPaymentProof
                     ]);
                 }
 
-                // Check for duplicate GCash reference
+                $paymentMethod = $lockedProof->payment_method instanceof OrderPaymentMethod
+                    ? $lockedProof->payment_method
+                    : OrderPaymentMethod::tryFrom((string) $lockedProof->payment_method) ?? OrderPaymentMethod::GCash;
+
+                // Payment references are scoped to their payment method.
                 $duplicateRef = OrderPaymentProof::query()
                     ->where('reference_number', $lockedProof->reference_number)
+                    ->where('payment_method', $paymentMethod->value)
                     ->where('status', OrderPaymentProofStatus::Accepted)
                     ->where('id', '!=', $lockedProof->id)
                     ->exists();
 
                 $duplicatePostedPayment = BillingPayment::query()
                     ->where('reference_number', $lockedProof->reference_number)
+                    ->where('payment_method', $paymentMethod->value)
                     ->where('status', 'posted')
                     ->exists();
 
                 if ($duplicateRef || $duplicatePostedPayment) {
                     throw ValidationException::withMessages([
-                        'reference_number' => ['This GCash reference has already been used.'],
+                        'reference_number' => ['This '.$paymentMethod->label().' reference has already been used.'],
                     ]);
                 }
 
@@ -103,10 +113,10 @@ class AcceptPaymentProof
                 app(RecordBillingPayment::class)->handle(
                     billingRecord: $billingRecord,
                     amount: (float) $billingRecord->balance_due,
-                    paymentMethod: 'gcash',
+                    paymentMethod: $paymentMethod->value,
                     recorder: $reviewer,
                     referenceNumber: $lockedProof->reference_number,
-                    notes: 'GCash payment verified for accessory order.',
+                    notes: $paymentMethod->label().' payment verified for accessory order.',
                     chargesReviewed: true,
                     notifyPatient: false,
                 );
@@ -129,6 +139,7 @@ class AcceptPaymentProof
                     action: AuditEvent::PaymentProofAccepted,
                     metadata: [
                         'job_order_id' => $order->id,
+                        'payment_method' => $paymentMethod->value,
                         'status' => OrderPaymentProofStatus::Accepted->value,
                     ],
                     actorId: $reviewer->id,

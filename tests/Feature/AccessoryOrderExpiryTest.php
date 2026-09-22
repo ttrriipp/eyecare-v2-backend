@@ -6,6 +6,7 @@ use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\AccessoryOrderRequestItem;
+use App\Models\ClinicPaymentMethod;
 use App\Models\InventoryLot;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -69,6 +70,26 @@ test('the scheduled command expires only pending-payment orders and reverses the
         ->and($order->billingRecord->status)->toBe(BillingRecordStatus::Cancelled)
         ->and((int) $this->variant->fresh()->stock_quantity)->toBe(2)
         ->and((int) $this->variant->inventoryLots()->sum('quantity_on_hand'))->toBe(2);
+});
+
+test('acceptance snapshots the configured online payment instructions', function (): void {
+    ClinicPaymentMethod::factory()->bankTransfer()->create([
+        'account_name' => 'EyeCare Clinic',
+        'account_number' => '1234567890',
+        'bank_name' => 'Demo Bank',
+    ]);
+
+    $result = app(AcceptAccessoryOrderRequest::class)->handle(
+        orderRequest: $this->request,
+        reviewer: $this->reviewer,
+    );
+
+    $instructions = $result['order']->fresh()->payment_instructions;
+
+    expect($instructions['methods'][0]['method'])
+        ->toBe('bank_transfer')
+        ->and($instructions['methods'][0]['amount'])
+        ->toBe('100.00');
 });
 
 test('the scheduled command never expires an order that already has a payment proof under review', function (): void {

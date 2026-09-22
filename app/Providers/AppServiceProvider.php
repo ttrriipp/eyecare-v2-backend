@@ -18,6 +18,7 @@ use App\Observers\CatalogObserver;
 use App\Observers\PatientObserver;
 use App\Observers\ProductObserver;
 use App\Observers\UserObserver;
+use App\Services\Payments\PaymentInstructionCatalog;
 use App\Services\SemaphoreService;
 use App\Services\SmsGateway;
 use App\Services\TextBeeService;
@@ -37,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->scoped(PaymentInstructionCatalog::class);
         $this->app->bind(SmsGateway::class, fn () => match (config('services.sms.driver')) {
             'textbee' => new TextBeeService,
             default => new SemaphoreService,

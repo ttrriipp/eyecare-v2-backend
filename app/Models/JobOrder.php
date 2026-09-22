@@ -29,8 +29,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'dispensed_at',
     'cancelled_at',
     'payment_expires_at',
+    'payment_instructions',
 ])]
-#[Hidden(['supplier_invoice_number'])]
+#[Hidden(['supplier_invoice_number', 'payment_instructions'])]
 class JobOrder extends Model
 {
     use HasFactory, SoftDeletes;
@@ -128,6 +129,7 @@ class JobOrder extends Model
             'dispensed_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'payment_expires_at' => 'datetime',
+            'payment_instructions' => 'array',
         ];
     }
 }

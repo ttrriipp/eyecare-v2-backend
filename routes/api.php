@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\AccessoryCatalogController;
 use App\Http\Controllers\Api\V1\AccessoryOrderRequestController;
 use App\Http\Controllers\Api\V1\AccessoryOrderRequestDiscountProofController;
 use App\Http\Controllers\Api\V1\OrderPaymentProofController;
+use App\Http\Controllers\Api\V1\PaymentInstructionQrController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
 
@@ -190,6 +191,8 @@ Route::prefix('v1')->middleware([
 
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
+    Route::get('optical-orders/{jobOrder}/payment-instructions/{method}/qr', [PaymentInstructionQrController::class, 'show'])
+        ->name('api.v1.optical-orders.payment-instructions.qr');
     Route::post('optical-orders/{jobOrder}/payment-proof', [OrderPaymentProofController::class, 'store'])
         ->middleware('throttle:api-payment-proof');
 

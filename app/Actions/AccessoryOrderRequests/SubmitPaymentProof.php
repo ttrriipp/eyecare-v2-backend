@@ -5,11 +5,13 @@ namespace App\Actions\AccessoryOrderRequests;
 use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\JobOrderStatus;
+use App\Enums\OrderPaymentMethod;
 use App\Enums\OrderPaymentProofStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\JobOrder;
 use App\Models\OrderPaymentProof;
 use App\Models\User;
+use App\Services\Payments\PaymentInstructionCatalog;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +20,10 @@ use Illuminate\Validation\ValidationException;
 
 class SubmitPaymentProof
 {
-    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+    public function __construct(
+        private readonly NotifyAdminUsers $notifyAdminUsers,
+        private readonly PaymentInstructionCatalog $paymentInstructions,
+    ) {}
 
     /**
      * Submit a payment proof for a pending-payment order.
@@ -31,11 +36,19 @@ class SubmitPaymentProof
         UploadedFile $file,
         string $senderName,
         string $referenceNumber,
+        string $paymentMethod = 'gcash',
     ): array {
         $senderName = trim($senderName);
         $referenceNumber = trim($referenceNumber);
+        $paymentMethod = OrderPaymentMethod::tryFrom($paymentMethod);
 
-        return DB::transaction(function () use ($account, $order, $file, $senderName, $referenceNumber): array {
+        if ($paymentMethod === null) {
+            throw ValidationException::withMessages([
+                'payment_method' => ['The selected payment method is invalid.'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($account, $order, $file, $senderName, $referenceNumber, $paymentMethod): array {
             // Lock and validate
             $order = JobOrder::query()->lockForUpdate()->findOrFail($order->id);
 
@@ -76,6 +89,12 @@ class SubmitPaymentProof
                 ]);
             }
 
+            if (! $this->paymentInstructions->supports($order, $paymentMethod)) {
+                throw ValidationException::withMessages([
+                    'payment_method' => ['That payment method is not available for this order.'],
+                ]);
+            }
+
             // Validate file
             Validator::make(
                 ['proof' => $file],
@@ -107,6 +126,7 @@ class SubmitPaymentProof
                     'job_order_id' => $order->id,
                     'user_id' => $account->id,
                     'status' => OrderPaymentProofStatus::Pending,
+                    'payment_method' => $paymentMethod,
                     'file_path' => $path,
                     'original_name' => $originalName,
                     'mime_type' => $mimeType,

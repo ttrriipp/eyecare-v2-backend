@@ -16,6 +16,7 @@ use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\JobOrder;
 use App\Models\User;
+use App\Services\Payments\PaymentInstructionCatalog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +29,7 @@ class AcceptAccessoryOrderRequest
         private readonly AddChargesToBilling $addCharges,
         private readonly CreateAuditLog $auditLog,
         private readonly NotifyPatientAccount $notifyPatientAccount,
+        private readonly PaymentInstructionCatalog $paymentInstructions,
     ) {}
 
     /**
@@ -207,6 +209,14 @@ class AcceptAccessoryOrderRequest
                     discountAmount: $discountAmount,
                 );
             }
+
+            $jobOrder->update([
+                'payment_instructions' => $this->paymentInstructions->snapshot(
+                    orderReference: $jobOrder->job_order_number,
+                    amount: (float) $billingRecord->fresh()->balance_due,
+                    expiresAt: $jobOrder->payment_expires_at,
+                ),
+            ]);
 
             // Mark request accepted
             $lockedRequest->update([

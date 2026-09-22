@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\OrderPaymentMethod;
 use App\Enums\OrderPaymentProofStatus;
 use App\Models\JobOrder;
 use App\Models\OrderPaymentProof;
@@ -24,6 +25,7 @@ class OrderPaymentProofFactory extends Factory
             'job_order_id' => JobOrder::factory(),
             'user_id' => User::factory()->patient(),
             'status' => OrderPaymentProofStatus::Pending,
+            'payment_method' => OrderPaymentMethod::GCash,
             'file_path' => 'payment-proofs/'.$this->faker->uuid().'.jpg',
             'original_name' => 'proof.jpg',
             'mime_type' => 'image/jpeg',

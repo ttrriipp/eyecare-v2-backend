@@ -67,6 +67,7 @@ return [
     'catalog_disk' => env('CATALOG_DISK', 'public'),
     'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'payment_proofs'),
     'discount_proof_disk' => env('DISCOUNT_PROOF_DISK', 'discount_proofs'),
+    'payment_instructions_disk' => env('PAYMENT_INSTRUCTIONS_DISK', 'payment_instructions'),
 
     /*
     |--------------------------------------------------------------------------
@@ -177,6 +178,14 @@ return [
         'discount_proofs' => [
             'driver' => 'local',
             'root' => storage_path('app/discount-proofs'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'payment_instructions' => [
+            'driver' => 'local',
+            'root' => storage_path('app/payment-instructions'),
             'visibility' => 'private',
             'throw' => true,
             'report' => false,

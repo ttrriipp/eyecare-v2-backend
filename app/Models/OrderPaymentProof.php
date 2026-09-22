@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderPaymentMethod;
 use App\Enums\OrderPaymentProofStatus;
 use Database\Factories\OrderPaymentProofFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'job_order_id',
     'user_id',
     'status',
+    'payment_method',
     'file_path',
     'original_name',
     'mime_type',
@@ -32,6 +34,7 @@ class OrderPaymentProof extends Model
     {
         return [
             'status' => OrderPaymentProofStatus::class,
+            'payment_method' => OrderPaymentMethod::class,
             'file_size' => 'integer',
             'reviewed_at' => 'datetime',
         ];

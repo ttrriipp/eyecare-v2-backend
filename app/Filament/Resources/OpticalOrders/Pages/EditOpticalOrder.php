@@ -123,7 +123,7 @@ class EditOpticalOrder extends EditRecord
                     && $this->record->paymentProof?->isPending())
                 ->requiresConfirmation()
                 ->modalHeading('Accept Payment')
-                ->modalDescription('This will record the full GCash payment and queue the order for fulfillment.')
+                ->modalDescription(fn (): string => 'This will record the full '.($this->record->paymentProof?->payment_method?->label() ?? 'online').' payment and queue the order for fulfillment.')
                 ->action(function (): void {
                     try {
                         app(AcceptPaymentProof::class)->handle(

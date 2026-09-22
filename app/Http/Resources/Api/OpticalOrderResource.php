@@ -7,9 +7,11 @@ use App\Enums\JobOrderStatus;
 use App\Models\FrameRating;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
+use App\Services\Payments\PaymentInstructionCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @mixin JobOrder
@@ -34,6 +36,7 @@ class OpticalOrderResource extends JsonResource
             'created_at' => $this->created_at->toIso8601String(),
             'payment_expires_at' => $this->payment_expires_at?->toIso8601String(),
             'payment_proof_status' => $this->getPaymentProofStatus(),
+            'payment_proof_method' => $this->getPaymentProofMethod(),
             'payment_proof_rejection_reason' => $this->getPaymentProofRejectionReason(),
             'payment_instructions' => $this->getPaymentInstructions(),
             'items' => $this->items->map(fn (JobOrderItem $item) => [
@@ -212,8 +215,13 @@ class OpticalOrderResource extends JsonResource
             : null;
     }
 
+    private function getPaymentProofMethod(): ?string
+    {
+        return $this->paymentProof?->payment_method?->value;
+    }
+
     /**
-     * @return array<string, string>|null
+     * @return array<string, mixed>|null
      */
     private function getPaymentInstructions(): ?array
     {
@@ -221,25 +229,58 @@ class OpticalOrderResource extends JsonResource
             return null;
         }
 
-        $accountName = config('payments.gcash_account_name');
-        $accountNumber = config('payments.gcash_account_number');
-
-        if (blank($accountName) || blank($accountNumber)) {
+        if ($this->payment_expires_at === null || $this->payment_expires_at->isPast()) {
             return null;
         }
 
-        $billing = $this->billingRecord;
-        $amount = $billing !== null
-            ? (float) $billing->balance_due
-            : (float) $this->total_amount;
+        $methods = app(PaymentInstructionCatalog::class)->forOrder($this->resource);
+
+        if ($methods === []) {
+            return null;
+        }
+
+        $formattedMethods = array_map(
+            fn (array $method): array => $this->formatPaymentInstruction($method),
+            $methods,
+        );
+        $primary = $formattedMethods[0];
 
         return [
-            'method' => 'gcash',
-            'clinic_account_name' => (string) $accountName,
-            'clinic_account_number' => (string) $accountNumber,
-            'amount' => number_format($amount, 2, '.', ''),
-            'order_reference' => $this->job_order_number,
-            'payment_expires_at' => $this->payment_expires_at?->toIso8601String(),
+            ...$primary,
+            'available_methods' => $formattedMethods,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $method
+     * @return array<string, mixed>
+     */
+    private function formatPaymentInstruction(array $method): array
+    {
+        $qrPath = $method['qr_image_path'] ?? null;
+        $qrImageUrl = null;
+
+        if (filled($qrPath)) {
+            $disk = Storage::disk((string) config('filesystems.payment_instructions_disk', 'payment_instructions'));
+
+            if ($disk->exists($qrPath)) {
+                $qrImageUrl = route('api.v1.optical-orders.payment-instructions.qr', [
+                    'jobOrder' => $this->id,
+                    'method' => $method['method'],
+                ]);
+            }
+        }
+
+        return [
+            'method' => $method['method'] ?? null,
+            'label' => $method['label'] ?? null,
+            'clinic_account_name' => $method['clinic_account_name'] ?? null,
+            'clinic_account_number' => $method['clinic_account_number'] ?? null,
+            'bank_name' => $method['bank_name'] ?? null,
+            'amount' => $method['amount'] ?? null,
+            'order_reference' => $method['order_reference'] ?? null,
+            'payment_expires_at' => $method['payment_expires_at'] ?? null,
+            'qr_image_url' => $qrImageUrl,
         ];
     }
 }

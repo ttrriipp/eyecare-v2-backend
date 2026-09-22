@@ -16,9 +16,9 @@
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The normal patient-mobile contract has 68
-> routes (8 public + 44 account-only + 16 active-link). One additive,
-> pilot-only public route is also registered, making 69 routes in the registry;
+> from the mobile notification feed. The normal patient-mobile contract has 69
+> routes (8 public + 44 account-only + 17 active-link). One additive,
+> pilot-only public route is also registered, making 70 routes in the registry;
 > it is disabled by default and excluded from the normal contract count. The
 > accessory catalog is account-only; the request lifecycle and payment-proof
 > and discount-proof routes remain active-link commerce routes documented below.
@@ -2566,31 +2566,52 @@ Only an owned, accepted accessory request whose resulting Optical Order is in
 | `proof` | JPG/JPEG/PNG, <= 10 MB, <= 8,000 x 8,000 pixels |
 | `sender_name` | Required trimmed string, <= 100 characters |
 | `reference_number` | Required trimmed string, <= 100 characters |
+| `payment_method` | Optional enum: `gcash` or `bank_transfer`; defaults to `gcash` for backwards-compatible clients |
 
 The first valid submission stores one object on the configured private
 `PAYMENT_PROOF_DISK`, creates one proof row, and moves the order to
-`payment_review` (`201`). A retry returns the existing proof unchanged (`200`)
-and never replaces the object or extends the original deadline. The patient
-response includes only proof ID/status, their submitted sender/reference
-values, and creation time; it never includes a file path, URL, reviewer,
-internal note, or storage metadata. Rejected proofs cannot be resubmitted in
-the MVP.
+`payment_review` (`201`). A successful response is:
+
+```json
+{
+  "data": {
+    "id": 17,
+    "status": "pending",
+    "payment_method": "bank_transfer",
+    "sender_name": "Ana Reyes",
+    "reference_number": "BANK-20260922-001",
+    "created_at": "2026-09-22T12:00:00+08:00"
+  }
+}
+```
+
+A retry returns the existing proof unchanged (`200`) and never replaces the
+object or extends the original deadline. The patient response includes only
+proof ID/status, selected method, their submitted sender/reference values, and
+creation time; it never includes a file path, URL, reviewer, internal note, or
+storage metadata. Rejected proofs cannot be resubmitted in the MVP.
 
 ### Payment states and reviewer boundary
 
 Accepted request orders use clinic pickup (`fulfillment_mode=prepared`) and
 start a 30-minute `payment_expires_at` deadline only when staff accepts the
-request. The only patient payment method in this flow is full-balance GCash
-verified manually from the clinic ledger. GCash account name/number are
-deployment configuration (`GCASH_ACCOUNT_NAME` and `GCASH_ACCOUNT_NUMBER`),
-not source-controlled values. Payment instructions appear on the Optical Order
-resource only while status is `pending_payment` and configuration is complete.
+request. The patient may pay the full balance by GCash or bank transfer, then
+upload a proof for the selected method. Administrators configure active clinic
+methods in the Billing panel; legacy deployments may provide GCash and bank
+details through environment fallback values (`GCASH_ACCOUNT_NAME`,
+`GCASH_ACCOUNT_NUMBER`, `BANK_TRANSFER_BANK_NAME`,
+`BANK_TRANSFER_ACCOUNT_NAME`, and `BANK_TRANSFER_ACCOUNT_NUMBER`). At
+acceptance, the backend snapshots the active account details and optional QR
+image path into the order. Payment instructions appear only while status is
+`pending_payment`, the deadline is in the future, and the order has at least
+one configured method.
 
 Only active `staff` or `admin` accounts may accept/reject requests or payment
 proofs. Optometrist-only accounts cannot make commerce decisions. Acceptance
-records exactly one posted full-balance GCash payment and moves the order to
-`queued`; rejection records a bounded reason, cancels the order, reverses its
-exact inventory commitments, and voids the unpaid bill. The every-minute
+records exactly one posted full-balance payment using the proof's selected
+method and moves the order to `queued`; rejection records a bounded reason,
+cancels the order, reverses its exact inventory commitments, and voids the
+unpaid bill. The every-minute
 `accessory-orders:expire-unpaid` schedule cancels only overdue
 `pending_payment` orders with `withoutOverlapping()`; `payment_review` never
 auto-expires.
@@ -2604,6 +2625,7 @@ auto-expires.
 | `ORDER_REQUEST_NOT_ACTIONABLE` | 422 | A request is no longer pending/cancellable |
 | `PAYMENT_WINDOW_EXPIRED` | 422 | The 30-minute payment deadline has passed |
 | `ORDER_NOT_AWAITING_PAYMENT` | 422 | The order is not an accepted pending-payment order |
+| `PAYMENT_METHOD_NOT_AVAILABLE` | 422 | The selected online payment method was not configured for this order |
 | `DISCOUNT_PROOF_NOT_REQUESTED` | 422 | The request did not declare a supported discount |
 | `DISCOUNT_PROOF_RATE_LIMIT_REACHED` | 429 | Discount-proof uploads exceeded the 5-per-minute account limit |
 
@@ -2720,8 +2742,9 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `created_at` | string | no | ISO 8601 creation timestamp |
 | `payment_expires_at` | string | yes | ISO 8601 30-minute deadline for `pending_payment` orders |
 | `payment_proof_status` | string | no | `not_submitted`, `pending`, `accepted`, or `rejected` |
+| `payment_proof_method` | string | yes | `gcash` or `bank_transfer` after a proof exists; `null` before submission |
 | `payment_proof_rejection_reason` | string | yes | Patient-visible reason only when proof status is `rejected` |
-| `payment_instructions` | object | yes | GCash method/account/amount/reference/deadline only while awaiting payment |
+| `payment_instructions` | object | yes | Active GCash/bank-transfer account instructions only while awaiting payment and before expiry; `null` otherwise |
 | `items` | array | no | Product items snapshot |
 | `items[].id` | integer | no | Job Order Item ID |
 | `items[].description` | string | no | Item description |
@@ -2739,6 +2762,62 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `payment_summary.balance_due` | string | no | Remaining balance |
 | `payment_summary.payment_due_date` | string | yes | Due date, `Y-m-d` format |
 | `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
+
+When `payment_instructions` is not `null`, it has this shape:
+
+| Field | Type | Nullable | Default / meaning |
+|---|---|---:|---|
+| `method` | string | no | Primary method shown by the client: `gcash` or `bank_transfer` |
+| `label` | string | no | Clinic-configured display label (`GCash` or `Bank transfer` by default) |
+| `clinic_account_name` | string | no | Receiving account name |
+| `clinic_account_number` | string | no | Receiving account/mobile number |
+| `bank_name` | string | yes | Bank name for `bank_transfer`; `null` for GCash |
+| `amount` | string | no | Full current balance due, two decimal places |
+| `order_reference` | string | no | Immutable `ORD-YYYY-NNNNNN` reference to include with payment |
+| `payment_expires_at` | string | yes | ISO 8601 deadline; normally the same as the top-level field |
+| `qr_image_url` | string | yes | Authenticated private QR image URL; `null` when no QR was configured |
+| `available_methods` | array | no | All methods snapshotted for this order, in clinic configuration order |
+| `available_methods[]` | object | no | Same fields as this object except it does not contain `available_methods` |
+
+Example with both configured methods:
+
+```json
+{
+  "method": "gcash",
+  "label": "GCash",
+  "clinic_account_name": "EyeCare Clinic",
+  "clinic_account_number": "09171234567",
+  "bank_name": null,
+  "amount": "1500.00",
+  "order_reference": "ORD-2026-000001",
+  "payment_expires_at": "2026-09-22T12:30:00+08:00",
+  "qr_image_url": "https://api.example.test/api/v1/optical-orders/1/payment-instructions/gcash/qr",
+  "available_methods": [
+    {
+      "method": "gcash",
+      "label": "GCash",
+      "clinic_account_name": "EyeCare Clinic",
+      "clinic_account_number": "09171234567",
+      "bank_name": null,
+      "amount": "1500.00",
+      "order_reference": "ORD-2026-000001",
+      "payment_expires_at": "2026-09-22T12:30:00+08:00",
+      "qr_image_url": "https://api.example.test/api/v1/optical-orders/1/payment-instructions/gcash/qr"
+    },
+    {
+      "method": "bank_transfer",
+      "label": "Bank transfer",
+      "clinic_account_name": "EyeCare Clinic",
+      "clinic_account_number": "1234567890",
+      "bank_name": "Demo Bank",
+      "amount": "1500.00",
+      "order_reference": "ORD-2026-000001",
+      "payment_expires_at": "2026-09-22T12:30:00+08:00",
+      "qr_image_url": null
+    }
+  ]
+}
+```
 
 When `items[].rating` is not null, it contains `rating`, optional `comment`,
 and `created_at`. Comment text is profanity-masked before persistence. Hidden
@@ -2760,9 +2839,13 @@ from non-dispensed orders have `is_rateable: false`.
 - Items contain only product lines. Service lines are never included.
 - `supplier_invoice_number` and internal notes are excluded.
 - `payment_summary` represents the overall checkout balance for combined bills.
-- `payment_instructions` is omitted (`null`) after proof submission, acceptance,
-  rejection, cancellation, or expiry; it is never returned when the GCash
-  deployment configuration is incomplete.
+- `payment_instructions` is `null` after proof submission, acceptance,
+  rejection, cancellation, or expiry; it is also `null` when no active clinic
+  method is configured. QR URLs require the same authenticated active patient
+  link as the order and never expose a storage path.
+- The account and QR values are an acceptance-time snapshot. Updating a clinic
+  payment method affects newly accepted orders only; an in-flight order keeps
+  its original instructions until the 30-minute window closes.
 - Monetary values are strings with two decimal places.
 
 ---
@@ -3104,7 +3187,7 @@ notification. Check-in, encounter drafts, order `in_progress`
 changes, billing recalculation, reminders, and patient-initiated actions do not
 create patient inbox noise. Accessory request/proof alerts are queued after
 commit and deduplicated by their stable event key. Bodies exclude item details,
-rejection narratives, sender names, GCash account/reference data, proof paths,
+rejection narratives, sender names, clinic account/reference data, proof paths,
 and private notes. Staff/admin bell alerts identify only the request/order
 number and safe workflow status.
 
@@ -3404,7 +3487,8 @@ authentication path. Current behavior is authoritative in the sections above.
 | `GET /accessory-order-requests/{id}` | Get an owned Order Request |
 | `POST /accessory-order-requests/{id}/cancel` | Idempotently cancel a pending owned request |
 | `POST /accessory-order-requests/{id}/discount-proof` | Upload or replace one private discount proof while the request is pending |
-| `POST /optical-orders/{id}/payment-proof` | Upload one private GCash proof for an accepted order |
+| `POST /optical-orders/{id}/payment-proof` | Upload one private GCash or bank-transfer proof for an accepted order |
+| `GET /optical-orders/{id}/payment-instructions/{method}/qr` | Stream the selected order's private clinic QR image (`method` is `gcash` or `bank_transfer`) |
 | `GET /conversation` | Get the authenticated account's conversation |
 | `GET /conversation/messages` | List conversation messages with cursor pagination |
 | `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
@@ -3675,11 +3759,12 @@ POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request
 POST   /api/v1/accessory-order-requests/{id}/discount-proof  Upload discount proof
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
-POST   /api/v1/optical-orders/{id}/payment-proof  Upload GCash proof
+POST   /api/v1/optical-orders/{id}/payment-proof  Upload online payment proof
+GET    /api/v1/optical-orders/{id}/payment-instructions/{method}/qr  Stream private clinic QR image
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 16
-active-link = **69 registered routes total**. The normal patient-mobile
-contract is **68 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 17
+active-link = **70 registered routes total**. The normal patient-mobile
+contract is **69 routes** when the disabled-by-default pilot route is excluded.
