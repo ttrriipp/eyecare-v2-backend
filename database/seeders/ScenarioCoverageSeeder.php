@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\LinkPatientAccount;
+use App\Actions\PatientAccounts\PatientLinkIdentitySnapshot;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\BillingItemSourceKind;
@@ -486,56 +487,98 @@ class ScenarioCoverageSeeder extends Seeder
         }
 
         $staff = $this->staff();
-        $patientRoleId = Role::query()->where('name', Role::Patient)->value('id');
+        $patientRoleId = (int) Role::query()->where('name', Role::Patient)->value('id');
 
-        $pendingUser = User::factory()->create(['role_id' => $patientRoleId]);
-        PatientLinkRequest::factory()->pending()->create([
-            'request_number' => 'PLR-2026-000001',
-            'user_id' => $pendingUser->id,
-        ]);
+        $pendingUser = $this->createPatientLinkAccount(
+            email: 'link.pending@eyecare.test',
+            firstName: 'Daniel',
+            lastName: 'Reyes',
+            phone: '09170000011',
+            roleId: $patientRoleId,
+        );
+        PatientLinkRequest::query()->updateOrCreate(
+            ['request_number' => 'PLR-2026-000001'],
+            [
+                'user_id' => $pendingUser->id,
+                'encrypted_identity_snapshot' => app(PatientLinkIdentitySnapshot::class)->fromAccount($pendingUser),
+                'status' => 'pending',
+                'reviewed_patient_id' => null,
+                'reviewer_id' => null,
+                'decision_note' => null,
+                'reviewed_at' => null,
+            ],
+        );
 
-        $rejectedUser = User::factory()->create(['role_id' => $patientRoleId]);
-        PatientLinkRequest::factory()->rejected()->create([
-            'request_number' => 'PLR-2026-000002',
-            'user_id' => $rejectedUser->id,
-            'reviewer_id' => $staff->id,
-        ]);
+        $rejectedUser = $this->createPatientLinkAccount(
+            email: 'link.rejected@eyecare.test',
+            firstName: 'Maya',
+            lastName: 'Lopez',
+            phone: '09170000012',
+            roleId: $patientRoleId,
+        );
+        PatientLinkRequest::query()->updateOrCreate(
+            ['request_number' => 'PLR-2026-000002'],
+            [
+                'user_id' => $rejectedUser->id,
+                'encrypted_identity_snapshot' => app(PatientLinkIdentitySnapshot::class)->fromAccount($rejectedUser),
+                'status' => 'rejected',
+                'reviewed_patient_id' => null,
+                'reviewer_id' => $staff->id,
+                'decision_note' => 'No matching patient found',
+                'reviewed_at' => now(),
+            ],
+        );
 
         // A dedicated walk-in match — not the canonical Pedro Cruz, who other
         // tests expect to remain unlinked.
-        $approvedUser = User::factory()->create([
-            'first_name' => 'Rosa',
-            'middle_name' => null,
-            'last_name' => 'Santos',
-            'date_of_birth' => '1988-04-12',
-            'phone' => '09170000005',
-            'role_id' => $patientRoleId,
-        ]);
+        $approvedUser = $this->createPatientLinkAccount(
+            email: 'link.approved@eyecare.test',
+            firstName: 'Rosa',
+            lastName: 'Santos',
+            phone: '09170000005',
+            roleId: $patientRoleId,
+            dateOfBirth: '1988-04-12',
+        );
         $approvedContactHash = app(CreateContactLookupHash::class)->forPhone('09170000005');
-        PatientAccountContact::query()->create([
-            'user_id' => $approvedUser->id,
-            'type' => 'phone',
-            'encrypted_value' => '09170000005',
-            'lookup_hash' => $approvedContactHash,
-            'verified_at' => now(),
-            'is_primary' => true,
-        ]);
-        $approvedMatch = Patient::factory()->create([
+        PatientAccountContact::query()->updateOrCreate(
+            [
+                'user_id' => $approvedUser->id,
+                'type' => 'phone',
+                'lookup_hash' => $approvedContactHash,
+            ],
+            [
+                'encrypted_value' => '09170000005',
+                'verified_at' => now(),
+                'is_primary' => true,
+            ],
+        );
+        $approvedMatch = Patient::query()->firstOrNew(['patient_number' => 'PAT-2026-000003']);
+        $approvedMatch->forceFill([
             'patient_number' => 'PAT-2026-000003',
+            'user_id' => null,
             'first_name' => 'Rosa',
             'middle_name' => null,
             'last_name' => 'Santos',
             'date_of_birth' => '1988-04-12',
+            'occupation' => 'Teacher',
+            'address' => 'Pasig City, Metro Manila',
+            'gender' => 'female',
+            'contact_email' => null,
             'phone' => '09170000005',
-            'user_id' => null,
-        ]);
-        $approvedMatch->forceFill(['phone_lookup_hash' => $approvedContactHash])->saveQuietly();
-        PatientLinkRequest::factory()->approved()->create([
-            'request_number' => 'PLR-2026-000003',
-            'user_id' => $approvedUser->id,
-            'reviewed_patient_id' => $approvedMatch->id,
-            'reviewer_id' => $staff->id,
-        ]);
+            'phone_lookup_hash' => $approvedContactHash,
+        ])->saveQuietly();
+        PatientLinkRequest::query()->updateOrCreate(
+            ['request_number' => 'PLR-2026-000003'],
+            [
+                'user_id' => $approvedUser->id,
+                'encrypted_identity_snapshot' => app(PatientLinkIdentitySnapshot::class)->fromAccount($approvedUser),
+                'status' => 'approved',
+                'reviewed_patient_id' => $approvedMatch->id,
+                'reviewer_id' => $staff->id,
+                'decision_note' => null,
+                'reviewed_at' => now(),
+            ],
+        );
         app(LinkPatientAccount::class)->handle(
             account: $approvedUser,
             patient: $approvedMatch,
@@ -543,6 +586,35 @@ class ScenarioCoverageSeeder extends Seeder
             sourceId: $approvedMatch->id,
             actorId: $staff->id,
         );
+    }
+
+    private function createPatientLinkAccount(
+        string $email,
+        string $firstName,
+        string $lastName,
+        string $phone,
+        int $roleId,
+        ?string $dateOfBirth = null,
+    ): User {
+        $user = User::query()->updateOrCreate(
+            ['email' => $email],
+            [
+                'first_name' => $firstName,
+                'middle_name' => null,
+                'last_name' => $lastName,
+                'phone' => $phone,
+                'date_of_birth' => $dateOfBirth,
+                'password' => Hash::make('password'),
+                'role_id' => $roleId,
+                'is_optometrist' => false,
+                'is_active' => true,
+                'must_change_password' => false,
+            ],
+        );
+        $user->forceFill(['email_verified_at' => now()])->saveQuietly();
+        $user->roles()->syncWithoutDetaching([$roleId]);
+
+        return $user;
     }
 
     private function seedEncounterStatuses(): void
