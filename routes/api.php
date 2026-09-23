@@ -25,7 +25,12 @@ use App\Http\Controllers\Api\V1\AccessoryOrderRequestDiscountProofController;
 use App\Http\Controllers\Api\V1\OrderPaymentProofController;
 use App\Http\Controllers\Api\V1\PaymentInstructionQrController;
 use App\Http\Controllers\Api\VisitRatingController;
+use App\Http\Controllers\Webhooks\TextBeeWebhookController;
 use Illuminate\Support\Facades\Route;
+
+Route::post('webhooks/textbee', TextBeeWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('webhooks.textbee');
 
 // Additive pilot authentication path. It is unavailable unless pilot mode is
 // explicitly enabled with a future expiry in the request authorization check.

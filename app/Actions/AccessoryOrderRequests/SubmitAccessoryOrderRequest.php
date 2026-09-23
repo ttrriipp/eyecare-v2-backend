@@ -70,6 +70,7 @@ class SubmitAccessoryOrderRequest
                 ->whereIn('id', $variantIds->sort()->values())
                 ->where('is_active', true)
                 ->whereHas('product', fn ($q) => $q->active()->where('product_type', 'accessory'))
+                ->with('product')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -114,6 +115,8 @@ class SubmitAccessoryOrderRequest
                         'product_name' => $variant->product->name,
                         'price' => $variant->price,
                         'attributes' => $variant->attributes,
+                        'images' => $this->publicImages($variant->images)
+                            ?: $this->publicImages($variant->product->images),
                     ],
                 ];
             }
@@ -138,5 +141,51 @@ class SubmitAccessoryOrderRequest
 
             return $request;
         });
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $images
+     * @return list<string>
+     */
+    private function publicImages(?array $images): array
+    {
+        return collect($images ?? [])
+            ->filter(fn (mixed $image): bool => is_string($image))
+            ->map(fn (string $image): string => trim($image))
+            ->filter(fn (string $image): bool => $this->isPublicImageReference($image))
+            ->values()
+            ->all();
+    }
+
+    private function isPublicImageReference(string $image): bool
+    {
+        if (
+            $image === ''
+            || str_contains($image, '\\')
+            || str_contains($image, '..')
+            || str_starts_with($image, '/')
+            || filter_var($image, FILTER_VALIDATE_URL) !== false
+        ) {
+            return false;
+        }
+
+        $path = parse_url($image, PHP_URL_PATH);
+
+        if (! is_string($path)) {
+            return false;
+        }
+
+        return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), [
+            'avif',
+            'bmp',
+            'gif',
+            'jpeg',
+            'jpg',
+            'png',
+            'svg',
+            'tif',
+            'tiff',
+            'webp',
+        ], true);
     }
 }

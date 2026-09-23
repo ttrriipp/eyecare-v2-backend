@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SmsNotifications\Tables;
 
+use App\Jobs\SendSmsJob;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use Filament\Actions\Action;
@@ -36,18 +37,58 @@ class SmsNotificationsTable
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => $state === 'sent' ? 'Accepted by provider' : ucfirst($state))
                     ->color(fn (SmsNotification $record): string => match ($record->status?->name) {
                         'sent' => 'success',
                         'failed' => 'danger',
                         'queued' => 'warning',
                         default => 'gray',
                     }),
+                TextColumn::make('delivery_state')
+                    ->label('Delivery')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'sending' => 'Sending',
+                        'accepted' => 'Accepted',
+                        'pending' => 'Pending',
+                        'dispatched' => 'Dispatched',
+                        'sent' => 'Sent',
+                        'delivered' => 'Delivered',
+                        'failed' => 'Delivery failed',
+                        'unknown' => 'Outcome unknown',
+                        default => '—',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'accepted', 'pending', 'dispatched' => 'info',
+                        'sent', 'delivered' => 'success',
+                        'failed', 'unknown' => 'danger',
+                        'sending' => 'warning',
+                        default => 'gray',
+                    })
+                    ->placeholder('—'),
                 TextColumn::make('message')
                     ->limit(60)
                     ->toggleable(),
                 TextColumn::make('failure_reason')
                     ->label('Failure Reason')
                     ->limit(50)
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('provider_name')
+                    ->label('Provider')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('provider_status')
+                    ->label('Provider Status')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('provider_reference')
+                    ->label('Provider Reference')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('provider_accepted_at')
+                    ->label('Provider Accepted At')
+                    ->dateTime('M j, Y g:i A')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
@@ -81,13 +122,34 @@ class SmsNotificationsTable
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (SmsNotification $record): bool => $record->status?->name === 'failed')
+                    ->modalDescription(fn (SmsNotification $record): string => $record->delivery_state === 'unknown'
+                        ? 'TextBee may already have sent this message. Retrying could send a duplicate.'
+                        : 'This will queue the failed SMS for another delivery attempt.')
                     ->requiresConfirmation()
                     ->action(function (SmsNotification $record): void {
                         $queuedStatus = NotificationStatus::query()->where('name', 'queued')->firstOrFail();
-                        $record->update([
+                        $updates = [
                             'notification_status_id' => $queuedStatus->id,
                             'failure_reason' => null,
-                        ]);
+                            'provider_name' => null,
+                            'provider_reference' => null,
+                            'provider_message_id' => null,
+                            'provider_status' => null,
+                            'provider_accepted_at' => null,
+                        ];
+
+                        if ($record->provider_name === 'textbee' || $record->delivery_state !== null) {
+                            $updates += [
+                                'delivery_state' => 'queued',
+                                'send_attempted_at' => null,
+                                'provider_status_updated_at' => null,
+                                'provider_status_checked_at' => null,
+                                'provider_last_event_id' => null,
+                            ];
+                        }
+
+                        $record->update($updates);
+                        SendSmsJob::dispatch($record->fresh());
                         Notification::make()->title('SMS queued for retry')->success()->send();
                     }),
             ])
@@ -101,23 +163,53 @@ class SmsNotificationsTable
                         ->action(function (Collection $records): void {
                             $queuedStatus = NotificationStatus::query()->where('name', 'queued')->firstOrFail();
                             $count = 0;
+                            $skippedUnknown = 0;
 
                             foreach ($records as $record) {
                                 if ($record->status?->name !== 'failed') {
                                     continue;
                                 }
 
-                                $record->update([
+                                if ($record->delivery_state === 'unknown') {
+                                    $skippedUnknown++;
+
+                                    continue;
+                                }
+
+                                $updates = [
                                     'notification_status_id' => $queuedStatus->id,
                                     'failure_reason' => null,
-                                ]);
+                                    'provider_name' => null,
+                                    'provider_reference' => null,
+                                    'provider_message_id' => null,
+                                    'provider_status' => null,
+                                    'provider_accepted_at' => null,
+                                ];
+
+                                if ($record->provider_name === 'textbee' || $record->delivery_state !== null) {
+                                    $updates += [
+                                        'delivery_state' => 'queued',
+                                        'send_attempted_at' => null,
+                                        'provider_status_updated_at' => null,
+                                        'provider_status_checked_at' => null,
+                                        'provider_last_event_id' => null,
+                                    ];
+                                }
+
+                                $record->update($updates);
+                                SendSmsJob::dispatch($record->fresh());
                                 $count++;
                             }
 
-                            Notification::make()
+                            $notification = Notification::make()
                                 ->title("{$count} SMS queued for retry")
-                                ->success()
-                                ->send();
+                                ->success();
+
+                            if ($skippedUnknown > 0) {
+                                $notification->body("{$skippedUnknown} with unknown delivery outcome were skipped to prevent accidental duplicates.");
+                            }
+
+                            $notification->send();
                         })
                         ->deselectRecordsAfterCompletion(),
                 ]),

@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\SmsNotifications\Pages\ListSmsNotifications;
+use App\Jobs\SendSmsJob;
 use App\Models\JobOrder;
 use App\Models\NotificationStatus;
 use App\Models\Patient;
@@ -9,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -53,6 +55,7 @@ test('staff cannot access SMS log', function () {
 });
 
 test('retry action resets failed sms to queued', function () {
+    Queue::fake();
     $admin = User::factory()->admin()->create();
     $failedStatus = NotificationStatus::query()->where('name', 'failed')->firstOrFail();
     $sms = SmsNotification::factory()->create([
@@ -68,4 +71,6 @@ test('retry action resets failed sms to queued', function () {
 
     expect($sms->fresh()->status->name)->toBe('queued')
         ->and($sms->fresh()->failure_reason)->toBeNull();
+
+    Queue::assertPushed(SendSmsJob::class, fn (SendSmsJob $job): bool => $job->sms->is($sms->fresh()));
 });

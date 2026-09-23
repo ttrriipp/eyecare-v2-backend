@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Exceptions\SmsDeliveryException;
 use App\Mail\OtpMail;
 use App\Models\OtpChallenge;
 use App\Services\SmsGateway;
@@ -13,7 +14,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use RuntimeException;
 use Throwable;
 
 class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
@@ -66,7 +66,18 @@ class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
                 }
 
                 if (! $smsGateway->send($destination, $this->smsMessage())) {
-                    throw new RuntimeException('SMS provider returned a failure response.');
+                    if ($smsGateway->isRetryableFailure()) {
+                        throw new SmsDeliveryException($smsGateway->failureReason() ?? 'SMS provider returned a retryable failure response.');
+                    }
+
+                    $challenge->markFailed();
+                    Log::warning('SMS OTP delivery stopped without retry', [
+                        'challenge_id' => $challenge->public_id,
+                        'masked' => $this->maskPhone($destination),
+                        'failure_reason' => $smsGateway->failureReason(),
+                    ]);
+
+                    return;
                 }
             } else {
                 $challenge->markFailed();
@@ -80,13 +91,30 @@ class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
 
             $challenge->markSent();
         } catch (Throwable $e) {
-            $challenge->markFailed();
             Log::error('OTP delivery failed', [
                 'challenge_id' => $challenge->public_id,
                 'masked' => $this->maskPhone($destination),
                 'exception' => $e::class,
             ]);
             throw $e;
+        }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $updated = OtpChallenge::query()
+            ->where('public_id', $this->challengeId)
+            ->where('delivery_status', 'pending')
+            ->whereNull('consumed_at')
+            ->whereNull('invalidated_at')
+            ->update(['delivery_status' => 'failed']);
+
+        if ($updated === 1) {
+            Log::error('OTP delivery failed after retries', [
+                'challenge_id' => $this->challengeId,
+                'exception' => $exception === null ? null : $exception::class,
+                'failure_reason' => $exception instanceof SmsDeliveryException ? $exception->getMessage() : null,
+            ]);
         }
     }
 

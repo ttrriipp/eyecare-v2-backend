@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\PatientInvitationStatus;
+use App\Exceptions\SmsDeliveryException;
 use App\Mail\PatientInvitationMail;
 use App\Models\PatientInvitation;
 use App\Services\SmsGateway;
@@ -13,7 +14,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use RuntimeException;
 use Throwable;
 
 class DeliverPatientInvitation implements ShouldQueue
@@ -115,7 +115,18 @@ class DeliverPatientInvitation implements ShouldQueue
         }
 
         if (! $smsGateway->send($phone, $this->smsMessage($invitation))) {
-            throw new RuntimeException('SMS provider returned a failure response.');
+            if ($smsGateway->isRetryableFailure()) {
+                throw new SmsDeliveryException($smsGateway->failureReason() ?? 'SMS provider returned a retryable failure response.');
+            }
+
+            $invitation->markFailed();
+            Log::warning('SMS invitation delivery stopped without retry', [
+                'invitation_id' => $invitation->id,
+                'masked_phone' => $this->mask($phone, 'phone'),
+                'failure_reason' => $smsGateway->failureReason(),
+            ]);
+
+            return false;
         }
 
         return true;
@@ -129,7 +140,15 @@ class DeliverPatientInvitation implements ShouldQueue
             return;
         }
 
-        $invitation->markFailed();
+        if (! $invitation->markFailed()) {
+            return;
+        }
+
+        Log::error('Patient invitation delivery failed after retries', [
+            'invitation_id' => $this->invitationId,
+            'exception' => $exception === null ? null : $exception::class,
+            'failure_reason' => $exception instanceof SmsDeliveryException ? $exception->getMessage() : null,
+        ]);
     }
 
     protected function smsMessage(PatientInvitation $invitation): string

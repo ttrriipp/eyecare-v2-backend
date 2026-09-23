@@ -81,6 +81,107 @@ test('request response includes resolution fields and immutable item snapshot', 
     expect($response->json('data.subtotal_amount'))->toBe('200.00');
 });
 
+test('request items expose sanitized snapshot images and a primary image URL', function (): void {
+    $this->variant->product->update([
+        'images' => [
+            'products/fallback.jpg',
+            '../private-product.png',
+        ],
+    ]);
+    $this->variant->update([
+        'images' => [
+            'variants/primary.jpg',
+            '/private-variant.jpg',
+            'https://admin.example.test/private.jpg',
+        ],
+    ]);
+
+    $request = $this->actingAs($this->account)
+        ->postJson('/api/v1/accessory-order-requests', [
+            'items' => [
+                ['product_variant_id' => $this->variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertCreated();
+
+    $request
+        ->assertJsonPath('data.items.0.item_snapshot.images', ['variants/primary.jpg'])
+        ->assertJsonPath('data.items.0.image_url', 'variants/primary.jpg');
+
+    $requestId = $request->json('data.id');
+
+    $this->actingAs($this->account)
+        ->getJson("/api/v1/accessory-order-requests/{$requestId}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.item_snapshot.images', ['variants/primary.jpg'])
+        ->assertJsonPath('data.items.0.image_url', 'variants/primary.jpg');
+
+    $this->actingAs($this->account)
+        ->getJson('/api/v1/accessory-order-requests?filter=current')
+        ->assertOk()
+        ->assertJsonPath('data.0.items.0.image_url', 'variants/primary.jpg');
+});
+
+test('request item images fall back to the product image', function (): void {
+    $this->variant->product->update(['images' => ['products/fallback.jpg']]);
+    $this->variant->update(['images' => []]);
+
+    $this->actingAs($this->account)
+        ->postJson('/api/v1/accessory-order-requests', [
+            'items' => [
+                ['product_variant_id' => $this->variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.item_snapshot.images', ['products/fallback.jpg'])
+        ->assertJsonPath('data.items.0.image_url', 'products/fallback.jpg');
+});
+
+test('legacy request items expose a read-time catalog image fallback', function (): void {
+    $this->variant->update(['images' => ['variants/live-fallback.jpg']]);
+    $orderRequest = AccessoryOrderRequest::factory()->create([
+        'user_id' => $this->account->id,
+        'patient_id' => $this->account->patient->id,
+    ]);
+    $orderRequest->items()->create([
+        'product_variant_id' => $this->variant->id,
+        'description' => 'Legacy Care Kit',
+        'quantity' => 1,
+        'unit_price' => 100,
+        'amount' => 100,
+        'item_kind' => 'accessory',
+        'item_snapshot' => [
+            'product_variant_id' => $this->variant->id,
+            'sku' => $this->variant->sku,
+            'variant_name' => $this->variant->name,
+            'product_name' => $this->variant->product->name,
+            'price' => '100.00',
+            'attributes' => $this->variant->attributes,
+        ],
+    ]);
+
+    $this->actingAs($this->account)
+        ->getJson("/api/v1/accessory-order-requests/{$orderRequest->id}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.item_snapshot.images', null)
+        ->assertJsonPath('data.items.0.image_url', 'variants/live-fallback.jpg');
+});
+
+test('request item image URL is null when catalog images are unsafe or absent', function (): void {
+    $this->variant->product->update(['images' => ['../private-product.png']]);
+    $this->variant->update(['images' => ['/private-variant.jpg', 'https://admin.example.test/private.jpg']]);
+
+    $this->actingAs($this->account)
+        ->postJson('/api/v1/accessory-order-requests', [
+            'items' => [
+                ['product_variant_id' => $this->variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.item_snapshot.images', [])
+        ->assertJsonPath('data.items.0.image_url', null);
+});
+
 test('current request list includes catalog references and item snapshots', function (): void {
     $this->actingAs($this->account)
         ->postJson('/api/v1/accessory-order-requests', [

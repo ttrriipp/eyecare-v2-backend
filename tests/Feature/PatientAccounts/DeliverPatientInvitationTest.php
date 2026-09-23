@@ -106,8 +106,8 @@ test('production phone invitations send through the configured SMS gateway', fun
     });
 });
 
-test('production phone invitations record a failure when the SMS gateway rejects them', function () {
-    Http::fake(['https://api.textbee.dev/*' => Http::response([], 500)]);
+test('production phone invitations retry an explicit gateway rate limit', function () {
+    Http::fake(['https://api.textbee.dev/*' => Http::response([], 429)]);
     config([
         'services.sms.driver' => 'textbee',
         'services.textbee.enabled' => true,

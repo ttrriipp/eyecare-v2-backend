@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\DiscountProofStatus;
+use App\Filament\Resources\AccessoryOrderRequests\Pages\ListAccessoryOrderRequests;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ViewAccessoryOrderRequest;
+use App\Filament\Resources\AccessoryOrderRequests\Widgets\AccessoryOrderRequestStatsWidget;
 use App\Models\AccessoryOrderRequest;
 use App\Models\AccessoryOrderRequestDiscountProof;
 use App\Models\AccessoryOrderRequestItem;
@@ -9,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -16,6 +19,33 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
+});
+
+test('staff can see order request status KPIs on the list', function (): void {
+    $staff = User::factory()->staff()->create();
+
+    AccessoryOrderRequest::factory()->count(2)->create();
+    AccessoryOrderRequest::factory()->accepted()->create();
+    AccessoryOrderRequest::factory()->rejected()->create();
+    AccessoryOrderRequest::factory()->cancelled()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAccessoryOrderRequests::class)
+        ->assertSee('Pending Review')
+        ->assertSee('Accepted')
+        ->assertSee('Rejected')
+        ->assertSee('Cancelled');
+
+    $widget = Livewire::test(AccessoryOrderRequestStatsWidget::class)->instance();
+    $stats = collect((fn (): array => $this->getStats())->call($widget))->keyBy(
+        fn (Stat $stat): string => (string) $stat->getLabel(),
+    );
+
+    expect($stats->get('Pending Review')?->getValue())->toBe('2')
+        ->and($stats->get('Accepted')?->getValue())->toBe('1')
+        ->and($stats->get('Rejected')?->getValue())->toBe('1')
+        ->and($stats->get('Cancelled')?->getValue())->toBe('1');
 });
 
 test('staff can view the accessory order request details', function (): void {

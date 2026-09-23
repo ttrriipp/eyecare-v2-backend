@@ -35,6 +35,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\VisitRating;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 
 /**
@@ -284,6 +285,198 @@ class ScenarioCoverageSeeder extends Seeder
                 'resolved_at' => null,
             ],
         );
+
+        $additionalPatients = $this->seedAdditionalAppointmentRequestPatients();
+        $this->seedAdditionalPendingAppointmentRequests(
+            appointmentTypeId: $checkUpTypeId,
+            patients: $additionalPatients,
+        );
+    }
+
+    /**
+     * Create dedicated linked accounts for the additional pending requests so
+     * each account still follows the one-active-booking rule.
+     *
+     * @return array<int, Patient>
+     */
+    private function seedAdditionalAppointmentRequestPatients(): array
+    {
+        $patientRoleId = Role::query()->where('name', Role::Patient)->value('id');
+
+        if ($patientRoleId === null) {
+            throw new RuntimeException('The patient role must be seeded before appointment request scenarios.');
+        }
+
+        $lookupHash = app(CreateContactLookupHash::class);
+        $profiles = [
+            [
+                'email' => 'appointment.request.one@eyecare.test',
+                'first_name' => 'Amelia',
+                'last_name' => 'Alvarez',
+                'phone' => '09170000007',
+                'patient_number' => 'PAT-2026-000004',
+                'date_of_birth' => '1994-03-11',
+                'gender' => 'female',
+                'occupation' => 'Teacher',
+                'address' => 'Makati City, Metro Manila',
+            ],
+            [
+                'email' => 'appointment.request.two@eyecare.test',
+                'first_name' => 'Noel',
+                'last_name' => 'Villanueva',
+                'phone' => '09170000008',
+                'patient_number' => 'PAT-2026-000005',
+                'date_of_birth' => '1989-07-24',
+                'gender' => 'male',
+                'occupation' => 'Architect',
+                'address' => 'Pasig City, Metro Manila',
+            ],
+            [
+                'email' => 'appointment.request.three@eyecare.test',
+                'first_name' => 'Sofia',
+                'last_name' => 'Dizon',
+                'phone' => '09170000009',
+                'patient_number' => 'PAT-2026-000006',
+                'date_of_birth' => '1998-11-02',
+                'gender' => 'female',
+                'occupation' => 'Accountant',
+                'address' => 'Quezon City, Metro Manila',
+            ],
+        ];
+
+        $patients = [];
+
+        foreach ($profiles as $profile) {
+            $account = User::query()->firstOrCreate(
+                ['email' => $profile['email']],
+                [
+                    'first_name' => $profile['first_name'],
+                    'middle_name' => null,
+                    'last_name' => $profile['last_name'],
+                    'phone' => $profile['phone'],
+                    'password' => Hash::make('password'),
+                    'role_id' => $patientRoleId,
+                    'is_optometrist' => false,
+                    'is_active' => true,
+                    'email_verified_at' => now(),
+                ],
+            );
+            $account->update([
+                'first_name' => $profile['first_name'],
+                'middle_name' => null,
+                'last_name' => $profile['last_name'],
+                'phone' => $profile['phone'],
+                'role_id' => $patientRoleId,
+                'is_optometrist' => false,
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]);
+            $account->roles()->syncWithoutDetaching([$patientRoleId]);
+
+            $patient = Patient::query()->updateOrCreate(
+                ['patient_number' => $profile['patient_number']],
+                [
+                    'first_name' => $profile['first_name'],
+                    'middle_name' => null,
+                    'last_name' => $profile['last_name'],
+                    'date_of_birth' => $profile['date_of_birth'],
+                    'gender' => $profile['gender'],
+                    'occupation' => $profile['occupation'],
+                    'address' => $profile['address'],
+                    'contact_email' => $profile['email'],
+                    'contact_email_lookup_hash' => $lookupHash->forEmail($profile['email']),
+                    'phone' => $profile['phone'],
+                    'phone_lookup_hash' => $lookupHash->forPhone($profile['phone']),
+                ],
+            );
+            $patient->forceFill(['user_id' => $account->id])->saveQuietly();
+
+            $patients[] = $patient->fresh();
+        }
+
+        return $patients;
+    }
+
+    /**
+     * Seed pending requests with two shared primary preferences and ordered
+     * alternatives for staff conflict-resolution scenarios.
+     *
+     * @param  array<int, Patient>  $patients
+     */
+    private function seedAdditionalPendingAppointmentRequests(int $appointmentTypeId, array $patients): void
+    {
+        $conflictingTime = now()->addDays(7)->setTime(10, 0);
+        $firstAlternative = $conflictingTime->copy()->addDay()->setTime(10, 0);
+        $secondAlternative = $conflictingTime->copy()->addDays(2)->setTime(10, 0);
+        $thirdPrimary = $conflictingTime->copy()->addDays(3)->setTime(14, 0);
+        $thirdFirstAlternative = $conflictingTime->copy()->addDays(4)->setTime(14, 0);
+        $thirdSecondAlternative = $conflictingTime->copy()->addDays(5)->setTime(14, 0);
+
+        $requests = [
+            [
+                'request_number' => 'APR-2026-000006',
+                'patient' => $patients[0],
+                'scheduled_at' => $conflictingTime,
+                'alternative_scheduled_times' => [
+                    $firstAlternative->toISOString(),
+                    $secondAlternative->toISOString(),
+                ],
+                'expires_at' => $secondAlternative,
+                'reason' => 'New prescription for headaches after prolonged screen use.',
+            ],
+            [
+                'request_number' => 'APR-2026-000007',
+                'patient' => $patients[1],
+                'scheduled_at' => $conflictingTime,
+                'alternative_scheduled_times' => [
+                    $firstAlternative->copy()->setTime(14, 0)->toISOString(),
+                    $secondAlternative->copy()->setTime(14, 0)->toISOString(),
+                ],
+                'expires_at' => $secondAlternative->copy()->setTime(14, 0),
+                'reason' => 'Routine eye examination and updated distance prescription.',
+            ],
+            [
+                'request_number' => 'APR-2026-000008',
+                'patient' => $patients[2],
+                'scheduled_at' => $thirdPrimary,
+                'alternative_scheduled_times' => [
+                    $thirdFirstAlternative->toISOString(),
+                    $thirdSecondAlternative->toISOString(),
+                ],
+                'expires_at' => $thirdSecondAlternative,
+                'reason' => 'Eye strain assessment before starting a new contact lens prescription.',
+            ],
+        ];
+
+        foreach ($requests as $request) {
+            /** @var Patient $patient */
+            $patient = $request['patient'];
+
+            AppointmentRequest::query()->updateOrCreate(
+                ['request_number' => $request['request_number']],
+                [
+                    'request_type' => 'new',
+                    'user_id' => $patient->user_id,
+                    'patient_id' => $patient->id,
+                    'appointment_type_id' => $appointmentTypeId,
+                    'appointment_id' => null,
+                    'original_scheduled_at' => null,
+                    'selected_scheduled_at' => null,
+                    'scheduled_at' => $request['scheduled_at'],
+                    'alternative_scheduled_times' => $request['alternative_scheduled_times'],
+                    'provisional_duration_minutes' => 30,
+                    'encrypted_reason_for_visit' => $request['reason'],
+                    'encrypted_referring_source' => null,
+                    'encrypted_identity_snapshot' => null,
+                    'status' => AppointmentRequestStatus::Pending,
+                    'expires_at' => $request['expires_at'],
+                    'resolved_by_user_id' => null,
+                    'resolved_at' => null,
+                    'rejection_reason' => null,
+                    'encrypted_cancellation_reason' => null,
+                ],
+            );
+        }
     }
 
     private function seedPatientLinkRequests(): void
@@ -543,10 +736,11 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        Prescription::query()->updateOrCreate(
-            ['patient_id' => $walkIn->id, 'encounter_id' => $secondCompletedEncounter->id],
+        $originalPrescription = Prescription::query()->updateOrCreate(
+            ['prescription_number' => 'RX-2026-000002'],
             [
-                'prescription_number' => 'RX-2026-000002',
+                'patient_id' => $walkIn->id,
+                'encounter_id' => $secondCompletedEncounter->id,
                 'appointment_id' => $completedAppointment->id,
                 'main_od_value' => '1.00',
                 'main_od_sphere' => '-1.25',
@@ -558,6 +752,36 @@ class ScenarioCoverageSeeder extends Seeder
                 'prescribed_at' => $completedAt,
                 'expires_at' => $completedAt->copy()->addMonthsNoOverflow(6),
                 'created_by' => $optometrist->id,
+            ],
+        );
+
+        Prescription::query()->updateOrCreate(
+            ['prescription_number' => 'RX-2026-000003'],
+            [
+                'patient_id' => $walkIn->id,
+                'encounter_id' => $secondCompletedEncounter->id,
+                'appointment_id' => $completedAppointment->id,
+                'previous_prescription_id' => $originalPrescription->id,
+                'main_od_value' => '1.00',
+                'main_od_sphere' => '-1.50',
+                'main_od_cylinder' => '-0.25',
+                'main_os_value' => '1.00',
+                'main_os_sphere' => '-1.75',
+                'main_os_cylinder' => '-0.50',
+                'add_od_value' => null,
+                'add_od_sphere' => null,
+                'add_od_cylinder' => null,
+                'add_os_value' => null,
+                'add_os_sphere' => null,
+                'add_os_cylinder' => null,
+                'remarks' => 'Updated single-vision distance prescription after verifying the recorded refraction values.',
+                'amendment_reason' => 'Corrected refraction values after verification of the original measurements.',
+                'prescribed_at' => $completedAt->copy()->addDay(),
+                'expires_at' => $completedAt->copy()->addDay()->addMonthsNoOverflow(6),
+                'created_by' => $optometrist->id,
+                'cancelled_by' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
             ],
         );
 

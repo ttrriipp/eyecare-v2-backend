@@ -223,8 +223,8 @@ test('production phone OTP sends through the configured SMS gateway', function (
     });
 });
 
-test('production phone OTP marks delivery failed when the SMS gateway rejects it', function () {
-    Http::fake(['https://api.textbee.dev/*' => Http::response([], 500)]);
+test('production phone OTP retries an explicit gateway rate limit', function () {
+    Http::fake(['https://api.textbee.dev/*' => Http::response([], 429)]);
     config([
         'services.sms.driver' => 'textbee',
         'services.textbee.enabled' => true,
@@ -240,10 +240,13 @@ test('production phone OTP marks delivery failed when the SMS gateway rejects it
     app()->instance('env', 'production');
 
     $job = new DeliverOtpChallenge($challenge->public_id, $result['code']);
+    $exception = new RuntimeException('TextBee rate-limited the SMS request.');
 
     try {
         expect(fn () => $job->handle(app(SmsGateway::class)))
             ->toThrow(RuntimeException::class);
+        expect($challenge->fresh()->delivery_status)->toBe('pending');
+        $job->failed($exception);
     } finally {
         app()->instance('env', 'testing');
     }

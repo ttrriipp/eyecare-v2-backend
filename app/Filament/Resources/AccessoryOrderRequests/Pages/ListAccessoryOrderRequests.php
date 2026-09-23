@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AccessoryOrderRequests\Pages;
 
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
+use App\Filament\Resources\AccessoryOrderRequests\Widgets\AccessoryOrderRequestStatsWidget;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,11 @@ use Illuminate\Database\Eloquent\Builder;
 class ListAccessoryOrderRequests extends ListRecords
 {
     protected static string $resource = AccessoryOrderRequestResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [AccessoryOrderRequestStatsWidget::class];
+    }
 
     public function getTabs(): array
     {

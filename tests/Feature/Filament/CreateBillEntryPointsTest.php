@@ -49,13 +49,15 @@ test('patient, prescription, and encounter actions open the unified bill page', 
             'encounter' => $encounter->id,
         ]));
 
-    Livewire::test(CreateBillingRecord::class, ['encounter' => $encounter->id])
+    $billComponent = Livewire::test(CreateBillingRecord::class, ['encounter' => $encounter->id])
         ->assertFormSet([
             'patient_id' => $patient->id,
             'prescription_id' => $prescription->id,
             'include_prescription_eyewear' => true,
         ])
         ->assertFormFieldDisabled('patient_id');
+
+    expect($billComponent->get('data.service_items'))->toHaveCount(1);
 });
 
 test('seeded consultations expose billing only when their consultation bill is missing', function () {

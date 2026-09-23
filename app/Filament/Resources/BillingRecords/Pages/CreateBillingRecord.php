@@ -72,11 +72,20 @@ class CreateBillingRecord extends CreateRecord
         parent::mount();
 
         if ($this->encounterId !== null || $this->patientId !== null || $this->prescriptionId !== null) {
-            $this->form->fill([
+            $prefill = [
                 'patient_id' => $this->patientId,
                 'prescription_id' => $this->prescriptionId,
                 'include_prescription_eyewear' => $this->prescriptionId !== null,
-            ]);
+            ];
+
+            if ($this->encounterId !== null) {
+                $prefill['service_items'] = [[
+                    'service_source' => 'catalog',
+                    'quantity' => 1,
+                ]];
+            }
+
+            $this->form->fill($prefill);
         }
     }
 

@@ -2503,10 +2503,39 @@ or cancelled; `history` includes rejected/cancelled requests and terminal
 accepted orders. Ordering is `created_at DESC, id DESC`.
 
 Each `items[]` entry includes `id`, `description`, `quantity`, two-decimal
-`unit_price` and `amount`, `product_variant_id`, `item_kind`, and the nullable
-`item_snapshot` object. For accessory requests, `item_snapshot` contains the
-immutable `product_variant_id`, `sku`, `variant_name`, `product_name`,
-two-decimal `price`, and nullable `attributes` captured at submission time.
+`unit_price` and `amount`, `product_variant_id`, nullable `image_url`,
+`item_kind`, and the nullable `item_snapshot` object. For accessory requests,
+`item_snapshot` contains the immutable `product_variant_id`, `sku`,
+`variant_name`, `product_name`, two-decimal `price`, nullable `attributes`, and
+`images` captured at submission time. `images` is a sanitized array of public
+relative catalog image paths. Variant images are preferred; when a variant has
+no public images, the parent Product images are captured instead. It is an
+empty array when neither has a public image.
+
+`items[].image_url` is the first public image from the snapshot, or `null` when
+no image is available. For legacy requests whose snapshots predate the
+`images` field, the API resolves this field at read time from the current
+variant images and then the current parent Product images; the stored snapshot
+is not rewritten. Internal filesystem paths, absolute URLs, unsafe paths, and
+non-image references are never returned as `image_url` values.
+
+Example accessory item:
+
+```json
+{
+  "product_variant_id": 42,
+  "image_url": "variants/lacryl-hydrate/front.jpg",
+  "item_snapshot": {
+    "product_variant_id": 42,
+    "sku": "ACC-LACRYL-HYDRATE-10ML",
+    "variant_name": "10 ml",
+    "product_name": "Lacryl Hydrate",
+    "price": "250.00",
+    "attributes": {},
+    "images": ["variants/lacryl-hydrate/front.jpg"]
+  }
+}
+```
 
 Patients may cancel only a pending request. Cancellation is idempotent and
 creates no commerce or inventory records. Ownership failures return `404`.

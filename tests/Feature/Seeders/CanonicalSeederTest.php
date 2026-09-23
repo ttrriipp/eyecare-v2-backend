@@ -20,6 +20,7 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
 use App\Models\VisitRating;
+use Carbon\Carbon;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -240,7 +241,12 @@ test('canonical seed data creates a complete secondary consultation', function (
         ->with(['patient', 'appointment.appointmentType', 'appointment.status', 'optometrist'])
         ->where('encounter_number', 'CON-2026-000006')
         ->firstOrFail();
-    $prescription = $encounter->prescriptions()->firstOrFail();
+    $prescription = $encounter->prescriptions()
+        ->where('prescription_number', 'RX-2026-000002')
+        ->firstOrFail();
+    $amendment = $encounter->prescriptions()
+        ->where('prescription_number', 'RX-2026-000003')
+        ->firstOrFail();
 
     expect($encounter->patient?->full_name)->toBe('Pedro Cruz')
         ->and($encounter->appointment?->appointment_number)->toBe('APT-2026-000006')
@@ -254,7 +260,13 @@ test('canonical seed data creates a complete secondary consultation', function (
         ->and($prescription->prescription_number)->toBe('RX-2026-000002')
         ->and($prescription->appointment_id)->toBe($encounter->appointment_id)
         ->and($prescription->main_od_value)->toBe('1.00')
-        ->and($prescription->main_os_value)->toBe('1.00');
+        ->and($prescription->main_os_value)->toBe('1.00')
+        ->and($prescription->isCurrentVersion())->toBeFalse()
+        ->and($amendment->previous_prescription_id)->toBe($prescription->id)
+        ->and($amendment->isCurrentVersion())->toBeTrue()
+        ->and($amendment->amendment_reason)->toBe('Corrected refraction values after verification of the original measurements.')
+        ->and($amendment->main_od_sphere)->toBe('-1.50')
+        ->and($amendment->main_os_sphere)->toBe('-1.75');
 
     foreach ([
         'chief_complaint',
@@ -307,6 +319,9 @@ test('canonical seed data creates deterministic appointment request scenarios wi
         'APR-2026-000003' => 'Eye pain and redness needing urgent assessment.',
         'APR-2026-000004' => 'Patient requested cancellation due to a schedule conflict.',
         'APR-2026-000005' => 'Follow-up after a recent prescription change.',
+        'APR-2026-000006' => 'New prescription for headaches after prolonged screen use.',
+        'APR-2026-000007' => 'Routine eye examination and updated distance prescription.',
+        'APR-2026-000008' => 'Eye strain assessment before starting a new contact lens prescription.',
     ];
 
     expect($requests)->toHaveCount(count($expectedReasons));
@@ -322,6 +337,14 @@ test('canonical seed data creates deterministic appointment request scenarios wi
     $pending = $requests->get('APR-2026-000001');
     $rejected = $requests->get('APR-2026-000003');
     $expired = $requests->get('APR-2026-000005');
+    $firstConflict = $requests->get('APR-2026-000006');
+    $secondConflict = $requests->get('APR-2026-000007');
+    $independentPending = $requests->get('APR-2026-000008');
+    $additionalPending = collect([
+        $firstConflict,
+        $secondConflict,
+        $independentPending,
+    ]);
     $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
     $pendingPatient = Patient::query()->where('patient_number', 'PAT-2026-000003')->firstOrFail();
 
@@ -341,7 +364,23 @@ test('canonical seed data creates deterministic appointment request scenarios wi
         ->and($expired?->status)->toBe(AppointmentRequestStatus::Expired)
         ->and($expired?->scheduled_at?->isPast())->toBeTrue()
         ->and($expired?->scheduled_at?->format('H:i'))->toBe('10:00')
-        ->and($expired?->expires_at?->isPast())->toBeTrue();
+        ->and($expired?->expires_at?->isPast())->toBeTrue()
+        ->and($additionalPending)->toHaveCount(3)
+        ->and($additionalPending->pluck('patient_id')->unique())->toHaveCount(3)
+        ->and($additionalPending->pluck('user_id')->unique())->toHaveCount(3)
+        ->and($additionalPending->every(
+            fn (AppointmentRequest $request): bool => $request->status === AppointmentRequestStatus::Pending
+                && $request->alternative_scheduled_times !== null
+                && count($request->alternative_scheduled_times) === 2,
+        ))->toBeTrue()
+        ->and($firstConflict?->scheduled_at?->equalTo($secondConflict?->scheduled_at))->toBeTrue()
+        ->and($independentPending?->scheduled_at?->equalTo($firstConflict?->scheduled_at))->toBeFalse()
+        ->and($firstConflict?->expires_at?->equalTo(
+            Carbon::parse($firstConflict?->alternative_scheduled_times[1]),
+        ))->toBeTrue()
+        ->and($secondConflict?->expires_at?->equalTo(
+            Carbon::parse($secondConflict?->alternative_scheduled_times[1]),
+        ))->toBeTrue();
 });
 
 test('rerunning the canonical seeder repairs edited appointment request demo data', function () {

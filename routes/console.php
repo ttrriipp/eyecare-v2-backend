@@ -11,8 +11,16 @@ Artisan::command('inspire', function () {
 Schedule::command('appointments:send-reminders')
     ->dailyAt('09:00')
     ->timezone(config('app.timezone'))
-    ->withoutOverlapping();
-Schedule::command('sms:process')->everyMinute()->withoutOverlapping();
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('sms:process')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('sms:textbee:sync')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command('clinic:daily-summary')->dailyAt('21:00');
 Schedule::command('appointments:expire-requests')->everyMinute()->withoutOverlapping();
 Schedule::command('accessory-orders:expire-unpaid')->everyMinute()->withoutOverlapping();

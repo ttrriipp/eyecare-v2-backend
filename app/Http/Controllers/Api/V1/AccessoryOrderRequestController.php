@@ -8,6 +8,7 @@ use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\DiscountProofStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AccessoryOrderRequest;
+use App\Models\AccessoryOrderRequestItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,7 @@ class AccessoryOrderRequestController extends Controller
         $query = AccessoryOrderRequest::query()
             ->where('user_id', $account->id)
             ->where('patient_id', $account->patient?->id)
-            ->with(['items', 'jobOrder.billingRecord', 'discountProof'])
+            ->with(['items.productVariant.product', 'jobOrder.billingRecord', 'discountProof'])
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -93,7 +94,10 @@ class AccessoryOrderRequestController extends Controller
         );
 
         return response()->json([
-            'data' => $this->formatRequest($request->fresh(['items', 'discountProof'])),
+            'data' => $this->formatRequest($request->fresh([
+                'items.productVariant.product',
+                'discountProof',
+            ])),
         ], 201);
     }
 
@@ -106,7 +110,11 @@ class AccessoryOrderRequestController extends Controller
             abort(404);
         }
 
-        $accessoryOrderRequest->load(['items', 'jobOrder.billingRecord', 'discountProof']);
+        $accessoryOrderRequest->load([
+            'items.productVariant.product',
+            'jobOrder.billingRecord',
+            'discountProof',
+        ]);
 
         return response()->json([
             'data' => $this->formatRequest($accessoryOrderRequest),
@@ -138,7 +146,7 @@ class AccessoryOrderRequestController extends Controller
 
         return response()->json([
             'data' => $this->formatRequest($accessoryOrderRequest->fresh([
-                'items',
+                'items.productVariant.product',
                 'jobOrder.billingRecord',
                 'discountProof',
             ])),
@@ -164,13 +172,14 @@ class AccessoryOrderRequestController extends Controller
                 : null,
             'resolved_by' => $request->resolved_by,
             'resolved_at' => $request->resolved_at?->toISOString(),
-            'items' => $request->items->map(fn ($item) => [
+            'items' => $request->items->map(fn (AccessoryOrderRequestItem $item): array => [
                 'id' => $item->id,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit_price' => number_format((float) $item->unit_price, 2, '.', ''),
                 'amount' => number_format((float) $item->amount, 2, '.', ''),
                 'product_variant_id' => $item->product_variant_id,
+                'image_url' => $this->itemImageUrl($item),
                 'item_kind' => $item->item_kind?->value,
                 'item_snapshot' => $item->item_snapshot,
             ]),
@@ -190,5 +199,61 @@ class AccessoryOrderRequestController extends Controller
                 'payment_expires_at' => $request->jobOrder->payment_expires_at?->toISOString(),
             ] : null,
         ];
+    }
+
+    private function itemImageUrl(AccessoryOrderRequestItem $item): ?string
+    {
+        $snapshotImages = is_array($item->item_snapshot)
+            ? ($item->item_snapshot['images'] ?? null)
+            : null;
+
+        return $this->firstPublicImage(is_array($snapshotImages) ? $snapshotImages : null)
+            ?? $this->firstPublicImage($item->productVariant?->images)
+            ?? $this->firstPublicImage($item->productVariant?->product?->images);
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $images
+     */
+    private function firstPublicImage(?array $images): ?string
+    {
+        $image = collect($images ?? [])
+            ->filter(fn (mixed $image): bool => is_string($image))
+            ->map(fn (string $image): string => trim($image))
+            ->first(fn (string $image): bool => $this->isPublicImageReference($image));
+
+        return is_string($image) ? $image : null;
+    }
+
+    private function isPublicImageReference(string $image): bool
+    {
+        if (
+            $image === ''
+            || str_contains($image, '\\')
+            || str_contains($image, '..')
+            || str_starts_with($image, '/')
+            || filter_var($image, FILTER_VALIDATE_URL) !== false
+        ) {
+            return false;
+        }
+
+        $path = parse_url($image, PHP_URL_PATH);
+
+        if (! is_string($path)) {
+            return false;
+        }
+
+        return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), [
+            'avif',
+            'bmp',
+            'gif',
+            'jpeg',
+            'jpg',
+            'png',
+            'svg',
+            'tif',
+            'tiff',
+            'webp',
+        ], true);
     }
 }

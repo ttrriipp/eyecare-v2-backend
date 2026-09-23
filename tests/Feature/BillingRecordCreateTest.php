@@ -36,7 +36,8 @@ test('staff can create a service-only bill from the bill preview page', function
         ->assertFormFieldExists('service_items')
         ->assertFormFieldDoesNotExist('job_order_id');
 
-    expect($component->get('data.items'))->toHaveCount(1);
+    expect($component->get('data.items'))->toBeEmpty()
+        ->and($component->get('data.service_items'))->toHaveCount(1);
 
     $component
         ->fillForm([

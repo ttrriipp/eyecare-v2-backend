@@ -384,7 +384,7 @@ final class OpticalOrderCreationForm
                     ])
                     ->columns(2)
                     ->defaultItems(fn (Get $get): int => $allowEmpty
-                        ? 1
+                        ? 0
                         : ($dedicatedPrescriptionEyewear
                             && $prescriptionEyewearResolver($get) ? 0 : 1))
                     ->minItems(fn (Get $get): int => $allowEmpty
