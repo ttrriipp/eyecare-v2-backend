@@ -570,6 +570,7 @@ test('accessory receiving shows the printed lot number label', function () {
     Livewire::test(ListInventory::class)
         ->mountTableAction('adjustStock', $variant)
         ->assertMountedActionModalSee('Lot number (Printed on the box)')
+        ->assertMountedActionModalSeeHtml('placeholder="e.g. 17XD9U"')
         ->assertMountedActionModalDontSee('Reference')
         ->assertMountedActionModalDontSee('Format (Printed on the box)');
 });

@@ -517,7 +517,9 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 18,
                         'opening_stock' => [
                             'quantity' => 9,
-                            'lot_number' => 'ACC-NEWLOOK-MPS-202609',
+                            'randomize_lot_number' => true,
+                            'previous_seeded_lot_number' => 'NL6K29A',
+                            'legacy_lot_number' => 'ACC-NEWLOOK-MPS-202609',
                             'expires_on' => '2027-09-30',
                             'purchased_at' => '2026-09-01',
                         ],
@@ -551,7 +553,9 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 15,
                         'opening_stock' => [
                             'quantity' => 8,
-                            'lot_number' => 'ACC-SYSTANE-COMPLETE-202609',
+                            'randomize_lot_number' => true,
+                            'previous_seeded_lot_number' => 'S4C9L2',
+                            'legacy_lot_number' => 'ACC-SYSTANE-COMPLETE-202609',
                             'expires_on' => '2027-07-31',
                             'purchased_at' => '2026-09-01',
                         ],
@@ -585,7 +589,9 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 15,
                         'opening_stock' => [
                             'quantity' => 7,
-                            'lot_number' => 'ACC-SYSTANE-HYDRATION-202609',
+                            'randomize_lot_number' => true,
+                            'previous_seeded_lot_number' => 'H8D3M5',
+                            'legacy_lot_number' => 'ACC-SYSTANE-HYDRATION-202609',
                             'expires_on' => '2027-07-31',
                             'purchased_at' => '2026-09-01',
                         ],
@@ -619,7 +625,9 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 15,
                         'opening_stock' => [
                             'quantity' => 6,
-                            'lot_number' => 'ACC-SYSTANE-ULTRA-202609',
+                            'randomize_lot_number' => true,
+                            'previous_seeded_lot_number' => '17XD9U',
+                            'legacy_lot_number' => 'ACC-SYSTANE-ULTRA-202609',
                             'expires_on' => '2027-06-30',
                             'purchased_at' => '2026-09-01',
                         ],
@@ -653,7 +661,9 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 15,
                         'opening_stock' => [
                             'quantity' => 5,
-                            'lot_number' => 'ACC-LACRYL-HYDRATE-202609',
+                            'randomize_lot_number' => true,
+                            'previous_seeded_lot_number' => 'L3K9H6',
+                            'legacy_lot_number' => 'ACC-LACRYL-HYDRATE-202609',
                             'expires_on' => '2027-06-30',
                             'purchased_at' => '2026-09-01',
                         ],
@@ -797,7 +807,7 @@ class CatalogSeeder extends Seeder
     }
 
     /**
-     * @param  array{quantity: int, purchased_at: string, lot_number?: string, expires_on?: string|null}  $openingStock
+     * @param  array{quantity: int, purchased_at: string, lot_number?: string, randomize_lot_number?: bool, previous_seeded_lot_number?: string, legacy_lot_number?: string, expires_on?: string|null}  $openingStock
      */
     private function seedOpeningStockMovement(
         ProductVariant $variant,
@@ -825,7 +835,7 @@ class CatalogSeeder extends Seeder
     }
 
     /**
-     * @param  array{quantity: int, purchased_at: string, lot_number?: string, expires_on?: string|null}  $openingStock
+     * @param  array{quantity: int, purchased_at: string, lot_number?: string, randomize_lot_number?: bool, previous_seeded_lot_number?: string, legacy_lot_number?: string, expires_on?: string|null}  $openingStock
      */
     private function seedOpeningStockBatch(
         ProductVariant $variant,
@@ -836,18 +846,39 @@ class CatalogSeeder extends Seeder
             return null;
         }
 
-        $batchNumber = $openingStock['lot_number']
-            ?? $this->openingStockBatchNumber($variant, $openingStock['purchased_at']);
+        $legacyLotNumbers = array_filter([
+            'OPENING-'.$variant->sku,
+            $openingStock['previous_seeded_lot_number'] ?? null,
+            $openingStock['legacy_lot_number'] ?? null,
+        ]);
+        $shouldRandomizeLotNumber = $openingStock['randomize_lot_number'] ?? false;
+        $existingCatalogBatch = $shouldRandomizeLotNumber
+            ? InventoryLot::query()
+                ->where('product_variant_id', $variant->id)
+                ->where('source_reference', 'Catalog opening stock')
+                ->first()
+            : null;
+        $existingCatalogBatchIsLegacy = $existingCatalogBatch !== null
+            && in_array($existingCatalogBatch->lot_number, $legacyLotNumbers, true);
+
+        $batchNumber = match (true) {
+            $existingCatalogBatch !== null && ! $existingCatalogBatchIsLegacy => $existingCatalogBatch->lot_number,
+            $shouldRandomizeLotNumber => $this->randomOpeningStockBatchNumber($variant),
+            default => $openingStock['lot_number']
+                ?? $this->openingStockBatchNumber($variant, $openingStock['purchased_at']),
+        };
         $canonicalBatchExists = InventoryLot::query()
             ->where('product_variant_id', $variant->id)
             ->where('lot_number', $batchNumber)
             ->exists();
 
         if (! $canonicalBatchExists) {
-            InventoryLot::query()
+            $legacyBatch = InventoryLot::query()
                 ->where('product_variant_id', $variant->id)
-                ->where('lot_number', 'OPENING-'.$variant->sku)
-                ->update(['lot_number' => $batchNumber]);
+                ->whereIn('lot_number', $legacyLotNumbers)
+                ->first();
+
+            $legacyBatch?->update(['lot_number' => $batchNumber]);
         }
 
         return InventoryLot::query()->updateOrCreate(
@@ -874,6 +905,26 @@ class CatalogSeeder extends Seeder
             $variant->id,
             CarbonImmutable::parse($purchasedAt)->format('ymd'),
         );
+    }
+
+    private function randomOpeningStockBatchNumber(ProductVariant $variant): string
+    {
+        $letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+        do {
+            $batchNumber = sprintf(
+                '%02d%s%d%s',
+                random_int(10, 99),
+                $letters[random_int(0, 25)].$letters[random_int(0, 25)],
+                random_int(0, 9),
+                $letters[random_int(0, 25)],
+            );
+        } while (InventoryLot::query()
+            ->where('product_variant_id', $variant->id)
+            ->where('lot_number', $batchNumber)
+            ->exists());
+
+        return $batchNumber;
     }
 
     private function openingStockReceiverId(): ?int

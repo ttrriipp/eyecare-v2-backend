@@ -165,7 +165,7 @@ class StockActions
                 ->maxLength(50)
                 ->placeholder(fn (ProductVariant $record): ?string => $record->isContactLens()
                     ? 'e.g. 12345678'
-                    : null);
+                    : 'e.g. 17XD9U');
             $fields[] = TextInput::make('expiry_month')
                 ->label('Expiry month')
                 ->required()

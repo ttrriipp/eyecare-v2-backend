@@ -2,8 +2,11 @@
 
 use App\Models\InventoryLot;
 use App\Models\ProductVariant;
+use App\Models\User;
+use Database\Seeders\CatalogSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -54,4 +57,94 @@ test('canonical contact lens inventory is idempotent when the database is reseed
         ->and(ProductVariant::query()->contactLenses()->count())->toBe($initialVariants)
         ->and(ProductVariant::query()->contactLenses()->pluck('stock_quantity', 'sku')->all())
         ->toBe($initialStocks->all());
+});
+
+test('accessory opening lots use random printed codes and remain stable when the catalog is reseeded', function (): void {
+    Storage::fake('public');
+    User::factory()->staff()->create();
+
+    $expectedAccessoryLots = [
+        'ACC-NEWLOOK-MPS-90ML' => [
+            'previous_seeded_lot_number' => 'NL6K29A',
+            'legacy_lot_number' => 'ACC-NEWLOOK-MPS-202609',
+        ],
+        'ACC-SYSTANE-COMPLETE-PF-10ML' => [
+            'previous_seeded_lot_number' => 'S4C9L2',
+            'legacy_lot_number' => 'ACC-SYSTANE-COMPLETE-202609',
+        ],
+        'ACC-SYSTANE-HYDRATION-PF-10ML' => [
+            'previous_seeded_lot_number' => 'H8D3M5',
+            'legacy_lot_number' => 'ACC-SYSTANE-HYDRATION-202609',
+        ],
+        'ACC-SYSTANE-ULTRA-PF-10ML' => [
+            'previous_seeded_lot_number' => '17XD9U',
+            'legacy_lot_number' => 'ACC-SYSTANE-ULTRA-202609',
+        ],
+        'ACC-LACRYL-HYDRATE-10ML' => [
+            'previous_seeded_lot_number' => 'L3K9H6',
+            'legacy_lot_number' => 'ACC-LACRYL-HYDRATE-202609',
+        ],
+    ];
+    $readAccessoryLotNumbers = function () use ($expectedAccessoryLots): array {
+        $lotNumbers = [];
+
+        foreach (array_keys($expectedAccessoryLots) as $sku) {
+            $variant = ProductVariant::query()->where('sku', $sku)->firstOrFail();
+            $lotNumbers[$sku] = InventoryLot::query()
+                ->whereBelongsTo($variant, 'variant')
+                ->sole()
+                ->lot_number;
+        }
+
+        return $lotNumbers;
+    };
+    $assertAccessoryLotNumberFormat = function (array $lotNumbers): void {
+        foreach ($lotNumbers as $lotNumber) {
+            expect($lotNumber)->toMatch('/\A[0-9]{2}[A-Z]{2}[0-9][A-Z]\z/');
+        }
+    };
+    $replaceAccessoryLotNumbers = function (string $lotNumberKey) use ($expectedAccessoryLots): void {
+        foreach ($expectedAccessoryLots as $sku => $lotNumbers) {
+            $variant = ProductVariant::query()->where('sku', $sku)->firstOrFail();
+            $lot = InventoryLot::query()->whereBelongsTo($variant, 'variant')->sole();
+
+            $lot->update(['lot_number' => $lotNumbers[$lotNumberKey]]);
+        }
+    };
+
+    $this->seed(CatalogSeeder::class);
+
+    $initialLotCount = InventoryLot::query()->count();
+    $initialLotNumbers = $readAccessoryLotNumbers();
+    $assertAccessoryLotNumberFormat($initialLotNumbers);
+
+    $this->seed(CatalogSeeder::class);
+
+    expect(InventoryLot::query()->count())->toBe($initialLotCount)
+        ->and($readAccessoryLotNumbers())->toBe($initialLotNumbers);
+
+    $replaceAccessoryLotNumbers('previous_seeded_lot_number');
+
+    $this->seed(CatalogSeeder::class);
+
+    $migratedExistingLotNumbers = $readAccessoryLotNumbers();
+    $assertAccessoryLotNumberFormat($migratedExistingLotNumbers);
+
+    foreach ($expectedAccessoryLots as $sku => $lotNumbers) {
+        expect($migratedExistingLotNumbers[$sku])->not->toBe($lotNumbers['previous_seeded_lot_number']);
+    }
+
+    expect(InventoryLot::query()->count())->toBe($initialLotCount);
+
+    $replaceAccessoryLotNumbers('legacy_lot_number');
+
+    $this->seed(CatalogSeeder::class);
+
+    $migratedLegacyLotNumbers = $readAccessoryLotNumbers();
+    $assertAccessoryLotNumberFormat($migratedLegacyLotNumbers);
+
+    $this->seed(CatalogSeeder::class);
+
+    expect(InventoryLot::query()->count())->toBe($initialLotCount)
+        ->and($readAccessoryLotNumbers())->toBe($migratedLegacyLotNumbers);
 });
