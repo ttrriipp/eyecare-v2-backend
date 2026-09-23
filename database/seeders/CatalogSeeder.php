@@ -187,11 +187,11 @@ class CatalogSeeder extends Seeder
                 ],
                 'variants' => [
                     [
-                        'name' => 'Transparent Smoke Gray',
+                        'name' => 'Smoke Gray',
                         'sku' => 'FRM-SOFIA-2860-GRY',
                         'price' => 2500.00,
                         'attributes' => [
-                            'color' => 'Transparent smoke gray',
+                            'color' => 'Smoke Gray',
                             'material' => 'TR90',
                             'lens_width' => 59,
                             'bridge' => 12,
@@ -206,11 +206,11 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 5,
                     ],
                     [
-                        'name' => 'Transparent Champagne / Blush',
+                        'name' => 'Champagne',
                         'sku' => 'FRM-SOFIA-2860-CHAMP',
                         'price' => 2500.00,
                         'attributes' => [
-                            'color' => 'Transparent champagne / blush',
+                            'color' => 'Champagne',
                             'material' => 'TR90',
                             'lens_width' => 59,
                             'bridge' => 12,
@@ -234,16 +234,16 @@ class CatalogSeeder extends Seeder
                 'description' => "Wraparound sports sunglasses with a glossy black frame and dark smoke lenses. Temple marking reads 'Tech Division 28021001 Floater Street'.",
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Black frame / smoke lens',
+                    'color' => 'Black',
                     'material' => 'Plastic',
                 ],
                 'variants' => [
                     [
-                        'name' => 'Black / Smoke',
+                        'name' => 'Black',
                         'sku' => 'SUN-MORMAII-FLOATER280-BLK',
                         'price' => 650.00,
                         'attributes' => [
-                            'color' => 'Black frame / smoke lens',
+                            'color' => 'Black',
                             'material' => 'Plastic',
                         ],
                         'stock_quantity' => 2,
@@ -264,7 +264,7 @@ class CatalogSeeder extends Seeder
                 'description' => 'Full-rim rectangular optical frame with a dark tortoise pattern and amber highlights.',
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Dark tortoise / black / amber',
+                    'color' => 'Dark Tortoise',
                     'material' => 'Plastic',
                     'lens_width' => 54,
                     'bridge' => 18,
@@ -272,11 +272,11 @@ class CatalogSeeder extends Seeder
                 ],
                 'variants' => [
                     [
-                        'name' => 'C4 Dark Tortoise',
+                        'name' => 'Dark Tortoise',
                         'sku' => 'FRM-ANTHOS-MB1399A-C4',
                         'price' => 1800.00,
                         'attributes' => [
-                            'color' => 'Dark tortoise / black / amber',
+                            'color' => 'Dark Tortoise',
                             'material' => 'Plastic',
                             'lens_width' => 54,
                             'bridge' => 18,
@@ -300,7 +300,7 @@ class CatalogSeeder extends Seeder
                 'description' => 'Rimless rectangular optical frame with gold-tone bridge/temples, clear nose pads, and black temple tips.',
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Gold-tone / black',
+                    'color' => 'Gold',
                     'material' => 'Metal',
                     'lens_width' => 59,
                     'bridge' => 12,
@@ -308,11 +308,11 @@ class CatalogSeeder extends Seeder
                 ],
                 'variants' => [
                     [
-                        'name' => 'C4 Gold / Black',
+                        'name' => 'Gold',
                         'sku' => 'FRM-CESTJOLI-2860-C4',
                         'price' => 2200.00,
                         'attributes' => [
-                            'color' => 'Gold-tone / black',
+                            'color' => 'Gold',
                             'material' => 'Metal',
                             'lens_width' => 59,
                             'bridge' => 12,
@@ -327,21 +327,21 @@ class CatalogSeeder extends Seeder
             [
                 'brand' => 'Unknown',
                 'category' => 'Sports Optical Frame',
-                'name' => 'Black/Red Sports Optical Frame',
+                'name' => 'Black Sports Optical Frame',
                 'slug' => 'black-red-sports-optical-frame',
                 'description' => 'Full-rim wraparound sports optical frame with red nose/temple grip inserts and an oval O-style hinge logo. No reliable brand/model text is visible.',
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Black / red',
+                    'color' => 'Black',
                     'material' => 'Plastic',
                 ],
                 'variants' => [
                     [
-                        'name' => 'Black / Red',
+                        'name' => 'Black',
                         'sku' => 'FRM-SPORT-BLKRED-001',
                         'price' => 1500.00,
                         'attributes' => [
-                            'color' => 'Black / red',
+                            'color' => 'Black',
                             'material' => 'Plastic',
                         ],
                         'stock_quantity' => 2,
@@ -358,7 +358,7 @@ class CatalogSeeder extends Seeder
                 'description' => 'Full-rim rectangular/square optical frame with gold chevron-style temple accents.',
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Black / Gold',
+                    'color' => 'Black',
                     'material' => 'Plastic',
                     'lens_width' => 54,
                     'bridge' => 18,
@@ -368,11 +368,11 @@ class CatalogSeeder extends Seeder
                 ],
                 'variants' => [
                     [
-                        'name' => 'Black / Gold - C2',
+                        'name' => 'Black',
                         'sku' => 'FRAME-8763-C2',
                         'price' => 2500.00,
                         'attributes' => [
-                            'color' => 'Black / Gold',
+                            'color' => 'Black',
                             'material' => 'Plastic',
                             'lens_width' => 54,
                             'bridge' => 18,
@@ -428,7 +428,7 @@ class CatalogSeeder extends Seeder
                 'description' => 'Full-rim transparent/clear rectangular optical frame.',
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Clear / Transparent',
+                    'color' => 'Clear',
                     'material' => 'Plastic',
                     'lens_width' => 56,
                     'bridge' => 17,
@@ -438,11 +438,11 @@ class CatalogSeeder extends Seeder
                 ],
                 'variants' => [
                     [
-                        'name' => 'Clear - C7',
+                        'name' => 'Clear',
                         'sku' => 'SOFIA-52103-C7',
                         'price' => 2500.00,
                         'attributes' => [
-                            'color' => 'Clear / Transparent',
+                            'color' => 'Clear',
                             'material' => 'Plastic',
                             'lens_width' => 56,
                             'bridge' => 17,
@@ -464,7 +464,7 @@ class CatalogSeeder extends Seeder
                 'description' => 'Full-rim rounded/polygonal metal optical frame with adjustable nose pads.',
                 'product_type' => 'frame',
                 'default_variant_attributes' => [
-                    'color' => 'Dark Gunmetal / Black',
+                    'color' => 'Dark Gunmetal',
                     'material' => 'Metal',
                     'lens_width' => 53,
                     'bridge' => 18,
@@ -473,11 +473,11 @@ class CatalogSeeder extends Seeder
                 ],
                 'variants' => [
                     [
-                        'name' => 'Dark Gunmetal / Black',
+                        'name' => 'Dark Gunmetal',
                         'sku' => 'POLO-P002-DGM',
                         'price' => 1999.00,
                         'attributes' => [
-                            'color' => 'Dark Gunmetal / Black',
+                            'color' => 'Dark Gunmetal',
                             'material' => 'Metal',
                             'lens_width' => 53,
                             'bridge' => 18,

@@ -168,6 +168,79 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
     expect(ProductCategory::query()->where('name', 'Colored Contact Lens')->exists())->toBeTrue();
 });
 
+test('catalog seeder uses canonical preset colors and names for seeded frames', function (): void {
+    Storage::fake('public');
+    User::factory()->staff()->create();
+
+    $this->seed(CatalogSeeder::class);
+
+    $sportsFrameName = Product::query()
+        ->where('slug', 'black-red-sports-optical-frame')
+        ->value('name');
+
+    $expectedVariantColors = [
+        'FRM-SOFIA-2860-GRY' => 'Smoke Gray',
+        'FRM-SOFIA-2860-CHAMP' => 'Champagne',
+        'SUN-MORMAII-FLOATER280-BLK' => 'Black',
+        'FRM-ANTHOS-MB1399A-C4' => 'Dark Tortoise',
+        'FRM-CESTJOLI-2860-C4' => 'Gold',
+        'FRM-SPORT-BLKRED-001' => 'Black',
+        'FRAME-8763-C2' => 'Black',
+        'NIKE-5753-BLK' => 'Black',
+        'SOFIA-52103-C7' => 'Clear',
+        'POLO-P002-DGM' => 'Dark Gunmetal',
+    ];
+    ksort($expectedVariantColors);
+
+    $variantColors = ProductVariant::query()
+        ->whereIn('sku', array_keys($expectedVariantColors))
+        ->get(['sku', 'attributes'])
+        ->mapWithKeys(fn (ProductVariant $variant): array => [
+            $variant->sku => $variant->attributes['color'] ?? null,
+        ])
+        ->sortKeys()
+        ->all();
+
+    $variantNames = ProductVariant::query()
+        ->whereIn('sku', array_keys($expectedVariantColors))
+        ->get(['sku', 'name'])
+        ->mapWithKeys(fn (ProductVariant $variant): array => [$variant->sku => $variant->name])
+        ->sortKeys()
+        ->all();
+
+    $expectedDefaultColors = [
+        'mormaii-floater-street-280' => 'Black',
+        'anthos-mb-1399-a' => 'Dark Tortoise',
+        'cest-joli-2860' => 'Gold',
+        'black-red-sports-optical-frame' => 'Black',
+        'model-8763-optical-frame' => 'Black',
+        'nike-5753-optical-frame' => 'Black',
+        'sofia-eyewear-52103-optical-frame' => 'Clear',
+        'polo-fashion-p002-optical-frame' => 'Dark Gunmetal',
+    ];
+    ksort($expectedDefaultColors);
+
+    $defaultColors = Product::query()
+        ->whereIn('slug', array_keys($expectedDefaultColors))
+        ->get(['slug', 'default_variant_attributes'])
+        ->mapWithKeys(fn (Product $product): array => [
+            $product->slug => data_get($product->default_variant_attributes, 'color'),
+        ])
+        ->sortKeys()
+        ->all();
+
+    $seededColorsMissingFromPresets = array_diff(
+        array_unique(array_merge(array_values($variantColors), array_values($defaultColors))),
+        array_keys(config('catalog.variant_presets.colors')),
+    );
+
+    expect($variantColors)->toBe($expectedVariantColors)
+        ->and($variantNames)->toBe($expectedVariantColors)
+        ->and($sportsFrameName)->toBe('Black Sports Optical Frame')
+        ->and($defaultColors)->toBe($expectedDefaultColors)
+        ->and($seededColorsMissingFromPresets)->toBe([]);
+});
+
 test('catalog seeder records opening receipt history for every legacy-stock frame variant', function (): void {
     Storage::fake('public');
     $receiver = User::factory()->staff()->create();
@@ -263,7 +336,7 @@ test('catalog seeder adds the new frames with their organized variant images', f
             'sku' => 'FRAME-8763-C2',
             'images' => ['01-front.png', '02-side.png'],
             'attributes' => [
-                'color' => 'Black / Gold',
+                'color' => 'Black',
                 'lens_width' => 54,
                 'bridge' => 18,
                 'temple' => 150,
@@ -287,7 +360,7 @@ test('catalog seeder adds the new frames with their organized variant images', f
             'sku' => 'SOFIA-52103-C7',
             'images' => ['01-front.png', '02-side.png'],
             'attributes' => [
-                'color' => 'Clear / Transparent',
+                'color' => 'Clear',
                 'lens_width' => 56,
                 'bridge' => 17,
                 'temple' => 148,
@@ -300,7 +373,7 @@ test('catalog seeder adds the new frames with their organized variant images', f
             'sku' => 'POLO-P002-DGM',
             'images' => ['01-front.png', '02-side.png'],
             'attributes' => [
-                'color' => 'Dark Gunmetal / Black',
+                'color' => 'Dark Gunmetal',
                 'material' => 'Metal',
                 'lens_width' => 53,
                 'bridge' => 18,
