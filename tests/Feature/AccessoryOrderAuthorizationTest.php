@@ -9,6 +9,7 @@ use App\Models\AccessoryOrderRequestItem;
 use App\Models\InventoryLot;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
@@ -88,6 +89,10 @@ test('an administrator accepts the complete request into a pending-payment order
 
     $order = $result['order']->fresh(['billingRecord']);
     $request = $this->request->fresh();
+    $acceptanceSms = SmsNotification::query()
+        ->where('job_order_id', $order->id)
+        ->where('event', 'accessory_order_request_accepted')
+        ->sole();
 
     expect($request->status->value)->toBe('accepted')
         ->and($request->job_order_id)->toBe($order->id)
@@ -97,7 +102,8 @@ test('an administrator accepts the complete request into a pending-payment order
         ->and($order->payment_expires_at->lessThanOrEqualTo(now()->addMinutes(31)))->toBeTrue()
         ->and((float) $order->billingRecord->total_amount)->toBe(100.0)
         ->and((int) $this->variant->fresh()->stock_quantity)->toBe(9)
-        ->and((int) $this->variant->inventoryLots()->sum('quantity_on_hand'))->toBe(9);
+        ->and((int) $this->variant->inventoryLots()->sum('quantity_on_hand'))->toBe(9)
+        ->and($acceptanceSms->message)->toContain($order->job_order_number);
 });
 
 test('staff rejection preserves the patient reason but redacts it from the notification', function (): void {
@@ -111,9 +117,14 @@ test('staff rejection preserves the patient reason but redacts it from the notif
 
     $request = $this->request->fresh();
     $notification = $this->account->fresh()->unreadNotifications->sole();
+    $rejectionSms = SmsNotification::query()
+        ->where('event', 'accessory_order_request_declined')
+        ->sole();
 
     expect($request->status->value)->toBe('rejected')
         ->and($request->rejection_reason)->toBe('The requested item is temporarily unavailable.')
         ->and($notification->data['body'])->not->toContain('temporarily unavailable')
-        ->and($notification->data['kind'])->toBe('accessory_order_request_declined');
+        ->and($notification->data['kind'])->toBe('accessory_order_request_declined')
+        ->and($rejectionSms->message)->toContain($request->request_number)
+        ->not->toContain('temporarily unavailable');
 });

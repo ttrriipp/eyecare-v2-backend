@@ -10,6 +10,7 @@ use App\Models\AccessoryOrderRequestItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,6 +113,7 @@ test('staff can view resolution details for a resolved accessory order request',
 });
 
 test('staff can reject an accessory order request with a preset reason', function (): void {
+    $this->seed(NotificationStatusSeeder::class);
     $staff = User::factory()->staff()->create();
     $account = User::factory()->patient()->create();
     $request = AccessoryOrderRequest::factory()->create([
