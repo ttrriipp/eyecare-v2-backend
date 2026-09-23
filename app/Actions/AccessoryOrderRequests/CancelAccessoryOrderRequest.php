@@ -17,8 +17,9 @@ class CancelAccessoryOrderRequest
     public function handle(
         AccessoryOrderRequest $orderRequest,
         User $account,
+        string $reasonDetails,
     ): AccessoryOrderRequest {
-        return DB::transaction(function () use ($orderRequest, $account): AccessoryOrderRequest {
+        return DB::transaction(function () use ($orderRequest, $account, $reasonDetails): AccessoryOrderRequest {
             $lockedRequest = AccessoryOrderRequest::query()
                 ->lockForUpdate()
                 ->findOrFail($orderRequest->id);
@@ -40,6 +41,7 @@ class CancelAccessoryOrderRequest
             $lockedRequest->update([
                 'status' => AccessoryOrderRequestStatus::Cancelled,
                 'cancelled_at' => now(),
+                'encrypted_cancellation_reason' => $reasonDetails,
             ]);
 
             $this->auditLog->handle(

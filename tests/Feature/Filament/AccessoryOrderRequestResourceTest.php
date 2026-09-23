@@ -4,9 +4,11 @@ use App\Enums\DiscountProofStatus;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ListAccessoryOrderRequests;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ViewAccessoryOrderRequest;
 use App\Filament\Resources\AccessoryOrderRequests\Widgets\AccessoryOrderRequestStatsWidget;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\AccessoryOrderRequest;
 use App\Models\AccessoryOrderRequestDiscountProof;
 use App\Models\AccessoryOrderRequestItem;
+use App\Models\JobOrder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -92,6 +94,28 @@ test('staff can view the accessory order request details', function (): void {
         ->assertDontSee('Rejection reason');
 });
 
+test('staff can open the linked optical order from an accepted request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $order = JobOrder::factory()->create([
+        'patient_id' => $account->patient->id,
+    ]);
+    $request = AccessoryOrderRequest::factory()->accepted()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'job_order_id' => $order->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertActionVisible('viewOpticalOrder')
+        ->assertActionHasUrl(
+            'viewOpticalOrder',
+            OpticalOrderResource::getUrl('edit', ['record' => $order]),
+        );
+});
+
 test('staff can view resolution details for a resolved accessory order request', function (): void {
     $staff = User::factory()->staff()->create();
     $account = User::factory()->patient()->create();
@@ -110,6 +134,24 @@ test('staff can view resolution details for a resolved accessory order request',
         ->assertSee('Resolved at')
         ->assertSee('Rejection reason')
         ->assertSee('Test rejection');
+});
+
+test('staff can view a patient cancellation reason in the request details', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $reason = 'I selected the wrong accessories.';
+    $request = AccessoryOrderRequest::factory()->cancelled()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'encrypted_cancellation_reason' => $reason,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Patient cancellation reason')
+        ->assertSee($reason);
 });
 
 test('staff can reject an accessory order request with a preset reason', function (): void {
@@ -158,7 +200,7 @@ test('staff can review a pending discount proof from the order request page', fu
     expect($proof->fresh()->status)->toBe(DiscountProofStatus::Accepted);
 });
 
-test('staff can reject a discount proof with a reason from the order request page', function (): void {
+test('staff can reject a discount proof with a preset reason from the order request page', function (): void {
     $staff = User::factory()->staff()->create();
     $account = User::factory()->patient()->create();
     $request = AccessoryOrderRequest::factory()->create([
@@ -175,9 +217,80 @@ test('staff can reject a discount proof with a reason from the order request pag
     $this->actingAs($staff);
 
     Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
-        ->callAction('rejectDiscountProof', ['reason' => 'The ID image is not readable.'])
+        ->callAction('rejectDiscountProof', ['reason_category' => 'unreadable'])
         ->assertNotified('Discount proof rejected');
 
     expect($proof->fresh()->status)->toBe(DiscountProofStatus::Rejected)
-        ->and($proof->fresh()->rejection_reason)->toBe('The ID image is not readable.');
+        ->and($proof->fresh()->rejection_reason)->toBe('The proof image is blurry or unreadable.');
+});
+
+test('staff must provide custom details when rejecting a discount proof for another reason', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'requested_discount_type' => 'senior_citizen',
+    ]);
+    $proof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'status' => DiscountProofStatus::Pending,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->callAction('rejectDiscountProof', ['reason_category' => 'other'])
+        ->assertHasActionErrors(['rejection_details']);
+
+    expect($proof->fresh()->status)->toBe(DiscountProofStatus::Pending);
+});
+
+test('staff can provide a custom reason when rejecting a discount proof', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'requested_discount_type' => 'senior_citizen',
+    ]);
+    $proof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'status' => DiscountProofStatus::Pending,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->callAction('rejectDiscountProof', [
+            'reason_category' => 'other',
+            'rejection_details' => 'Please provide a clearer copy of the document.',
+        ])
+        ->assertNotified('Discount proof rejected');
+
+    expect($proof->fresh()->status)->toBe(DiscountProofStatus::Rejected)
+        ->and($proof->fresh()->rejection_reason)->toBe('Please provide a clearer copy of the document.');
+});
+
+test('staff cannot manually set a discount when accepting a verified request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'requested_discount_type' => 'pwd',
+    ]);
+    AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'status' => DiscountProofStatus::Accepted,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->mountAction('accept')
+        ->assertMountedActionModalDontSee('Discount Amount');
 });

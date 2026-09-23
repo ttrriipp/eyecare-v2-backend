@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Actions\OpticalOrders\BuildOpticalItemSnapshot;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\LinkPatientAccount;
 use App\Actions\PatientAccounts\PatientLinkIdentitySnapshot;
@@ -22,6 +23,7 @@ use App\Models\AppointmentType;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
+use App\Models\DispensingEvent;
 use App\Models\Encounter;
 use App\Models\EncounterAddendum;
 use App\Models\FrameRating;
@@ -953,8 +955,12 @@ class ScenarioCoverageSeeder extends Seeder
         );
 
         JobOrderItem::query()->updateOrCreate(
-            ['job_order_id' => $dispensed->id, 'description' => 'Classic Frame — Matte Black'],
             [
+                'job_order_id' => $dispensed->id,
+                'product_variant_id' => $classicFrameVariant->id,
+            ],
+            [
+                'description' => 'Classic Frame — Matte Black',
                 'quantity' => 1,
                 'unit_price' => 2800,
                 'amount' => 2800,
@@ -1184,49 +1190,304 @@ class ScenarioCoverageSeeder extends Seeder
                 'moderated_at' => null,
             ],
         );
+
+        $walkInPatient = $this->walkInPatient();
+        $walkInAppointment = Appointment::query()
+            ->where('appointment_number', 'APT-2026-000006')
+            ->firstOrFail();
+        $walkInEncounter = Encounter::query()
+            ->where('appointment_id', $walkInAppointment->id)
+            ->firstOrFail();
+
+        VisitRating::query()->updateOrCreate(
+            ['appointment_id' => $walkInAppointment->id],
+            [
+                'patient_id' => $walkInPatient->id,
+                'encounter_id' => $walkInEncounter->id,
+                'optometrist_id' => $walkInEncounter->optometrist_id,
+                'rating' => 4,
+                'comment' => 'Clear advice and a patient explanation. The updated prescription feels right for driving.',
+                'service_ids' => null,
+                'is_hidden' => false,
+                'moderation_reason' => null,
+                'moderated_by' => null,
+                'moderated_at' => null,
+            ],
+        );
     }
 
     private function seedProductRatings(): void
     {
-        $this->upsertProductRating(
-            patient: $this->flagshipPatient(),
-            sku: 'FRM-SOFIA-2860-GRY',
-            rating: 5,
-            comment: 'Comfortable fit and a clear, lightweight frame.',
+        $flagshipPatient = $this->flagshipPatient();
+        $walkInPatient = $this->walkInPatient();
+        $this->removeUnlinkedSeedProductRatings($flagshipPatient, $walkInPatient);
+
+        $walkInOrderReviews = [
+            [
+                'sku' => 'FRM-SOFIA-2860-GRY',
+                'rating' => 4,
+                'comment' => 'The frame feels light and sits comfortably through a full workday.',
+            ],
+            [
+                'sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML',
+                'rating' => 4,
+                'comment' => 'Convenient drops to keep by my desk after a long day.',
+            ],
+            [
+                'sku' => 'ACC-LACRYL-HYDRATE-10ML',
+                'rating' => 4,
+                'comment' => 'Simple to use and fits easily in my bag.',
+            ],
+            [
+                'sku' => 'ACC-NEWLOOK-MPS-90ML',
+                'rating' => 5,
+                'comment' => 'The bottle is easy to handle and the solution feels comfortable.',
+            ],
+        ];
+        $walkInDispensingEvent = $this->seedDispensedProductOrder(
+            jobOrderNumber: 'ORD-2026-000004',
+            billingRecordNumber: 'BR-2026-000003',
+            patient: $walkInPatient,
+            reviews: $walkInOrderReviews,
         );
 
-        $this->upsertProductRating(
-            patient: $this->walkInPatient(),
-            sku: 'FRM-ANTHOS-MB1399A-C4',
-            rating: 4,
-            comment: 'The frame feels sturdy and fits well for everyday wear.',
+        $flagshipOrderReviews = [
+            [
+                'sku' => 'FRM-SPORT-BLKRED-001',
+                'rating' => 5,
+                'comment' => 'Secure fit and a sporty shape that works well outdoors.',
+            ],
+            [
+                'sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML',
+                'rating' => 5,
+                'comment' => 'Convenient to use and soothing after long screen sessions.',
+            ],
+            [
+                'sku' => 'ACC-LACRYL-HYDRATE-10ML',
+                'rating' => 5,
+                'comment' => 'Easy-to-carry bottle, and the drops feel gentle.',
+            ],
+            [
+                'sku' => 'ACC-NEWLOOK-MPS-90ML',
+                'rating' => 5,
+                'comment' => 'The bottle is easy to handle and the solution feels comfortable.',
+            ],
+        ];
+        $flagshipDispensingEvent = $this->seedDispensedProductOrder(
+            jobOrderNumber: 'ORD-2026-000006',
+            billingRecordNumber: 'BR-2026-000005',
+            patient: $flagshipPatient,
+            reviews: $flagshipOrderReviews,
         );
 
-        $this->upsertProductRating(
-            patient: $this->flagshipPatient(),
-            sku: 'ACC-SYSTANE-COMPLETE-PF-10ML',
-            rating: 5,
-            comment: 'Convenient to use and soothing after long screen sessions.',
+        foreach ($walkInOrderReviews as $review) {
+            $this->upsertProductRating(
+                patient: $walkInPatient,
+                dispensingEvent: $walkInDispensingEvent,
+                sku: $review['sku'],
+                rating: $review['rating'],
+                comment: $review['comment'],
+            );
+        }
+
+        foreach ($flagshipOrderReviews as $review) {
+            $this->upsertProductRating(
+                patient: $flagshipPatient,
+                dispensingEvent: $flagshipDispensingEvent,
+                sku: $review['sku'],
+                rating: $review['rating'],
+                comment: $review['comment'],
+            );
+        }
+    }
+
+    /**
+     * Remove earlier synthetic reviews that were seeded without a completed order.
+     */
+    private function removeUnlinkedSeedProductRatings(Patient $flagshipPatient, Patient $walkInPatient): void
+    {
+        FrameRating::withTrashed()
+            ->whereIn('patient_id', [$flagshipPatient->id, $walkInPatient->id])
+            ->whereNull('dispensing_event_id')
+            ->whereIn('comment', [
+                'Comfortable fit and a clear, lightweight frame.',
+                'The frame feels sturdy and fits well for everyday wear.',
+                'Convenient to use and soothing after long screen sessions.',
+                'The frame feels light and sits comfortably through a full workday.',
+                'Secure fit and a sporty shape that works well outdoors.',
+                'Comfortable in bright daylight and light enough for long drives.',
+                'Convenient drops to keep by my desk after a long day.',
+                'Easy-to-carry bottle, and the drops feel gentle.',
+                'Simple to use and fits easily in my bag.',
+                'The bottle is easy to handle and the solution feels comfortable.',
+            ])
+            ->forceDelete();
+    }
+
+    /**
+     * @param  list<array{sku: string, rating: int, comment: string}>  $reviews
+     */
+    private function seedDispensedProductOrder(
+        string $jobOrderNumber,
+        string $billingRecordNumber,
+        Patient $patient,
+        array $reviews,
+    ): DispensingEvent {
+        $staff = $this->staff();
+        $items = collect($reviews)->map(function (array $review): array {
+            $variant = ProductVariant::query()
+                ->with('product')
+                ->where('sku', $review['sku'])
+                ->firstOrFail();
+            $snapshot = app(BuildOpticalItemSnapshot::class)->handle(productVariantId: $variant->id);
+            $unitPriceInCents = (int) round((float) $variant->price * 100);
+            $unitPrice = number_format($unitPriceInCents / 100, 2, '.', '');
+
+            return [
+                ...$review,
+                'variant' => $variant,
+                'quantity' => 1,
+                'unit_price' => $unitPrice,
+                'amount' => $unitPrice,
+                'item_kind' => $snapshot['item_kind'],
+                'item_snapshot' => $snapshot['item_snapshot'],
+                'amount_in_cents' => $unitPriceInCents,
+            ];
+        });
+        $totalAmount = number_format($items->sum('amount_in_cents') / 100, 2, '.', '');
+        $startedAt = now()->subDays(3);
+        $dispensedAt = now()->subDays(2);
+
+        $jobOrder = JobOrder::query()->updateOrCreate(
+            ['job_order_number' => $jobOrderNumber],
+            [
+                'patient_id' => $patient->id,
+                'encounter_id' => null,
+                'prescription_id' => null,
+                'status' => JobOrderStatus::Dispensed,
+                'fulfillment_mode' => 'immediate',
+                'uses_external_supplier' => false,
+                'total_amount' => $totalAmount,
+                'notes' => 'Settled demo purchase with sample product feedback.',
+                'started_at' => $startedAt,
+                'dispensed_at' => $dispensedAt,
+                'cancelled_at' => null,
+            ],
+        );
+
+        $productVariantIds = [];
+
+        foreach ($items as $item) {
+            $variant = $item['variant'];
+            $productVariantIds[] = $variant->id;
+
+            $jobOrder->items()->updateOrCreate(
+                ['product_variant_id' => $variant->id],
+                [
+                    'description' => $variant->product->name.' — '.$variant->name,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'amount' => $item['amount'],
+                    'product_variant_id' => $variant->id,
+                    'lens_category_id' => null,
+                    'lens_option_id' => null,
+                    'item_kind' => $item['item_kind'],
+                    'item_snapshot' => $item['item_snapshot'],
+                ],
+            );
+        }
+
+        $jobOrder->items()
+            ->where(function ($query) use ($productVariantIds): void {
+                $query->whereNull('product_variant_id')
+                    ->orWhereNotIn('product_variant_id', $productVariantIds);
+            })
+            ->delete();
+
+        $billingRecord = BillingRecord::query()->updateOrCreate(
+            ['billing_record_number' => $billingRecordNumber],
+            [
+                'patient_id' => $patient->id,
+                'job_order_id' => $jobOrder->id,
+                'encounter_id' => null,
+                'status' => BillingRecordStatus::Paid,
+                'subtotal_amount' => $totalAmount,
+                'discount_amount' => 0,
+                'total_amount' => $totalAmount,
+                'amount_paid' => $totalAmount,
+                'balance_due' => 0,
+                'recorded_by' => $staff->id,
+                'recorded_at' => $dispensedAt,
+                'cancelled_by' => null,
+                'cancelled_at' => null,
+                'cancellation_reason' => null,
+            ],
+        );
+
+        $this->seedBillingRecordItems($billingRecord, $jobOrder);
+
+        $jobOrderItemIds = $jobOrder->items()->pluck('id')->all();
+        $billingRecord->items()
+            ->where(function ($query) use ($jobOrderItemIds): void {
+                $query->whereNull('job_order_item_id')
+                    ->orWhereNotIn('job_order_item_id', $jobOrderItemIds);
+            })
+            ->delete();
+
+        $payment = $billingRecord->payments()->where('status', 'posted')->orderBy('id')->first();
+        $paymentAttributes = [
+            'billing_record_id' => $billingRecord->id,
+            'amount' => $totalAmount,
+            'payment_method' => 'cash',
+            'reference_number' => 'DEMO-'.$jobOrderNumber,
+            'status' => 'posted',
+            'recorded_by' => $staff->id,
+            'recorded_at' => $dispensedAt,
+            'notes' => 'Full payment for seeded product-review order.',
+        ];
+
+        if ($payment === null) {
+            BillingPayment::query()->create($paymentAttributes);
+        } else {
+            $payment->update($paymentAttributes);
+            $billingRecord->payments()
+                ->where('status', 'posted')
+                ->where('id', '!=', $payment->id)
+                ->delete();
+        }
+
+        return DispensingEvent::query()->updateOrCreate(
+            ['job_order_id' => $jobOrder->id],
+            [
+                'billing_record_id' => $billingRecord->id,
+                'dispensed_by' => $staff->id,
+                'recipient_name' => $patient->full_name,
+                'notes' => 'Seeded settled product purchase.',
+                'dispensed_at' => $dispensedAt,
+            ],
         );
     }
 
     private function upsertProductRating(
         Patient $patient,
+        DispensingEvent $dispensingEvent,
         string $sku,
         int $rating,
         string $comment,
     ): void {
         $variant = ProductVariant::query()->where('sku', $sku)->firstOrFail();
 
+        // These synthetic demo comments opt in so product-review screens have sample content.
         FrameRating::query()->updateOrCreate(
             [
                 'patient_id' => $patient->id,
                 'product_variant_id' => $variant->id,
             ],
             [
-                'dispensing_event_id' => null,
+                'dispensing_event_id' => $dispensingEvent->id,
                 'rating' => $rating,
                 'comment' => $comment,
+                'public_display_consent_at' => now(),
                 'is_hidden' => false,
                 'moderation_reason' => null,
                 'moderated_by' => null,

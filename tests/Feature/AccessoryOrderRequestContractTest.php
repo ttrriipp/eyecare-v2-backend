@@ -7,6 +7,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -198,7 +199,57 @@ test('current request list includes catalog references and item snapshots', func
         ->assertJsonPath('data.0.items.0.item_snapshot.product_variant_id', $this->variant->id);
 });
 
-test('owner can cancel a pending request idempotently and other accounts cannot see it', function (): void {
+test('owner can cancel a pending request with an encrypted reason idempotently', function (): void {
+    $request = $this->actingAs($this->account)
+        ->postJson('/api/v1/accessory-order-requests', [
+            'items' => [
+                ['product_variant_id' => $this->variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertCreated()
+        ->json('data');
+    $reason = 'I selected the wrong accessories.';
+
+    $this->actingAs($this->account)
+        ->postJson("/api/v1/accessory-order-requests/{$request['id']}/cancel", [
+            'reason_details' => $reason,
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'cancelled')
+        ->assertJsonPath('data.cancellation_reason', $reason);
+
+    $storedReason = DB::table('accessory_order_requests')
+        ->where('id', $request['id'])
+        ->value('encrypted_cancellation_reason');
+
+    expect($storedReason)->not->toContain($reason);
+
+    $this->actingAs($this->account)
+        ->postJson("/api/v1/accessory-order-requests/{$request['id']}/cancel", [
+            'reason_details' => 'This retry must not replace the original reason.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'cancelled')
+        ->assertJsonPath('data.cancellation_reason', $reason);
+
+    $this->actingAs($this->account)
+        ->getJson("/api/v1/accessory-order-requests/{$request['id']}")
+        ->assertOk()
+        ->assertJsonPath('data.cancellation_reason', $reason);
+
+    $this->actingAs($this->account)
+        ->getJson('/api/v1/accessory-order-requests?filter=history')
+        ->assertOk()
+        ->assertJsonPath('data.0.cancellation_reason', $reason);
+
+    $otherAccount = User::factory()->patient()->create();
+
+    $this->actingAs($otherAccount)
+        ->getJson("/api/v1/accessory-order-requests/{$request['id']}")
+        ->assertNotFound();
+});
+
+test('patient must provide a cancellation reason of at most 1000 characters', function (): void {
     $request = $this->actingAs($this->account)
         ->postJson('/api/v1/accessory-order-requests', [
             'items' => [
@@ -210,17 +261,15 @@ test('owner can cancel a pending request idempotently and other accounts cannot 
 
     $this->actingAs($this->account)
         ->postJson("/api/v1/accessory-order-requests/{$request['id']}/cancel")
-        ->assertOk()
-        ->assertJsonPath('data.status', 'cancelled');
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['reason_details']);
 
     $this->actingAs($this->account)
-        ->postJson("/api/v1/accessory-order-requests/{$request['id']}/cancel")
-        ->assertOk()
-        ->assertJsonPath('data.status', 'cancelled');
+        ->postJson("/api/v1/accessory-order-requests/{$request['id']}/cancel", [
+            'reason_details' => str_repeat('x', 1001),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['reason_details']);
 
-    $otherAccount = User::factory()->patient()->create();
-
-    $this->actingAs($otherAccount)
-        ->getJson("/api/v1/accessory-order-requests/{$request['id']}")
-        ->assertNotFound();
+    expect(AccessoryOrderRequest::query()->findOrFail($request['id'])->status->value)->toBe('pending');
 });

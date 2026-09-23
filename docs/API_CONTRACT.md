@@ -2674,8 +2674,10 @@ replace it while the Order Request remains `pending`; the same proof ID is
 reset to `pending` and the previous private object is deleted. A request with
 `requested_discount_type: none` cannot receive a proof. Staff and
 administrators review proofs in the clinic panel; request acceptance is
-blocked until a non-`none` request has an `accepted` proof. Only an
-administrator may apply a positive discount amount when accepting the request.
+blocked until a non-`none` request has an `accepted` proof. When staff or an
+administrator accepts a proof-backed request, the server automatically
+applies the existing 20% Senior Citizen or PWD discount to the request
+subtotal; staff cannot enter or override a discount amount during acceptance.
 The API never returns file paths, URLs, original filenames, MIME types, sizes,
 reviewer identities, or audit metadata. A rejected proof's reason is visible
 only through `discount_proof_rejection_reason`.
@@ -2883,6 +2885,11 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `items[].image_url` | string | yes | Primary public catalog image for frame items; uses the same relative image path format as `GET /frames`, or `null` when the item is not a frame or has no image |
 | `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
 | `items[].rating` | object | yes | Current rating summary; null when not yet rated |
+| `items[].rating.rating` | integer | no | Patient's current 1–5 product rating |
+| `items[].rating.comment` | string | yes | Patient's current profanity-masked comment, or `null` when hidden |
+| `items[].rating.created_at` | string | yes | ISO 8601 rating submission timestamp |
+| `items[].rating.revision_number` | integer | no | Always `1`; ratings update in place without revision history |
+| `items[].rating.owner_attachment_url` | string | yes | Authenticated URL to this patient's private rating image, or `null` when no image is attached |
 | `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
 | `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, `voided` |
 | `payment_summary.total_amount` | string | no | Billing total |
@@ -2948,9 +2955,11 @@ Example with both configured methods:
 ```
 
 When `items[].rating` is not null, it contains `rating`, optional `comment`,
-and `created_at`. Comment text is profanity-masked before persistence. Hidden
-comments return `comment: null` to non-authors; the author always sees their
-own masked comment.
+`created_at`, and nullable `owner_attachment_url`. Comment text is
+profanity-masked before persistence. Hidden comments return `comment: null` to
+non-authors; the author always sees their own masked comment. The owner
+attachment URL is available only in the authenticated patient's order response
+and does not depend on public attachment consent.
 
 **Rateable items:** `is_rateable` is `true` only for a dispensed order's item
 with a non-null `product_variant_id`. Service items, custom products, and items
@@ -3021,6 +3030,30 @@ paths, and admin-only URLs are never used as `image_url` values.
 
 **Errors:**
 - `404`: Order not found or not owned by the authenticated patient.
+
+---
+
+### GET `/optical-order-items/{id}/rating/attachment`
+
+Streams the current rating image for an optical-order item owned by the signed-in
+patient. The endpoint resolves the rating using the authenticated patient's
+identity and the order item's product variant, then verifies the parent order
+belongs to that patient before streaming the image from private storage.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+The URL is returned as `items[].rating.owner_attachment_url` in optical-order
+responses when an image is attached. The response is the image itself (JPEG or
+PNG), with private no-store caching. It never returns a storage path. Public
+attachment consent is not required for the owner to view their own image;
+public review photo visibility remains controlled by the separate
+`public_attachment_consent` opt-in and the public review routes recheck that
+consent independently. Hidden ratings remain inaccessible to other patients
+through public review lists while the author can still view their own photo.
+
+**Errors:**
+- `404`: Item is not owned by the authenticated patient, no current rating image
+  exists, or the stored image is unavailable.
 
 ---
 
@@ -3641,6 +3674,7 @@ authentication path. Current behavior is authoritative in the sections above.
 | `POST /appointment-requests/{id}/cancel` | Cancel request |
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
+| `GET /optical-order-items/{id}/rating/attachment` | Stream the signed-in patient's private rating image for an owned order item |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
 | `GET /frames/{id}/reviews` | List consented public frame reviews |
 | `GET /frames/{id}/reviews/attachments/{opaque_attachment_id}` | Stream an opted-in frame review image |
@@ -3680,6 +3714,8 @@ authentication path. Current behavior is authoritative in the sections above.
 | `POST /appointments/{id}/rating` | Visit-rating comments are profanity-masked before persistence and response; revisions update in place with `revision_number: 1` |
 | `GET /prescriptions` | Prescription resources include additive `expires_at` validity metadata |
 | `GET /prescriptions/{id}` | Same `expires_at` field is returned for current and historical prescription versions |
+| `GET /optical-orders/{id}` | Each current item rating includes nullable owner-only `owner_attachment_url` for the patient's private image |
+| `GET /optical-order-items/{id}/rating/attachment` | Streams the authenticated patient's image after verifying ownership of the parent order item |
 | `POST /optical-order-items/{id}/rating` | Frame-rating comments are profanity-masked; repeated submissions update in place and return `201` |
 | `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
 | `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
@@ -3927,12 +3963,13 @@ POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request with
 POST   /api/v1/accessory-order-requests/{id}/discount-proof  Upload discount proof
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
+GET    /api/v1/optical-order-items/{id}/rating/attachment  Stream own private rating image
 POST   /api/v1/optical-orders/{id}/payment-proof  Upload online payment proof
 GET    /api/v1/optical-orders/{id}/payment-instructions/{method}/qr  Stream private clinic QR image
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 46 account-only + 17
-active-link = **72 registered routes total**. The normal patient-mobile
-contract is **71 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 46 account-only + 18
+active-link = **73 registered routes total**. The normal patient-mobile
+contract is **72 routes** when the disabled-by-default pilot route is excluded.

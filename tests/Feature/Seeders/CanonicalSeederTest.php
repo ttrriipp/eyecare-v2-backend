@@ -6,6 +6,7 @@ use App\Enums\AppointmentStatusName;
 use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\EncounterStatus;
+use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
@@ -391,7 +392,17 @@ test('rerunning the canonical seeder repairs edited appointment request demo dat
 
     $this->seed(DatabaseSeeder::class);
 
-    expect($pending->fresh()->encrypted_reason_for_visit)->toBe('Routine eye exam and prescription update.');
+    $reviewOrder = JobOrder::query()
+        ->with(['items', 'dispensingEvents', 'billingRecord.items', 'billingRecord.payments'])
+        ->where('job_order_number', 'ORD-2026-000004')
+        ->firstOrFail();
+
+    expect($pending->fresh()->encrypted_reason_for_visit)->toBe('Routine eye exam and prescription update.')
+        ->and($reviewOrder->items)->toHaveCount(4)
+        ->and($reviewOrder->dispensingEvents)->toHaveCount(1)
+        ->and($reviewOrder->billingRecord->items)->toHaveCount(4)
+        ->and($reviewOrder->billingRecord->payments->where('status', 'posted'))->toHaveCount(1)
+        ->and(FrameRating::query()->publiclyDisplayable()->count())->toBe(8);
 });
 
 test('appointment statuses are seeded canonically without pruning the transition bridge', function () {
@@ -432,7 +443,7 @@ test('canonical seed data creates complete clinic workflow', function () {
         ->and((float) $processingOrder->billingRecord?->total_amount)->toBe(4200.0);
 });
 
-test('canonical seed data creates one multi-item accessory request and visit feedback', function () {
+test('canonical seed data includes public product reviews and visit feedback for completed encounters', function () {
     $this->seed(DatabaseSeeder::class);
 
     $patient = Patient::query()->where('patient_number', 'PAT-2026-000001')->firstOrFail();
@@ -443,9 +454,15 @@ test('canonical seed data creates one multi-item accessory request and visit fee
     $feedback = VisitRating::query()
         ->whereHas('appointment', fn ($query) => $query->where('appointment_number', 'APT-2026-000002'))
         ->firstOrFail();
+    $walkInFeedback = VisitRating::query()
+        ->whereHas('appointment', fn ($query) => $query->where('appointment_number', 'APT-2026-000006'))
+        ->firstOrFail();
     $productRating = FrameRating::query()
         ->where('patient_id', $patient->id)
-        ->whereHas('variant', fn ($query) => $query->where('sku', 'FRM-SOFIA-2860-GRY'))
+        ->whereHas('variant', fn ($query) => $query->where('sku', 'FRM-SPORT-BLKRED-001'))
+        ->firstOrFail();
+    $additionalProductRating = FrameRating::query()
+        ->whereHas('variant', fn ($query) => $query->where('sku', 'ACC-LACRYL-HYDRATE-10ML'))
         ->firstOrFail();
 
     expect($request->user_id)->toBe($patient->user_id)
@@ -457,8 +474,43 @@ test('canonical seed data creates one multi-item accessory request and visit fee
         ->and($feedback->patient_id)->toBe($patient->id)
         ->and($feedback->rating)->toBe(5)
         ->and($feedback->comment)->toBe('Friendly and thorough consultation. The prescription explanation was clear.')
+        ->and($walkInFeedback->rating)->toBe(4)
+        ->and($walkInFeedback->comment)->toBe('Clear advice and a patient explanation. The updated prescription feels right for driving.')
         ->and($productRating->rating)->toBe(5)
-        ->and($productRating->comment)->toBe('Comfortable fit and a clear, lightweight frame.');
+        ->and($productRating->comment)->toBe('Secure fit and a sporty shape that works well outdoors.')
+        ->and($productRating->public_display_consent_at)->not->toBeNull()
+        ->and($additionalProductRating->public_display_consent_at)->not->toBeNull()
+        ->and(FrameRating::query()->publiclyDisplayable()->count())->toBe(8);
+
+    $seededProductRatings = FrameRating::query()
+        ->with(['dispensingEvent.jobOrder.items', 'dispensingEvent.billingRecord'])
+        ->publiclyDisplayable()
+        ->get();
+
+    foreach ($seededProductRatings as $seededProductRating) {
+        $dispensingEvent = $seededProductRating->dispensingEvent;
+        $dispensedOrder = $dispensingEvent?->jobOrder;
+
+        expect($dispensingEvent)->not->toBeNull()
+            ->and($dispensedOrder?->status)->toBe(JobOrderStatus::Dispensed)
+            ->and($dispensedOrder?->patient_id)->toBe($seededProductRating->patient_id)
+            ->and($dispensedOrder?->items->contains('product_variant_id', $seededProductRating->product_variant_id))->toBeTrue()
+            ->and($dispensingEvent?->billingRecord?->status)->toBe(BillingRecordStatus::Paid);
+    }
+
+    $visitFeedbackRows = VisitRating::query()
+        ->with(['appointment.status', 'encounter'])
+        ->get();
+
+    expect($visitFeedbackRows)->toHaveCount(2);
+
+    foreach ($visitFeedbackRows as $visitFeedbackRow) {
+        expect($visitFeedbackRow->appointment->patient_id)->toBe($visitFeedbackRow->patient_id)
+            ->and($visitFeedbackRow->appointment->status->name)->toBe(AppointmentStatusName::Fulfilled->value)
+            ->and($visitFeedbackRow->encounter->appointment_id)->toBe($visitFeedbackRow->appointment_id)
+            ->and($visitFeedbackRow->encounter->patient_id)->toBe($visitFeedbackRow->patient_id)
+            ->and($visitFeedbackRow->encounter->status)->toBe(EncounterStatus::Completed);
+    }
 });
 
 test('seed data has no legacy model references', function () {

@@ -2,6 +2,8 @@
 
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
+use App\Filament\Resources\PatientAccounts\Pages\ViewPatientAccount;
+use App\Filament\Resources\PatientAccounts\RelationManagers\PreferredFramesRelationManager as PatientAccountPreferredFramesRelationManager;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\RelationManagers\PreferredFramesRelationManager;
 use App\Filament\Resources\Products\ProductResource;
@@ -256,6 +258,29 @@ test('preferred frames relation manager has no mutation actions', function () {
 
     // No create, edit, or delete actions should exist
     $component->assertTableBulkActionDoesNotExist('delete');
+});
+
+test('patient account shows its preferred frame variants without requiring a patient link', function () {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->create();
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'name' => 'Blue',
+        'is_active' => true,
+        'stock_quantity' => 5,
+    ]);
+    $savedFrame = SavedFrame::factory()->forAccount($account)->forVariant($variant)->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(PatientAccountPreferredFramesRelationManager::class, [
+        'ownerRecord' => $account,
+        'pageClass' => ViewPatientAccount::class,
+    ])
+        ->assertCanSeeTableRecords([$savedFrame])
+        ->assertSee($this->frame->name)
+        ->assertSee('Blue')
+        ->assertDontSee('No linked account');
 });
 
 // --- Appointment context tests ---

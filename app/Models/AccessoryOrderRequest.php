@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'resolved_at',
     'rejection_reason',
     'cancelled_at',
+    'encrypted_cancellation_reason',
 ])]
 class AccessoryOrderRequest extends Model
 {
@@ -35,6 +36,7 @@ class AccessoryOrderRequest extends Model
             'subtotal_amount' => 'decimal:2',
             'resolved_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'encrypted_cancellation_reason' => 'encrypted',
         ];
     }
 

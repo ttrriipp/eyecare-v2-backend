@@ -7,6 +7,7 @@ use App\Filament\Resources\PatientAccounts\Pages\ViewPatientAccount;
 use App\Filament\Resources\PatientAccounts\RelationManagers\AppointmentRequestsRelationManager;
 use App\Filament\Resources\PatientAccounts\RelationManagers\DeviceSessionsRelationManager;
 use App\Filament\Resources\PatientAccounts\RelationManagers\LinkRequestsRelationManager;
+use App\Filament\Resources\PatientAccounts\RelationManagers\PreferredFramesRelationManager;
 use App\Filament\Resources\PatientAccounts\Schemas\PatientAccountForm;
 use App\Filament\Resources\PatientAccounts\Tables\PatientAccountsTable;
 use App\Models\User;
@@ -62,6 +63,7 @@ class PatientAccountResource extends Resource
         return [
             AppointmentRequestsRelationManager::class,
             LinkRequestsRelationManager::class,
+            PreferredFramesRelationManager::class,
             DeviceSessionsRelationManager::class,
         ];
     }

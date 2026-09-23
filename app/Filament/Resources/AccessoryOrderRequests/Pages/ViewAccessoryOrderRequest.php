@@ -6,12 +6,13 @@ use App\Actions\AccessoryOrderRequests\AcceptAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\AcceptDiscountProof;
 use App\Actions\AccessoryOrderRequests\RejectAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\RejectDiscountProof;
+use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\DiscountProofStatus;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
@@ -33,6 +34,18 @@ class ViewAccessoryOrderRequest extends ViewRecord
         'other' => 'Other',
     ];
 
+    /**
+     * @var array<string, string>
+     */
+    private const DISCOUNT_PROOF_REJECTION_REASON_OPTIONS = [
+        'unreadable' => 'The proof image is blurry or unreadable.',
+        'missing_information' => 'The document is missing required information.',
+        'details_mismatch' => 'The document details do not match the request.',
+        'expired_or_invalid' => 'The document appears expired or invalid.',
+        'unaccepted_document' => 'This document cannot be accepted as proof.',
+        'other' => 'Other',
+    ];
+
     protected function getHeaderActions(): array
     {
         return [
@@ -46,6 +59,16 @@ class ViewAccessoryOrderRequest extends ViewRecord
                 ))
                 ->openUrlInNewTab()
                 ->visible(fn (): bool => $this->canReviewCommerce() && $this->record->discountProof !== null),
+
+            Action::make('viewOpticalOrder')
+                ->label('View optical order')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->url(fn (): string => OpticalOrderResource::getUrl('edit', [
+                    'record' => $this->record->jobOrder,
+                ]))
+                ->visible(fn (): bool => $this->record->status === AccessoryOrderRequestStatus::Accepted
+                    && $this->record->jobOrder !== null),
 
             Action::make('acceptDiscountProof')
                 ->label('Accept discount proof')
@@ -89,18 +112,30 @@ class ViewAccessoryOrderRequest extends ViewRecord
                     && $this->record->isPending()
                     && $this->record->discountProof?->status === DiscountProofStatus::Pending)
                 ->form([
-                    Textarea::make('reason')
+                    Select::make('reason_category')
                         ->label('Rejection reason')
+                        ->options(self::DISCOUNT_PROOF_REJECTION_REASON_OPTIONS)
                         ->required()
+                        ->live()
+                        ->helperText('Choose the closest match. Select Other to enter a custom reason.'),
+                    Textarea::make('rejection_details')
+                        ->label('Details')
+                        ->visible(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
                         ->maxLength(1000)
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
                     try {
+                        $category = (string) ($data['reason_category'] ?? '');
+                        $reason = $category === 'other'
+                            ? trim((string) ($data['rejection_details'] ?? ''))
+                            : self::DISCOUNT_PROOF_REJECTION_REASON_OPTIONS[$category] ?? '';
+
                         app(RejectDiscountProof::class)->handle(
                             proof: $this->record->discountProof,
                             reviewer: auth()->user(),
-                            reason: (string) ($data['reason'] ?? ''),
+                            reason: $reason,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()
@@ -130,24 +165,16 @@ class ViewAccessoryOrderRequest extends ViewRecord
                         || $this->record->discountProof?->status === DiscountProofStatus::Accepted))
                 ->requiresConfirmation()
                 ->modalHeading('Accept Order Request')
-                ->modalDescription('This will create an Optical Order and Billing Record. Stock will be committed.')
-                ->form([
-                    TextInput::make('discount_amount')
-                        ->label('Discount Amount')
-                        ->numeric()
-                        ->prefix('₱')
-                        ->default(0)
-                        ->minValue(0),
-                ])
-                ->action(function (array $data): void {
+                ->modalDescription(($this->record->requested_discount_type === 'none' ? '' : 'The verified 20% discount will be applied automatically. ')
+                    .'This will create an Optical Order and Billing Record. Stock will be committed.')
+                ->action(function (): void {
                     try {
                         $result = app(AcceptAccessoryOrderRequest::class)->handle(
                             orderRequest: $this->record,
                             reviewer: auth()->user(),
-                            discountAmount: (float) ($data['discount_amount'] ?? 0),
                         );
 
-                        $this->record = $this->record->fresh();
+                        $this->record = $this->record->fresh(['jobOrder']);
 
                         Notification::make()
                             ->title('Request accepted')

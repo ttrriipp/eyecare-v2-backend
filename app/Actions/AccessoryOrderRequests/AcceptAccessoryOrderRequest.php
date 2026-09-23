@@ -12,6 +12,7 @@ use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AuditEvent;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\DiscountProofStatus;
+use App\Enums\DiscountType;
 use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\JobOrder;
@@ -40,21 +41,14 @@ class AcceptAccessoryOrderRequest
     public function handle(
         AccessoryOrderRequest $orderRequest,
         User $reviewer,
-        ?float $discountAmount = null,
     ): array {
         $this->assertReviewer($reviewer);
 
-        return DB::transaction(function () use ($orderRequest, $reviewer, $discountAmount): array {
+        return DB::transaction(function () use ($orderRequest, $reviewer): array {
             // Lock and recheck
             $lockedRequest = AccessoryOrderRequest::query()
                 ->lockForUpdate()
                 ->findOrFail($orderRequest->id);
-
-            if ($discountAmount !== null && $discountAmount < 0) {
-                throw ValidationException::withMessages([
-                    'discount_amount' => ['Discount cannot be negative.'],
-                ]);
-            }
 
             // Idempotent: return existing order if already accepted
             if ($lockedRequest->status === AccessoryOrderRequestStatus::Accepted && $lockedRequest->jobOrder !== null) {
@@ -93,19 +87,13 @@ class AcceptAccessoryOrderRequest
                 }
             }
 
-            if ($discountAmount !== null
-                && $discountAmount > 0
-                && ! $reviewer->isAdmin()) {
-                throw ValidationException::withMessages([
-                    'discount_amount' => ['Only administrators can apply a positive discount.'],
-                ]);
-            }
-
-            if ($discountAmount !== null && $discountAmount > (float) $lockedRequest->subtotal_amount) {
-                throw ValidationException::withMessages([
-                    'discount_amount' => ['Discount cannot exceed the request subtotal.'],
-                ]);
-            }
+            $discountType = DiscountType::tryFrom((string) $lockedRequest->requested_discount_type);
+            $discountAmount = $discountType?->isStatutory()
+                ? round(
+                    (float) $lockedRequest->subtotal_amount * (($discountType->percentage() ?? 0) / 100),
+                    2,
+                )
+                : 0.0;
 
             // Revalidate items: active accessory with sufficient usable stock
             $items = $lockedRequest->items()->lockForUpdate()->get();
@@ -202,7 +190,7 @@ class AcceptAccessoryOrderRequest
             );
 
             // Apply discount if provided
-            if ($discountAmount !== null && $discountAmount > 0) {
+            if ($discountAmount > 0) {
                 $billingRecord->update(['discount_amount' => $discountAmount]);
                 app(RecalculateBillingRecordTotals::class)->handle(
                     $billingRecord,
@@ -235,7 +223,7 @@ class AcceptAccessoryOrderRequest
                     'billing_record_id' => $billingRecord->id,
                     'item_count' => $items->count(),
                     'subtotal' => $lockedRequest->subtotal_amount,
-                    'discount_amount' => $discountAmount ?? 0,
+                    'discount_amount' => $discountAmount,
                 ],
                 actorId: $reviewer->id,
             );

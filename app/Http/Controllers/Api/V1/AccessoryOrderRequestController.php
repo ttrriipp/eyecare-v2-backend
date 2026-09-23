@@ -130,10 +130,15 @@ class AccessoryOrderRequestController extends Controller
             abort(404);
         }
 
+        $validated = $request->validate([
+            'reason_details' => ['required', 'string', 'max:1000'],
+        ]);
+
         try {
             $accessoryOrderRequest = app(CancelAccessoryOrderRequest::class)->handle(
                 orderRequest: $accessoryOrderRequest,
                 account: $request->user(),
+                reasonDetails: $validated['reason_details'],
             );
         } catch (ValidationException) {
             return response()->json([
@@ -184,6 +189,7 @@ class AccessoryOrderRequestController extends Controller
                 'item_snapshot' => $item->item_snapshot,
             ]),
             'rejection_reason' => $request->rejection_reason,
+            'cancellation_reason' => $request->encrypted_cancellation_reason,
             'cancelled_at' => $request->cancelled_at?->toISOString(),
             'created_at' => $request->created_at->toISOString(),
             'order' => $request->jobOrder ? [

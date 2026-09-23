@@ -7,6 +7,8 @@
  */
 
 use App\Enums\CommercialItemKind;
+use App\Enums\JobOrderStatus;
+use App\Models\FrameRating;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\LensOption;
@@ -15,6 +17,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -228,4 +231,96 @@ test('ownership scoping remains intact', function () {
     $this->actingAs($otherPatient)
         ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
         ->assertNotFound();
+});
+
+test('patients can stream their private rating attachment from an owned order item', function (): void {
+    Storage::fake('product_review_attachments');
+
+    $variant = ProductVariant::factory()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->frame()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    $path = 'ratings/private-review.jpg';
+    Storage::disk('product_review_attachments')->put($path, 'private owner image');
+    FrameRating::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+        'product_variant_id' => $variant->id,
+        'rating' => 4,
+        'comment' => 'A private review',
+        'attachment_path' => $path,
+        'attachment_mime_type' => 'image/jpeg',
+        'public_attachment_consent_at' => null,
+    ]);
+
+    $attachmentUrl = "/api/v1/optical-order-items/{$item->id}/rating/attachment";
+
+    $this->actingAs($this->patient)
+        ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.rating.owner_attachment_url', $attachmentUrl)
+        ->assertJsonMissingPath('data.items.0.rating.attachment_path');
+
+    $this->actingAs($this->patient)
+        ->get($attachmentUrl)
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/jpeg')
+        ->assertHeader('Cache-Control', 'no-store, private')
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertStreamedContent('private owner image');
+});
+
+test('patients cannot stream another patients rating attachment', function (): void {
+    Storage::fake('product_review_attachments');
+
+    $variant = ProductVariant::factory()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->frame()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    $path = 'ratings/private-review.jpg';
+    Storage::disk('product_review_attachments')->put($path, 'private owner image');
+    FrameRating::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+        'product_variant_id' => $variant->id,
+        'attachment_path' => $path,
+        'attachment_mime_type' => 'image/jpeg',
+    ]);
+
+    $otherPatient = User::factory()->patient()->create();
+
+    $this->actingAs($otherPatient)
+        ->get("/api/v1/optical-order-items/{$item->id}/rating/attachment")
+        ->assertNotFound();
+});
+
+test('order rating attachment URL is null when no image is attached', function (): void {
+    $variant = ProductVariant::factory()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    JobOrderItem::factory()->frame()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    FrameRating::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+        'product_variant_id' => $variant->id,
+        'attachment_path' => null,
+        'attachment_mime_type' => null,
+    ]);
+
+    $this->actingAs($this->patient)
+        ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.rating.owner_attachment_url', null);
 });

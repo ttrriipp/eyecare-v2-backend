@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClinicHourController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FrameController;
+use App\Http\Controllers\Api\FrameRatingAttachmentController;
 use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OpticalOrderController;
@@ -210,4 +211,6 @@ Route::prefix('v1')->middleware([
     Route::post('appointments/{appointment}/rating', [VisitRatingController::class, 'store']);
 
     Route::post('optical-order-items/{item}/rating', [FrameRatingController::class, 'store']);
+    Route::get('optical-order-items/{item}/rating/attachment', [FrameRatingAttachmentController::class, 'show'])
+        ->name('api.v1.optical-order-items.rating.attachment');
 });

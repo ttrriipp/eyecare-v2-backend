@@ -51,6 +51,7 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/me',
         'GET|HEAD api/v1/notifications',
         'GET|HEAD api/v1/notifications/unread-count',
+        'GET|HEAD api/v1/optical-order-items/{item}/rating/attachment',
         'GET|HEAD api/v1/optical-orders',
         'GET|HEAD api/v1/optical-orders/{jobOrder}',
         'GET|HEAD api/v1/optical-orders/{jobOrder}/payment-instructions/{method}/qr',

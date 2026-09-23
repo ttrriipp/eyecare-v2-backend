@@ -3,8 +3,10 @@
 use App\Actions\AccessoryOrderRequests\AcceptAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\RejectAccessoryOrderRequest;
 use App\Enums\CommercialItemKind;
+use App\Enums\DiscountProofStatus;
 use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
+use App\Models\AccessoryOrderRequestDiscountProof;
 use App\Models\AccessoryOrderRequestItem;
 use App\Models\InventoryLot;
 use App\Models\Product;
@@ -67,16 +69,24 @@ test('optometrist-only accounts cannot accept or reject accessory requests', fun
     expect($this->request->fresh()->status->value)->toBe('pending');
 });
 
-test('staff cannot apply a positive discount during acceptance', function (): void {
+test('staff acceptance automatically applies the verified statutory discount', function (): void {
     $reviewer = User::factory()->staff()->create();
+    $this->request->update(['requested_discount_type' => 'pwd']);
+    AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $this->request->id,
+        'user_id' => $this->account->id,
+        'status' => DiscountProofStatus::Accepted,
+    ]);
 
-    expect(fn () => app(AcceptAccessoryOrderRequest::class)->handle(
+    $result = app(AcceptAccessoryOrderRequest::class)->handle(
         orderRequest: $this->request,
         reviewer: $reviewer,
-        discountAmount: 10,
-    ))->toThrow(ValidationException::class);
+    );
+    $billingRecord = $result['order']->fresh(['billingRecord'])->billingRecord;
 
-    expect($this->request->fresh()->status->value)->toBe('pending');
+    expect($this->request->fresh()->status->value)->toBe('accepted')
+        ->and((float) $billingRecord->discount_amount)->toBe(20.0)
+        ->and((float) $billingRecord->total_amount)->toBe(80.0);
 });
 
 test('an administrator accepts the complete request into a pending-payment order', function (): void {

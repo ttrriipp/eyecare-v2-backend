@@ -60,6 +60,12 @@ class AccessoryOrderRequestInfolist
                 TextEntry::make('created_at')
                     ->label('Submitted')
                     ->dateTime('M j, Y g:i A'),
+                TextEntry::make('encrypted_cancellation_reason')
+                    ->label('Patient cancellation reason')
+                    ->placeholder('—')
+                    ->columnSpanFull()
+                    ->visible(fn (AccessoryOrderRequest $record): bool => $record->status === AccessoryOrderRequestStatus::Cancelled
+                        && filled($record->encrypted_cancellation_reason)),
                 TextEntry::make('resolvedBy.full_name')
                     ->label('Resolved by')
                     ->placeholder('Awaiting review')

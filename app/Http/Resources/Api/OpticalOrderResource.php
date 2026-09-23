@@ -140,8 +140,11 @@ class OpticalOrderResource extends JsonResource
     /**
      * Get the patient's rating for an item, if any.
      */
-    private function getItemRating($item, $ratingsByVariant, Request $request): ?array
-    {
+    private function getItemRating(
+        JobOrderItem $item,
+        Collection $ratingsByVariant,
+        Request $request,
+    ): ?array {
         if ($item->product_variant_id === null) {
             return null;
         }
@@ -161,7 +164,22 @@ class OpticalOrderResource extends JsonResource
                 : app(FilterProfanity::class)->handle($rating->comment),
             'created_at' => $rating->created_at?->toIso8601String(),
             'revision_number' => 1,
+            'owner_attachment_url' => $this->getOwnerAttachmentUrl($item, $rating),
         ];
+    }
+
+    private function getOwnerAttachmentUrl(JobOrderItem $item, FrameRating $rating): ?string
+    {
+        if (
+            blank($rating->attachment_path)
+            || ! in_array($rating->attachment_mime_type, ['image/jpeg', 'image/png'], true)
+        ) {
+            return null;
+        }
+
+        return route('api.v1.optical-order-items.rating.attachment', [
+            'item' => $item->getKey(),
+        ], false);
     }
 
     /**
@@ -169,7 +187,7 @@ class OpticalOrderResource extends JsonResource
      *
      * @return Collection<int, FrameRating>
      */
-    private function getRatingsByVariant(Request $request)
+    private function getRatingsByVariant(Request $request): Collection
     {
         $patient = $request->user()?->patient;
 
