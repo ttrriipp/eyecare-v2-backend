@@ -150,6 +150,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         // Frame catalog browsing does not require a linked patient record.
         Route::get('frames', [FrameController::class, 'index']);
         Route::get('frames/{frame}', [FrameController::class, 'show']);
+        Route::get('frames/{frame}/reviews', [FrameController::class, 'reviews']);
 
         // Saved Frames (account-owned preferences, no patient link required)
         Route::get('saved-frames', [SavedFrameController::class, 'index']);
@@ -166,6 +167,7 @@ Route::prefix('v1')->middleware([
 ])->group(function (): void {
     Route::get('accessories', [AccessoryCatalogController::class, 'index']);
     Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
+    Route::get('accessories/{accessory}/reviews', [AccessoryCatalogController::class, 'reviews']);
 });
 
 // Authenticated clinical routes (active patient link required)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\AccessoryResource;
+use App\Http\Resources\Api\PublicProductReviewResource;
 use App\Models\FrameRating;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
@@ -47,27 +48,32 @@ class AccessoryCatalogController extends Controller
         return AccessoryResource::make($catalogAccessory);
     }
 
+    public function reviews(Request $request, Product $accessory): AnonymousResourceCollection
+    {
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        abort_unless($this->visibleCatalogQuery()->whereKey($accessory->getKey())->exists(), 404);
+
+        $reviews = FrameRating::query()
+            ->publiclyDisplayable()
+            ->whereHas('variant', fn (Builder $query) => $query
+                ->where('product_id', $accessory->getKey()))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 15));
+
+        return PublicProductReviewResource::collection($reviews);
+    }
+
     /**
      * @return Builder<Product>
      */
     private function catalogQuery(): Builder
     {
-        $query = Product::query()
-            ->active()
-            ->where('product_type', 'accessory')
-            ->whereHas('variants', function (Builder $variantQuery): void {
-                $variantQuery
-                    ->where('is_active', true)
-                    ->whereHas('inventoryLots', function (Builder $lotQuery): void {
-                        $lotQuery
-                            ->where('quantity_on_hand', '>', 0)
-                            ->where(function (Builder $expiryQuery): void {
-                                $expiryQuery
-                                    ->whereNull('expires_on')
-                                    ->orWhereDate('expires_on', '>=', today());
-                            });
-                    });
-            })
+        $query = $this->visibleCatalogQuery()
             ->with([
                 'brand',
                 'category',
@@ -94,6 +100,29 @@ class AccessoryCatalogController extends Controller
             ->select('products.*')
             ->selectSub($averageRating, 'average_rating')
             ->selectSub($ratingCount, 'rating_count');
+    }
+
+    /**
+     * @return Builder<Product>
+     */
+    private function visibleCatalogQuery(): Builder
+    {
+        return Product::query()
+            ->active()
+            ->where('product_type', 'accessory')
+            ->whereHas('variants', function (Builder $variantQuery): void {
+                $variantQuery
+                    ->where('is_active', true)
+                    ->whereHas('inventoryLots', function (Builder $lotQuery): void {
+                        $lotQuery
+                            ->where('quantity_on_hand', '>', 0)
+                            ->where(function (Builder $expiryQuery): void {
+                                $expiryQuery
+                                    ->whereNull('expires_on')
+                                    ->orWhereDate('expires_on', '>=', today());
+                            });
+                    });
+            });
     }
 
     /**

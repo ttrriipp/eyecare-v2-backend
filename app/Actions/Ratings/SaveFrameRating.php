@@ -27,6 +27,7 @@ class SaveFrameRating
         int $rating,
         ?string $comment = null,
         ?DispensingEvent $dispensingEvent = null,
+        bool $publicDisplayConsent = false,
     ): FrameRating {
         if ($rating < 1 || $rating > 5) {
             throw ValidationException::withMessages([
@@ -34,9 +35,12 @@ class SaveFrameRating
             ]);
         }
 
+        $publicDisplayConsentAt = $publicDisplayConsent && trim($comment ?? '') !== ''
+            ? now()
+            : null;
         $shouldNotify = false;
 
-        $frameRating = DB::transaction(function () use ($patient, $variant, $rating, $comment, $dispensingEvent, &$shouldNotify): FrameRating {
+        $frameRating = DB::transaction(function () use ($patient, $variant, $rating, $comment, $dispensingEvent, $publicDisplayConsentAt, &$shouldNotify): FrameRating {
             $existing = FrameRating::query()
                 ->where('patient_id', $patient->id)
                 ->where('product_variant_id', $variant->id)
@@ -50,6 +54,7 @@ class SaveFrameRating
                 $existing->update([
                     'rating' => $rating,
                     'comment' => $comment,
+                    'public_display_consent_at' => $publicDisplayConsentAt,
                 ]);
 
                 return $existing->fresh();
@@ -63,6 +68,7 @@ class SaveFrameRating
                 'dispensing_event_id' => $dispensingEvent?->id,
                 'rating' => $rating,
                 'comment' => $comment,
+                'public_display_consent_at' => $publicDisplayConsentAt,
             ]);
         });
 

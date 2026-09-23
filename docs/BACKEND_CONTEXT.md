@@ -2,12 +2,12 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-09-19.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-09-23.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
-> unified billing with explicit charge provenance, and Saved Frames have been
-> implemented. The admin sidebar
+> unified billing with explicit charge provenance, Saved Frames, and
+> consent-gated public product reviews have been implemented. The admin sidebar
 > was restructured into a workflow-shaped taxonomy (Today, Patients,
 > Clinical, Optical, Billing, Catalog, Admin), Availability is now a
 > Filament cluster (Clinic Hours, Schedule Overrides,
@@ -1129,6 +1129,7 @@ PATCH  /api/v1/notifications/{notification}/read Mark read
 PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
+GET    /api/v1/frames/{id}/reviews
 GET    /api/v1/appointment-request-availability
 GET    /api/v1/appointment-requests/current  Get current booking journey
 GET    /api/v1/appointment-requests
@@ -1170,10 +1171,42 @@ Frame browsing remains account-only and does not require an active patient link,
 and Saved Frames are account-owned preferences that do not require an active
 patient link. Staff see them only through a Patient's current link.
 
+Public product reviews use `GET /api/v1/frames/{id}/reviews` and
+`GET /api/v1/accessories/{id}/reviews`, with each route applying its matching
+catalog's existing authentication, role, and product-visibility rules. Both
+return paginated records containing only `rating`, profanity-masked `comment`,
+and ISO `created_at`; for example:
+
+```json
+{
+  "data": [
+    {
+      "rating": 5,
+      "comment": "Comfortable and sturdy.",
+      "created_at": "2026-09-20T10:00:00+08:00"
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1 }
+}
+```
+
+They omit a review ID and all patient/account identity, contact,
+order/dispensing, and moderation fields. Android displays the fixed label
+“Verified buyer.” Only a non-blank comment with explicit
+`public_display_consent` is eligible; a nullable
+`public_display_consent_at` records when the current comment was opted in.
+Older comments without that consent remain private, and hidden or soft-deleted
+comments are excluded. Clients must present a separate, unchecked-by-default
+opt-in and send consent only after the patient selects it. The existing rating
+aggregates continue to include hidden ratings and do not depend on comment
+consent.
+
 ### Authenticated Patient Account (token + patient role)
 ```
 GET    /api/v1/accessories
 GET    /api/v1/accessories/{id}
+GET    /api/v1/accessories/{id}/reviews
 ```
 
 Accessory catalog reads require authentication and the patient role, but no
@@ -1201,9 +1234,9 @@ GET    /api/v1/optical-orders/{id}/payment-instructions/{method}/qr
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 17
-active-link = **70 registered routes total**. The normal patient contract count
-is **69** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 46 account-only + 17
+active-link = **72 registered routes total**. The normal patient contract count
+is **71** when the disabled-by-default pilot route is excluded.
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1363,7 +1396,7 @@ have never been referenced.
 - **Product variant defaults:** Product create is intentionally two-stage: create the Product first, then add variants from its edit page. The frame and generic **Default Variant Details** sections are collapsible. `default_variant_attributes` stores type-specific defaults — structured frame dimensions/color/material plus other key/value details, or generic key/value details for contact lenses/accessories. The migration backfills defaults from a single active variant or attributes identical across all active variants without mutating variant rows. Relation-manager Create Variant forms prefill those stored defaults; when generic defaults are empty, existing variant keys are shown as blank placeholders. Defaults are merged only when a new variant is created; later changes do not update existing variants. Variant names are unique within a product after trimming and collapsing whitespace.
 - **Optical-order discounts:** `DiscountType` supports `None`, `SeniorCitizen` (20%), `Pwd` (20%), and admin-custom `Other`. Senior Citizen requires a patient age of at least 60; an age-eligible patient must use that type. Positive discounts are admin-only, no-discount orders cannot include an amount, and a discount cannot exceed the subtotal.
 - **Billing payment corrections:** Corrections remain an administrator-only append-only domain action: the original `posted` payment becomes `reversed` and a replacement `posted` payment is created. The current Filament Payments table no longer exposes a correction action or status column, but its view surface retains correction details.
-- **Ratings:** There is one current visit rating per fulfilled appointment and one current frame rating per patient/product variant; later submissions update in place and do not create revision history. Visit and frame comments pass through the profanity filter before persistence. Hidden comments remain visible to their author, are suppressed for other readers, and never remove the star value from aggregates.
+- **Ratings:** There is one current visit rating per fulfilled appointment and one current frame rating per patient/product variant; later submissions update in place and do not create revision history. Visit and frame comments are profanity-masked in patient API responses; the original text remains stored internally. Hidden comments remain visible to their author, are suppressed for other readers, and never remove the star value from aggregates. Frame-rating submissions accept an optional `public_display_consent` boolean; the current non-empty comment is public only when explicit consent is recorded in `public_display_consent_at`. Omitted/false consent leaves it private, including for all pre-existing comments. Public product review lists omit hidden and deleted comments and expose only the rating, masked comment, and submission timestamp without reviewer identity.
 - **Encounter service charges:** The in-progress/completed Encounter edit page offers **Add Service Charge** and **View Billing Record**; charges append to the patient's single open visit Billing Record.
 - **Service-charge entry:** Add Service Charge is a compact modal shared by Billing Records and Encounters. Catalog-service lines derive and lock the catalog name and price; custom-service lines require an editable description and unit price. The modal contains no prescription, fulfillment, supplier, deposit, or pickup controls and appends the normalized lines to the patient's existing open Billing Record.
 - **Encounter workflow:** Four-step autosaving wizard (History, Examination, Assessment & Plan, Review & Complete). Check-in creates a planned Encounter without attaching PatientIntake, copies assigned provider, and prefills chief complaint from appointment reason. Start uses self-claim pattern — the actor becomes the provider when unassigned; only the assigned optometrist can start otherwise. Draft saves via `SaveEncounterDraft` trim and cap narrative at 10,000 characters. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; only the assigned active optometrist can complete. Optional prescription finalizes atomically in the same transaction. Completed encounters are immutable; corrections (original author only) and supplements (any active optometrist) use append-only `encounter_addenda` records.

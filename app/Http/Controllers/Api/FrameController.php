@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\PublicProductReviewResource;
 use App\Http\Resources\FrameResource;
+use App\Models\FrameRating;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -15,22 +18,7 @@ class FrameController extends Controller
     {
         $userId = $request->user()?->id;
 
-        $query = Product::query()
-            ->active()
-            ->where('product_type', 'frame')
-            ->where(function ($q): void {
-                $q->whereHas('variants', fn ($sub) => $sub
-                    ->where('is_active', true)
-                    ->where(function ($variantQuery): void {
-                        $variantQuery
-                            ->where(fn ($legacyQuery) => $legacyQuery
-                                ->where('ar_eligible', true)
-                                ->whereNotNull('ar_asset_reference'))
-                            ->orWhereHas('publishedArAsset');
-                    }))
-                    ->orWhereDoesntHave('variants', fn ($sub) => $sub
-                        ->where('ar_eligible', true));
-            })
+        $query = $this->frameCatalogQuery()
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
                 ->with(['ratings', 'publishedArAsset'])
@@ -70,23 +58,8 @@ class FrameController extends Controller
     {
         $userId = request()->user()?->id;
 
-        $catalogFrame = Product::query()
-            ->active()
-            ->where('product_type', 'frame')
-            ->where('id', $frame->id)
-            ->where(function ($q): void {
-                $q->whereHas('variants', fn ($sub) => $sub
-                    ->where('is_active', true)
-                    ->where(function ($variantQuery): void {
-                        $variantQuery
-                            ->where(fn ($legacyQuery) => $legacyQuery
-                                ->where('ar_eligible', true)
-                                ->whereNotNull('ar_asset_reference'))
-                            ->orWhereHas('publishedArAsset');
-                    }))
-                    ->orWhereDoesntHave('variants', fn ($sub) => $sub
-                        ->where('ar_eligible', true));
-            })
+        $catalogFrame = $this->frameCatalogQuery()
+            ->whereKey($frame->getKey())
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
                 ->with(['ratings', 'publishedArAsset'])
@@ -100,5 +73,48 @@ class FrameController extends Controller
         return response()->json([
             'data' => FrameResource::make($catalogFrame),
         ]);
+    }
+
+    public function reviews(Request $request, Product $frame): AnonymousResourceCollection
+    {
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        abort_unless($this->frameCatalogQuery()->whereKey($frame->getKey())->exists(), 404);
+
+        $reviews = FrameRating::query()
+            ->publiclyDisplayable()
+            ->whereHas('variant', fn (Builder $query) => $query
+                ->where('product_id', $frame->getKey()))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 15));
+
+        return PublicProductReviewResource::collection($reviews);
+    }
+
+    /**
+     * @return Builder<Product>
+     */
+    private function frameCatalogQuery(): Builder
+    {
+        return Product::query()
+            ->active()
+            ->where('product_type', 'frame')
+            ->where(function (Builder $query): void {
+                $query->whereHas('variants', fn (Builder $variantQuery) => $variantQuery
+                    ->where('is_active', true)
+                    ->where(function (Builder $assetQuery): void {
+                        $assetQuery
+                            ->where(fn (Builder $legacyQuery) => $legacyQuery
+                                ->where('ar_eligible', true)
+                                ->whereNotNull('ar_asset_reference'))
+                            ->orWhereHas('publishedArAsset');
+                    }))
+                    ->orWhereDoesntHave('variants', fn (Builder $variantQuery) => $variantQuery
+                        ->where('ar_eligible', true));
+            });
     }
 }

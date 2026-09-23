@@ -128,6 +128,42 @@ test('rating can be revised on subsequent submissions', function () {
         ->assertJsonPath('data.comment', 'Even better after use!');
 });
 
+test('public comment consent is recorded and withdrawn when a revision omits consent', function (): void {
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 5,
+            'comment' => 'Great frame',
+            'public_display_consent' => true,
+        ])
+        ->assertCreated()
+        ->assertJsonMissingPath('data.public_display_consent_at');
+
+    $rating = FrameRating::query()->sole();
+
+    expect($rating->public_display_consent_at)->not->toBeNull();
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 5,
+            'comment' => 'Still a great frame',
+        ])
+        ->assertCreated();
+
+    expect($rating->fresh()->public_display_consent_at)->toBeNull();
+});
+
 test('rating is rejected for another patients job order item', function () {
     $userA = User::factory()->patient()->create();
     $userB = User::factory()->patient()->create();

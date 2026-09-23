@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'dispensing_event_id',
     'rating',
     'comment',
+    'public_display_consent_at',
     'is_hidden',
     'moderation_reason',
     'moderated_by',
@@ -22,6 +24,24 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class FrameRating extends Model
 {
     use HasFactory, SoftDeletes;
+
+    /**
+     * Scope to comments explicitly opted into public display.
+     *
+     * @param  Builder<FrameRating>  $query
+     * @return Builder<FrameRating>
+     */
+    public function scopePubliclyDisplayable(Builder $query): Builder
+    {
+        $model = $query->getModel();
+        $commentColumn = $model->qualifyColumn('comment');
+
+        return $query
+            ->whereNotNull($model->qualifyColumn('public_display_consent_at'))
+            ->where($model->qualifyColumn('is_hidden'), false)
+            ->whereNotNull($commentColumn)
+            ->whereRaw("TRIM({$commentColumn}) <> ?", ['']);
+    }
 
     /**
      * @return BelongsTo<Patient, $this>
@@ -56,6 +76,7 @@ class FrameRating extends Model
             'rating' => 'integer',
             'is_hidden' => 'boolean',
             'moderated_at' => 'datetime',
+            'public_display_consent_at' => 'datetime',
         ];
     }
 }

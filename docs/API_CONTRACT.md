@@ -12,16 +12,23 @@
 > eligible candidates, and `patient-links:audit-identity` reconciles existing
 > links in dry-run or explicit `--mark-review` mode.
 
-> **Backend version:** Current repository state (2026-09-22) — patient
+> **Backend version:** Current repository state (2026-09-23) — patient
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The normal patient-mobile contract has 69
-> routes (8 public + 44 account-only + 17 active-link). One additive,
-> pilot-only public route is also registered, making 70 routes in the registry;
+> from the mobile notification feed. The normal patient-mobile contract has 71
+> routes (8 public + 46 account-only + 17 active-link). One additive,
+> pilot-only public route is also registered, making 72 routes in the registry;
 > it is disabled by default and excluded from the normal contract count. The
 > accessory catalog is account-only; the request lifecycle and payment-proof
 > and discount-proof routes remain active-link commerce routes documented below.
+
+> **Shipped 2026-09-23: consent-gated product reviews.** Authenticated frame
+> and accessory catalog routes expose only non-blank comments explicitly opted
+> into public display. Hidden, deleted, and legacy comments without consent
+> remain private. The response contains rating, masked comment, and submission
+> time without reviewer identity or moderation data. See the frame and
+> accessory catalog sections below.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
 > cancellation of a confirmed appointment or pending appointment request is
@@ -66,16 +73,16 @@
 > reject an expired prescription.
 
 > **Shipped 2026-09-16: rating comment filtering.** Visit and frame rating
-> comments are profanity-masked before persistence and are therefore returned
-> in their masked form. Frame-rating submissions remain an upsert, but later
+> comments are profanity-masked in patient API responses; the original comment
+> remains stored internally. Frame-rating submissions remain an upsert, but later
 > submissions update the same row in place; there is no revision history and
 > the endpoint returns `201` for both create and update.
 
 > **Pilot-only authentication.** `POST /auth/participant-login` is an additive
 > public route for provisioned capstone participants. It returns `404` unless
 > deployment is in pilot mode, pilot mode is enabled, and the configured pilot
-> expiry is in the future. It is excluded from the normal 68-route contract
-> count; including it, the route registry contains 69 routes.
+> expiry is in the future. It is excluded from the normal 71-route contract
+> count; including it, the route registry contains 72 routes.
 
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
@@ -2218,6 +2225,41 @@ including the nullable `ar` field and the same image-preview fallback rules.
 
 Each variant now includes an account-specific `is_saved` boolean field.
 
+### GET `/frames/{id}/reviews`
+
+Returns the paginated public reviews for a frame that is currently visible
+through the same frame-catalog eligibility rules as `GET /frames/{id}`.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:** `page` (integer >= 1) and `per_page` (integer 1–50,
+default 15).
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "rating": 5,
+      "comment": "Comfortable and sturdy.",
+      "created_at": "2026-09-20T10:00:00+08:00"
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1 }
+}
+```
+
+Only comments with explicit public-display consent, non-blank text, and no
+moderation hide are included. Soft-deleted ratings are excluded. Existing
+comments have no recorded public-display consent and remain private unless a
+patient submits the current comment again with consent. The response contains
+no review ID, patient/account identity, contact detail, order or dispensing
+identifier, or moderation field. Android displays the fixed reviewer label
+`Verified buyer`; the API does not return a reviewer label or identity.
+Comments are profanity-masked in the response. Reviews are ordered by
+submission time, newest first, with a stable ID tie-breaker.
+
 ---
 
 ## 12. Saved Frames
@@ -2460,6 +2502,28 @@ retired `placement` query parameter is prohibited and returns HTTP 422 when
 sent. The catalog does not read prescription measurements, infer compatibility,
 or bind an accessory order request to a Prescription. Catalog reads are
 query-only and never reserve stock; unauthenticated requests return `401`.
+
+### GET `/accessories/{id}/reviews`
+
+Returns the paginated public reviews for an accessory that is currently
+visible through the same active, in-stock accessory-catalog rules as
+`GET /accessories/{id}`.
+
+**Auth:** Required (Sanctum token) and patient role. No active patient link
+required.
+
+**Query parameters:** `page` (integer >= 1) and `per_page` (integer 1–50,
+default 15).
+
+The response uses the same paginated shape and allowlisted review fields as
+`GET /frames/{id}/reviews`: `rating`, profanity-masked `comment`, and ISO
+`created_at`. It excludes review IDs and all patient/account identity,
+contact, order, dispensing, and moderation fields. A review is included only
+when its comment is non-blank, its rating has explicit public-display consent,
+and it is neither hidden nor soft-deleted. The customer app displays the
+fixed label `Verified buyer`. Existing comments remain private unless
+resubmitted with explicit consent. Hidden rating stars continue to count in
+the existing product rating aggregates.
 
 ### Order request lifecycle
 
@@ -2940,12 +3004,21 @@ or revision history.
   "product_variant_id": "integer (nullable, derived from route item when omitted)",
   "rating": "integer (required, 1-5)",
   "comment": "string (nullable, max:1000)",
+  "public_display_consent": "boolean (optional; true opts the current non-empty comment into public display)",
   "dispensing_event_id": "integer (nullable, must belong to the same job order)"
 }
 ```
 
 `product_variant_id` is optional. When omitted, the server derives it from the
 route's job-order item. When supplied, it must match the item's variant.
+`public_display_consent` is optional and defaults to false, preserving rating
+submission for clients that do not send it. Consent applies only to the
+current non-empty comment: omitted or false consent keeps that comment
+private, and replacing a comment requires opting in again. The server records
+when explicit consent is given. Clients must present a separate,
+unchecked-by-default opt-in and send `true` only after the patient selects it.
+Existing rows have no consent timestamp and are never made public by default.
+This field does not change rating-write eligibility.
 
 **Response:** `201 Created` on both the first rating and later updates.
 
@@ -2965,11 +3038,13 @@ patient-safe fields:
 }
 ```
 
-**Comment filtering and visibility:** Comment text is profanity-masked before
-it is persisted and returned. When staff hide a comment, the author still sees
+**Comment filtering and visibility:** Comment text is profanity-masked in
+patient API responses; the original comment remains stored internally. When
+staff hide a comment, the author still sees
 their own masked `comment` text. Other patients and aggregate surfaces see
 `comment: null`. The star value always counts toward averages regardless of
-hiding.
+hiding or public-display consent. Public product review lists include only
+non-hidden, non-deleted comments with an explicit consent timestamp.
 
 **Fields excluded from response:** `patient_id`, `is_hidden`, `moderation_reason`,
 `moderated_by`, `moderated_at`, `current_revision_id`, `deleted_at`, `updated_at`,
@@ -3509,8 +3584,10 @@ authentication path. Current behavior is authoritative in the sections above.
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
+| `GET /frames/{id}/reviews` | List consented public frame reviews |
 | `GET /accessories` | List active, in-stock accessory Products with rating/filter support |
 | `GET /accessories/{id}` | Get one patient-safe accessory Product |
+| `GET /accessories/{id}/reviews` | List consented public accessory reviews |
 | `GET /accessory-order-requests` | List linked-account current/history Order Requests |
 | `POST /accessory-order-requests` | Submit a multi-item accessory Order Request |
 | `GET /accessory-order-requests/{id}` | Get an owned Order Request |
@@ -3733,6 +3810,7 @@ PATCH  /api/v1/appointment-requests/{id}       Update pending request schedule
 POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
 GET    /api/v1/frames                         List frames
 GET    /api/v1/frames/{id}                    Get frame detail
+GET    /api/v1/frames/{id}/reviews            List consented public frame reviews
 GET    /api/v1/saved-frames                   List saved frames
 PUT    /api/v1/saved-frames/{productVariant}  Save a frame variant
 DELETE /api/v1/saved-frames/{productVariant}  Remove a saved frame
@@ -3764,6 +3842,7 @@ limits also include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
 ```
 GET    /api/v1/accessories                    List accessory catalog
 GET    /api/v1/accessories/{id}               Get accessory detail
+GET    /api/v1/accessories/{id}/reviews       List consented public accessory reviews
 ```
 
 These catalog reads allow linked, pending-link, and unlinked patient-role
@@ -3794,6 +3873,6 @@ GET    /api/v1/optical-orders/{id}/payment-instructions/{method}/qr  Stream priv
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 44 account-only + 17
-active-link = **70 registered routes total**. The normal patient-mobile
-contract is **69 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 46 account-only + 17
+active-link = **72 registered routes total**. The normal patient-mobile
+contract is **71 routes** when the disabled-by-default pilot route is excluded.
