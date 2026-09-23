@@ -165,7 +165,7 @@
                             </div>
                         </div>
 
-                        <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="grid grid-cols-1 gap-4">
                             <div class="fi-fo-field">
                                 <label for="scheduled-date" class="fi-fo-field-label">
                                     <span class="fi-fo-field-label-content">
@@ -178,11 +178,17 @@
                                         id="scheduled-date"
                                         type="date"
                                         wire:model.live="scheduledDate"
+                                        min="{{ today()->addDay()->toDateString() }}"
                                         required
                                         :aria-describedby="$errors->has('scheduledDate') ? 'scheduled-date-error' : null"
                                         :aria-invalid="$errors->has('scheduledDate') ? 'true' : 'false'"
                                     />
                                 </x-filament::input.wrapper>
+                                @unless ($this->isRebooking())
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Same-day visits must be registered as Walk-in. Scheduled requests start tomorrow.
+                                    </p>
+                                @endunless
                                 @error('scheduledDate')
                                     <p id="scheduled-date-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
                                 @enderror

@@ -525,6 +525,19 @@ test('review page omits section helper descriptions', function () {
         ->and($html)->toContain('Calendar');
 });
 
+test('date and time fields use a full-width layout in scheduling details', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->linked()->create();
+
+    $this->actingAs($staff);
+
+    $html = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])->html();
+
+    expect($html)->toContain('id="scheduled-date"')
+        ->and($html)->toContain('id="scheduled-time"')
+        ->and($html)->toContain('class="grid grid-cols-1 gap-4"');
+});
+
 test('selecting a preference or open calendar slot updates one scheduling state', function () {
     $staff = User::factory()->staff()->create();
     $request = AppointmentRequest::factory()->linked()->withAlternatives()->create();

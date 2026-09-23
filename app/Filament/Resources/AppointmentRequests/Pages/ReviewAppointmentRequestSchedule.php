@@ -152,12 +152,25 @@ class ReviewAppointmentRequestSchedule extends Page
      */
     public function preferenceDecisions(): array
     {
-        return app(EvaluateAppointmentRequestPreferences::class)->handle(
+        $decisions = app(EvaluateAppointmentRequestPreferences::class)->handle(
             request: $this->getRecord(),
             durationMinutes: $this->durationMinutes,
             optometrist: $this->selectedOptometrist(),
             ignoreAppointment: $this->reviewedAppointment(),
         );
+
+        if ($this->isRebooking()) {
+            return $decisions;
+        }
+
+        return array_map(function (array $decision): array {
+            if ($decision['starts_at']->copy()->setTimezone(config('app.timezone'))->isToday()) {
+                $decision['available'] = false;
+                $decision['reason'] = 'same_day_walk_in';
+            }
+
+            return $decision;
+        }, $decisions);
     }
 
     public function reasonLabel(?string $reason): string
@@ -167,6 +180,7 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         return match ($reason) {
+            'same_day_walk_in' => 'Walk-in required',
             'clinic_closed' => 'Clinic closed',
             'outside_clinic_hours' => 'Outside clinic hours',
             'capacity_reached' => $this->optometristId === null
@@ -185,6 +199,7 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         return match ($reason) {
+            'same_day_walk_in' => 'Walk-in required',
             'clinic_closed' => 'Clinic closed',
             'outside_clinic_hours' => 'Outside clinic hours',
             'capacity_reached' => $this->optometristId === null ? 'Time unavailable' : 'Provider unavailable',
@@ -237,8 +252,16 @@ class ReviewAppointmentRequestSchedule extends Page
             ];
         }
 
-        $evaluator = app(EvaluateAppointmentAvailability::class);
         $reviewedAppointment = $this->reviewedAppointment();
+
+        if ($reviewedAppointment === null && $startsAt->isToday()) {
+            return [
+                'state' => 'unavailable',
+                'label' => Appointment::SAME_DAY_SCHEDULE_MESSAGE,
+            ];
+        }
+
+        $evaluator = app(EvaluateAppointmentAvailability::class);
 
         if ($reviewedAppointment !== null && $reviewedAppointment->isRescheduleDateToday($startsAt)) {
             return [
@@ -374,11 +397,17 @@ class ReviewAppointmentRequestSchedule extends Page
             $durationRules[] = 'multiple_of:5';
         }
 
+        $scheduledDateRules = ['required', 'date'];
+
+        if (! $this->isRebooking()) {
+            $scheduledDateRules[] = 'after:today';
+        }
+
         $this->validate([
             'appointmentTypeId' => ['required', 'integer'],
             'durationMinutes' => $durationRules,
             'optometristId' => ['nullable', 'integer'],
-            'scheduledDate' => ['required', 'date'],
+            'scheduledDate' => $scheduledDateRules,
             'scheduledTime' => ['required', 'date_format:H:i'],
             'referringSource' => [
                 'nullable',

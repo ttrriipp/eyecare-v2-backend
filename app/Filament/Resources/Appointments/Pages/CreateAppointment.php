@@ -46,7 +46,23 @@ class CreateAppointment extends CreateRecord
         if ($scheduledAt) {
             $dateTime = Carbon::parse($scheduledAt);
             $this->data['scheduled_at'] = $dateTime->toDateString();
-            $this->data['appointment_time'] = $dateTime->format('H:i');
+            $appointmentTime = $dateTime->format('H:i');
+            $durationMinutes = (int) ($this->data['duration_minutes'] ?? 30);
+            $timeOptions = AppointmentForm::appointmentTimeOptions(
+                $dateTime->toDateString(),
+                $durationMinutes,
+            );
+
+            if (array_key_exists($appointmentTime, $timeOptions)) {
+                $this->data['appointment_time'] = $appointmentTime;
+            } else {
+                $this->data['appointment_time'] = AppointmentForm::CUSTOM_APPOINTMENT_TIME_VALUE;
+                $this->data['custom_appointment_time'] = $appointmentTime;
+            }
+
+            if ($dateTime->isToday()) {
+                $this->data['is_walk_in'] = 'walk_in';
+            }
         }
     }
 
@@ -56,6 +72,19 @@ class CreateAppointment extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $isWalkIn = ($data['is_walk_in'] ?? null) === 'walk_in';
+        $scheduledDate = $data['scheduled_at'] ?? null;
+
+        if (
+            ! $isWalkIn
+            && filled($scheduledDate)
+            && Carbon::parse((string) $scheduledDate, config('app.timezone'))->isToday()
+        ) {
+            throw ValidationException::withMessages([
+                'data.scheduled_at' => [Appointment::SAME_DAY_SCHEDULE_MESSAGE],
+            ]);
+        }
+
         // Create patient from new patient fields if mode is 'new'
         if (empty($data['patient_id']) && ($data['patient_mode'] ?? null) === 'new') {
             $first = $this->data['new_patient_first_name'] ?? null;
@@ -89,7 +118,6 @@ class CreateAppointment extends CreateRecord
             }
         }
 
-        $isWalkIn = ($data['is_walk_in'] ?? null) === 'walk_in';
         unset($data['is_walk_in']);
 
         $appointmentType = AppointmentType::query()->find($data['appointment_type_id'] ?? null);
@@ -125,18 +153,21 @@ class CreateAppointment extends CreateRecord
                 ->value('id');
             $data['checked_in_at'] = now();
             $data['checked_in_by'] = auth()->id();
-            unset($data['appointment_time']);
+            unset($data['appointment_time'], $data['custom_appointment_time']);
         } else {
             $data['source'] = 'manual';
+            $appointmentTime = ($data['appointment_time'] ?? null) === AppointmentForm::CUSTOM_APPOINTMENT_TIME_VALUE
+                ? ($data['custom_appointment_time'] ?? null)
+                : ($data['appointment_time'] ?? null);
 
-            if (filled($data['scheduled_at'] ?? null) && filled($data['appointment_time'] ?? null)) {
+            if (filled($data['scheduled_at'] ?? null) && filled($appointmentTime)) {
                 $data['scheduled_at'] = AppointmentTime::combine(
                     $data['scheduled_at'],
-                    $data['appointment_time'],
+                    $appointmentTime,
                 );
             }
 
-            unset($data['appointment_time']);
+            unset($data['appointment_time'], $data['custom_appointment_time']);
 
             $data['appointment_status_id'] = AppointmentStatus::query()
                 ->where('name', 'scheduled')
@@ -299,7 +330,9 @@ class CreateAppointment extends CreateRecord
         }
 
         $date = $this->data['scheduled_at'] ?? null;
-        $time = $this->data['appointment_time'] ?? null;
+        $time = ($this->data['appointment_time'] ?? null) === AppointmentForm::CUSTOM_APPOINTMENT_TIME_VALUE
+            ? ($this->data['custom_appointment_time'] ?? null)
+            : ($this->data['appointment_time'] ?? null);
         $duration = (int) ($this->data['duration_minutes'] ?? 0);
 
         if (blank($date) || blank($time) || $duration < 5) {

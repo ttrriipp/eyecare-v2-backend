@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Appointments\Schemas;
 
+use App\Actions\Appointments\ClinicSchedule;
+use App\Actions\Appointments\EvaluateAppointmentAvailability;
 use App\Actions\Patients\SearchPatientDuplicates;
 use App\Filament\Support\PatientDuplicateMatchCard;
 use App\Models\Appointment;
@@ -22,12 +24,15 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\TextSize;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class AppointmentForm
 {
     public const CUSTOM_REASON_VALUE = '__custom__';
+
+    public const CUSTOM_APPOINTMENT_TIME_VALUE = '__custom_time__';
 
     /**
      * @return array<string, string>
@@ -53,6 +58,80 @@ class AppointmentForm
         unset($options[self::CUSTOM_REASON_VALUE]);
 
         return $options !== [];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function appointmentTimeOptions(
+        mixed $scheduledDate,
+        mixed $durationMinutes,
+        ?string $additionalTime = null,
+        ?Appointment $ignoreAppointment = null,
+    ): array {
+        try {
+            $date = filled($scheduledDate)
+                ? Carbon::parse((string) $scheduledDate, config('app.timezone'))
+                : today()->addDay();
+        } catch (\Throwable) {
+            $date = today()->addDay();
+        }
+
+        $durationMinutes = is_numeric($durationMinutes) ? (int) $durationMinutes : 0;
+        $schedule = ClinicSchedule::forDate($date);
+        $options = [];
+
+        if (! $schedule->isClosed
+            && $durationMinutes >= 5
+            && $durationMinutes <= 240
+            && $durationMinutes % 5 === 0) {
+            $openingTime = Carbon::parse($date->toDateString().' '.$schedule->openTime, config('app.timezone'));
+            $closingTime = Carbon::parse($date->toDateString().' '.$schedule->closeTime, config('app.timezone'));
+            $slotIntervalMinutes = max($schedule->slotIntervalMinutes, 1);
+            $availabilityEvaluator = app(EvaluateAppointmentAvailability::class);
+            $blockingAppointments = $availabilityEvaluator->blockingAppointmentsBetween(
+                $openingTime,
+                $closingTime,
+                $ignoreAppointment,
+            );
+
+            for (
+                $slot = $openingTime->copy();
+                $slot->copy()->addMinutes($durationMinutes)->lte($closingTime);
+                $slot->addMinutes($durationMinutes)
+            ) {
+                if ($openingTime->diffInMinutes($slot) % $slotIntervalMinutes !== 0) {
+                    continue;
+                }
+
+                $availability = $availabilityEvaluator->handle(
+                    startsAt: $slot,
+                    durationMinutes: $durationMinutes,
+                    ignoreAppointment: $ignoreAppointment,
+                    enforceFuture: false,
+                    enforceGrid: true,
+                    blockingAppointments: $blockingAppointments,
+                    providerAvailable: true,
+                    schedule: $schedule,
+                );
+
+                if ($availability->available) {
+                    $options[$slot->format('H:i')] = $slot->format('g:i A');
+                }
+            }
+        }
+
+        if (filled($additionalTime)) {
+            $existingTime = Carbon::parse(
+                $date->toDateString().' '.$additionalTime,
+                config('app.timezone'),
+            );
+            $options[$existingTime->format('H:i')] = $existingTime->format('g:i A');
+        }
+
+        $options[self::CUSTOM_APPOINTMENT_TIME_VALUE] = 'Custom time';
+
+        return $options;
     }
 
     private static function isScheduleEditingDisabled(?Appointment $record): bool
@@ -270,6 +349,10 @@ class AppointmentForm
                                 ->live()
                                 ->inline()
                                 ->required()
+                                ->afterStateUpdated(function (Set $set): void {
+                                    $set('appointment_time', null);
+                                    $set('custom_appointment_time', null);
+                                })
                                 ->hiddenOn('edit'),
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')
@@ -287,6 +370,8 @@ class AppointmentForm
 
                                     $set('reason_for_visit', null);
                                     $set('custom_reason_for_visit', null);
+                                    $set('appointment_time', null);
+                                    $set('custom_appointment_time', null);
                                 }),
 
                             TextInput::make('duration_minutes')
@@ -297,6 +382,12 @@ class AppointmentForm
                                 ->step(5)
                                 ->default(30)
                                 ->required()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Set $set, Get $get): void {
+                                    if ($get('appointment_time') !== self::CUSTOM_APPOINTMENT_TIME_VALUE) {
+                                        $set('appointment_time', null);
+                                    }
+                                })
                                 ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in')
                                 ->dehydrated(),
@@ -350,27 +441,60 @@ class AppointmentForm
                                 ->native(false)
                                 ->displayFormat('M d, Y')
                                 ->placeholder('Choose an appointment date')
+                                ->helperText(fn (string $operation): ?string => $operation === 'create'
+                                    ? 'Same-day visits must be registered as Walk-in. Scheduled appointments start tomorrow.'
+                                    : null)
                                 ->suffixIcon('heroicon-o-calendar-days')
-                                ->minDate(today())
-                                ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
-                                ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after_or_equal:today' : '')
-                                ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
-                            TimePicker::make('appointment_time')
-                                ->label('Appointment time')
-                                ->required(fn (string $operation, Get $get): bool => $operation === 'create' && $get('is_walk_in') !== 'walk_in')
-                                ->seconds(false)
-                                ->minutesStep(15)
-                                ->format('H:i')
-                                ->suffixIcon('heroicon-o-clock')
-                                ->afterStateHydrated(function (TimePicker $component, ?Appointment $record): void {
-                                    if ($record) {
-                                        $component->state($record->scheduled_at->format('H:i'));
-                                    }
+                                ->minDate(fn (string $operation) => $operation === 'create' ? today()->addDay() : today())
+                                ->live()
+                                ->afterStateUpdated(function (Set $set): void {
+                                    $set('appointment_time', null);
+                                    $set('custom_appointment_time', null);
                                 })
                                 ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
+                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after:today' : '')
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
+                            Select::make('appointment_time')
+                                ->label('Appointment time')
+                                ->options(fn (Get $get, ?Appointment $record): array => self::appointmentTimeOptions(
+                                    scheduledDate: $get('scheduled_at'),
+                                    durationMinutes: $get('duration_minutes'),
+                                    additionalTime: $record?->scheduled_at?->format('H:i'),
+                                    ignoreAppointment: $record,
+                                ))
+                                ->placeholder('Select an appointment time')
+                                ->required(fn (string $operation, Get $get): bool => $operation === 'create' && $get('is_walk_in') !== 'walk_in')
+                                ->afterStateHydrated(function (Select $component, ?Appointment $record): void {
+                                    if ($record !== null) {
+                                        $component->state($record->scheduled_at->format('H:i'));
+                                    }
+                                })
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                    if ($state !== self::CUSTOM_APPOINTMENT_TIME_VALUE) {
+                                        $set('custom_appointment_time', null);
+                                    }
+                                })
+                                ->suffixIcon('heroicon-o-clock')
+                                ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
+                                ->dehydrated(fn (string $operation): bool => $operation === 'create')
+                                ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
+                            TimePicker::make('custom_appointment_time')
+                                ->label('Custom appointment time')
+                                ->required(fn (string $operation, Get $get): bool => $operation === 'create'
+                                    && $get('is_walk_in') !== 'walk_in'
+                                    && $get('appointment_time') === self::CUSTOM_APPOINTMENT_TIME_VALUE)
+                                ->seconds(false)
+                                ->minutesStep(15)
+                                ->format('H:i')
+                                ->helperText('Custom times must align to the clinic’s 15-minute schedule.')
+                                ->suffixIcon('heroicon-o-clock')
+                                ->disabled(fn (?Appointment $record): bool => self::isScheduleFieldLockedForEdit($record))
+                                ->dehydrated(fn (string $operation): bool => $operation === 'create')
+                                ->visible(fn (Get $get): bool => $get('is_walk_in') !== 'walk_in'
+                                    && $get('appointment_time') === self::CUSTOM_APPOINTMENT_TIME_VALUE)
+                                ->columnSpanFull(),
                             Textarea::make('staff_notes')
                                 ->label('Notes')
                                 ->disabled(fn (?Appointment $record): bool => $record?->isTerminal() === true)

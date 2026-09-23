@@ -80,6 +80,12 @@ class AcceptAppointmentRequest
             ]);
         }
 
+        if ($scheduledAt->copy()->setTimezone(config('app.timezone'))->isToday()) {
+            throw ValidationException::withMessages([
+                'scheduled_at' => [Appointment::SAME_DAY_SCHEDULE_MESSAGE],
+            ]);
+        }
+
         if (! $appointmentType->is_active) {
             throw ValidationException::withMessages([
                 'appointment_type_id' => ['The selected appointment type is inactive.'],

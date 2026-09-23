@@ -109,6 +109,37 @@ test('appointment resource has no billing relation manager', function () {
     expect(AppointmentResource::getRelations())->toBeEmpty();
 });
 
+test('appointment time options omit slots that overlap active appointments on the selected date', function (): void {
+    $this->seed(ClinicHoursSeeder::class);
+    $scheduledDate = today()->addDay();
+
+    Appointment::factory()->create([
+        'scheduled_at' => $scheduledDate->copy()->setTime(10, 0),
+        'duration_minutes' => 30,
+    ]);
+
+    $options = AppointmentForm::appointmentTimeOptions($scheduledDate->toDateString(), 30);
+
+    expect($options)
+        ->not->toHaveKey('10:00')
+        ->and($options)->toHaveKey('09:30')
+        ->and($options)->toHaveKey('10:30');
+});
+
+test('cancelled appointments do not remove their time from appointment options', function (): void {
+    $this->seed(ClinicHoursSeeder::class);
+    $scheduledDate = today()->addDay();
+
+    Appointment::factory()->cancelled()->create([
+        'scheduled_at' => $scheduledDate->copy()->setTime(10, 0),
+        'duration_minutes' => 30,
+    ]);
+
+    $options = AppointmentForm::appointmentTimeOptions($scheduledDate->toDateString(), 30);
+
+    expect($options)->toHaveKey('10:00');
+});
+
 test('clinic hours validation highlights the appointment time field', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();

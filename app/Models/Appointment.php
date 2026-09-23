@@ -49,6 +49,8 @@ class Appointment extends Model implements Eventable
 
     public const RESCHEDULE_TODAY_MESSAGE = 'Rescheduling to today is not allowed. Choose a future date.';
 
+    public const SAME_DAY_SCHEDULE_MESSAGE = 'Same-day visits must be registered as Walk-in. Choose a future date for a scheduled appointment.';
+
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory, SoftDeletes;
 
