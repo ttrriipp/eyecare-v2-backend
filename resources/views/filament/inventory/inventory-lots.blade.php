@@ -29,7 +29,6 @@
                         @endif
                         <th scope="col" class="px-4 py-3">On hand</th>
                         <th scope="col" class="px-4 py-3">Received</th>
-                        <th scope="col" class="px-4 py-3">Reference</th>
                         <th scope="col" class="px-4 py-3">Status</th>
                     </tr>
                 </thead>
@@ -55,7 +54,6 @@
                                 <span>{{ ($lot->purchased_at ?? $lot->received_at)->format('M d, Y') }}</span>
                                 <span class="block text-xs text-gray-500">{{ $lot->receivedBy?->full_name ?? '—' }}</span>
                             </td>
-                            <td class="px-4 py-3">{{ $lot->source_reference ?? '—' }}</td>
                             <td class="px-4 py-3">{{ $status }}</td>
                         </tr>
                     @endforeach

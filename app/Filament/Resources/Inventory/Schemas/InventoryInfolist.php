@@ -24,8 +24,7 @@ class InventoryInfolist
                             ->label('Brand')
                             ->placeholder('—'),
                         TextEntry::make('name')
-                            ->label('Variant')
-                            ->weight('bold'),
+                            ->label('Variant'),
                         TextEntry::make('sku')
                             ->label('SKU')
                             ->copyable(),

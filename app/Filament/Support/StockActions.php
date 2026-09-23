@@ -160,10 +160,12 @@ class StockActions
 
         if ($record->isExpiryTracked()) {
             $fields[] = TextInput::make('lot_number')
-                ->label('Lot number')
+                ->label('Lot number (Printed on the box)')
                 ->required()
                 ->maxLength(50)
-                ->placeholder('Printed on the box');
+                ->placeholder(fn (ProductVariant $record): ?string => $record->isContactLens()
+                    ? 'e.g. 12345678'
+                    : null);
             $fields[] = TextInput::make('expiry_month')
                 ->label('Expiry month')
                 ->required()
@@ -182,9 +184,6 @@ class StockActions
                 ->visible(fn (): bool => auth()->user()?->isAdmin() === true);
         }
 
-        $fields[] = TextInput::make('source_reference')
-            ->label('Reference')
-            ->placeholder('PO number or supplier reference');
         $fields[] = DatePicker::make('purchased_at')
             ->label(fn (ProductVariant $record): string => $record->isFrame()
                 ? 'Date Received'

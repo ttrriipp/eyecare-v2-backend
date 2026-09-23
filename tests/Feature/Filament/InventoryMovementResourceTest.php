@@ -1,11 +1,14 @@
 <?php
 
 use App\Filament\Resources\InventoryMovements\Pages\ListInventoryMovements;
+use App\Filament\Resources\InventoryMovements\Tables\InventoryMovementsTable;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\InventoryMovementTypeSeeder;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -64,4 +67,19 @@ test('inventory movement table can filter by movement type', function () {
         ->filterTable('movementType', $restockTypeId)
         ->assertCanSeeTableRecords([$restock])
         ->assertCanNotSeeTableRecords([$sale]);
+});
+
+test('inventory history does not show optical order details', function () {
+    $staff = User::factory()->staff()->create();
+    $movement = InventoryMovement::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListInventoryMovements::class)
+        ->mountTableAction('view', $movement)
+        ->assertMountedActionModalDontSee('Optical Order');
+
+    $table = InventoryMovementsTable::configure(Table::make(Mockery::mock(HasTable::class)));
+
+    expect($table->getColumn('jobOrder.job_order_number'))->toBeNull();
 });

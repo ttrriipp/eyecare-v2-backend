@@ -3,6 +3,7 @@
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Filament\Resources\Inventory\InventoryResource;
 use App\Filament\Resources\Inventory\Pages\ListInventory;
+use App\Filament\Resources\Inventory\Schemas\InventoryInfolist;
 use App\Filament\Resources\Inventory\Tables\InventoryTable;
 use App\Filament\Resources\Inventory\Widgets\InventoryStatsWidget;
 use App\Filament\Resources\Products\Pages\EditProduct;
@@ -16,6 +17,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Schemas\Schema;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -48,8 +50,15 @@ test('inventory table uses the received-at label and compact responsive defaults
     $table = InventoryTable::configure(Table::make(Mockery::mock(HasTable::class)));
 
     expect($table->getColumn('latest_purchase_date')->getLabel())->toBe('Received At')
+        ->and($table->getColumn('name')->getWeight())->toBeNull()
         ->and($table->getColumn('sku')->isToggledHiddenByDefault())->toBeTrue()
         ->and($table->isStackedOnMobile())->toBeTrue();
+});
+
+test('inventory details use regular font weight for the variant', function () {
+    $infolist = InventoryInfolist::configure(Schema::make());
+
+    expect($infolist->getFlatComponents()['name']->getWeight())->toBeNull();
 });
 
 test('clicking an inventory row opens its complete detail modal', function (): void {
@@ -509,7 +518,6 @@ test('receiving contact lenses captures their lot and expiry month', function ()
             'lot_number' => 'ACME-001',
             'expiry_month' => '2027-06',
             'purchased_at' => '2026-08-20',
-            'source_reference' => 'PO-42',
         ])
         ->assertHasNoActionErrors()
         ->assertNotified();
@@ -527,7 +535,8 @@ test('receiving contact lenses captures their lot and expiry month', function ()
 
     Livewire::test(ListInventory::class)
         ->mountTableAction('viewBatches', $variant)
-        ->assertMountedActionModalSee('Aug 20, 2026');
+        ->assertMountedActionModalSee('Aug 20, 2026')
+        ->assertMountedActionModalDontSee('Reference');
 });
 
 test('receiving accessories captures their lot and expiry month', function () {
@@ -552,6 +561,19 @@ test('receiving accessories captures their lot and expiry month', function () {
         ->and($lot->quantity_on_hand)->toBe(5);
 });
 
+test('accessory receiving shows the printed lot number label', function () {
+    $product = Product::factory()->accessory()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('adjustStock', $variant)
+        ->assertMountedActionModalSee('Lot number (Printed on the box)')
+        ->assertMountedActionModalDontSee('Reference')
+        ->assertMountedActionModalDontSee('Format (Printed on the box)');
+});
+
 test('contact lens receiving explains the expiry month requirement before submission', function () {
     Carbon::setTestNow('2026-08-28 14:00:00');
     $product = Product::factory()->contactLens()->create();
@@ -562,6 +584,10 @@ test('contact lens receiving explains the expiry month requirement before submis
     Livewire::test(ListInventory::class)
         ->mountTableAction('adjustStock', $variant)
         ->assertMountedActionModalSee('Use the expiry month printed on the box. It must be the current month or later; expired contact lens stock cannot be received.')
+        ->assertMountedActionModalSee('Lot number (Printed on the box)')
+        ->assertMountedActionModalDontSee('Reference')
+        ->assertMountedActionModalDontSee('Format (Printed on the box)')
+        ->assertMountedActionModalSeeHtml('placeholder="e.g. 12345678"')
         ->assertMountedActionModalSeeHtml('min="2026-08"');
 });
 

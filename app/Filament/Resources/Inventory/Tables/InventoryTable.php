@@ -76,7 +76,6 @@ class InventoryTable
                     ->description(fn (ProductVariant $record): ?string => $record->product?->brand?->name),
 
                 TextColumn::make('name')
-                    ->weight('bold')
                     ->label('Variant')
                     ->searchable()
                     ->wrap(),

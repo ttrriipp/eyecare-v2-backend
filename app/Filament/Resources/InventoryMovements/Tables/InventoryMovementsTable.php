@@ -57,10 +57,6 @@ class InventoryMovementsTable
                     ->state(fn (InventoryMovement $record): string => $record->createdBy?->full_name ?? 'System')
                     ->placeholder('System')
                     ->toggleable(),
-                TextColumn::make('jobOrder.job_order_number')
-                    ->label('Optical Order')
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('notes')
                     ->label('Notes')
                     ->limit(40)
