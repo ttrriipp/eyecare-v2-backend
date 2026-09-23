@@ -16,6 +16,7 @@ use App\Models\AppointmentTypeVisitReasonPreset;
 use App\Models\ClinicHour;
 use App\Models\Encounter;
 use App\Models\Patient;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\ClinicHoursSeeder;
@@ -307,6 +308,7 @@ test('directly creating an appointment rejects a fully conflicting pending reque
     $appointmentType = AppointmentType::factory()->create([
         'duration_minutes' => 30,
     ]);
+    $scheduledPatient = Patient::factory()->create();
     $scheduledAt = today()->addDay()->setTime(10, 0);
 
     AppointmentRequest::factory()->create([
@@ -324,7 +326,7 @@ test('directly creating an appointment rejects a fully conflicting pending reque
     Livewire::test(CreateAppointment::class)
         ->fillForm([
             'patient_mode' => 'existing',
-            'patient_id' => Patient::factory()->create()->id,
+            'patient_id' => $scheduledPatient->id,
             'is_walk_in' => 'scheduled',
             'appointment_type_id' => $appointmentType->id,
             'duration_minutes' => 30,
@@ -336,10 +338,13 @@ test('directly creating an appointment rejects a fully conflicting pending reque
         ->assertHasNoFormErrors();
 
     $request = AppointmentRequest::query()->latest('id')->firstOrFail();
+    $appointment = Appointment::query()->where('patient_id', $scheduledPatient->id)->firstOrFail();
+    $sms = SmsNotification::query()->where('appointment_id', $appointment->id)->sole();
 
     expect($request->status)->toBe(AppointmentRequestStatus::Rejected)
         ->and($request->rejection_reason)
-        ->toBe('This time is no longer available because another appointment was scheduled for this time.');
+        ->toBe('This time is no longer available because another appointment was scheduled for this time.')
+        ->and($sms->event)->toBe('appointment_scheduled');
 });
 
 test('appointment table has no generic lifecycle advance actions', function () {

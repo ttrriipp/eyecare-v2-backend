@@ -105,11 +105,13 @@ class SmsNotificationsTable
                 SelectFilter::make('event')
                     ->options([
                         'appointment_request_submitted' => 'Appointment Request Submitted',
+                        'appointment_request_declined' => 'Appointment Request Declined',
                         'appointment_scheduled' => 'Appointment Scheduled',
-                        'appointment_confirmed' => 'Appointment Confirmed',
                         'appointment_rescheduled' => 'Appointment Rescheduled',
                         'appointment_cancelled' => 'Appointment Cancelled',
                         'appointment_reminder' => 'Appointment Reminder',
+                        'accessory_order_request_accepted' => 'Accessory Order Request Accepted',
+                        'accessory_order_request_declined' => 'Accessory Order Request Declined',
                         'optical_order_confirmed' => 'Optical Order Confirmed',
                         'optical_order_ready' => 'Optical Order Ready',
                         'optical_order_cancelled' => 'Optical Order Cancelled',

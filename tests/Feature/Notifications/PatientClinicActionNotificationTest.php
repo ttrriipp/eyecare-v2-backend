@@ -184,6 +184,14 @@ test('accepting and rejecting appointment requests notify the requesting account
 
     expect($rejectedAccount->fresh()->notifications->sole()->data['body'])
         ->not->toContain('Schedule unavailable');
+
+    $rejectionSms = SmsNotification::query()
+        ->where('event', 'appointment_request_declined')
+        ->sole();
+
+    expect($rejectionSms->recipient)->toBe($rejectedAccount->phone)
+        ->and($rejectionSms->message)->toContain($rejectedRequest->request_number)
+        ->not->toContain('Schedule unavailable');
 });
 
 test('clinic appointment cancellation notifies the patient without private reason details', function () {

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Appointments\Pages;
 use App\Actions\Appointments\LockAppointmentScheduleDate;
 use App\Actions\Appointments\ResolveConflictingAppointmentRequests;
 use App\Actions\Appointments\ScheduleAppointment;
+use App\Actions\Sms\QueuePatientSms;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
@@ -256,6 +257,15 @@ class CreateAppointment extends CreateRecord
                     reviewer: $reviewer,
                     scheduledAt: $appointment->scheduled_at,
                     durationMinutes: (int) $appointment->duration_minutes,
+                );
+            }
+
+            if (empty($data['checked_in_at'])) {
+                app(QueuePatientSms::class)->handle(
+                    patient: $appointment->patient,
+                    event: 'appointment_scheduled',
+                    message: "Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}.",
+                    appointment: $appointment,
                 );
             }
 

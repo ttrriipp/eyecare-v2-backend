@@ -44,4 +44,26 @@ class QueuePatientSms
             'message' => SmsMessageFormatter::brand($message),
         ]);
     }
+
+    public function handleForRecipient(?string $recipient, string $event, string $message): ?SmsNotification
+    {
+        if (blank($recipient)) {
+            return null;
+        }
+
+        $attributes = [
+            'appointment_id' => null,
+            'job_order_id' => null,
+            'event' => $event,
+            'recipient' => $recipient,
+            'message' => SmsMessageFormatter::brand($message),
+        ];
+
+        return SmsNotification::query()->firstOrCreate($attributes, [
+            'notification_status_id' => NotificationStatus::query()
+                ->where('name', 'queued')
+                ->firstOrFail()
+                ->id,
+        ]);
+    }
 }

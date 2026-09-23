@@ -25,7 +25,7 @@ class SmsNotificationFactory extends Factory
             'notification_status_id' => NotificationStatus::query()->firstOrCreate([
                 'name' => 'queued',
             ])->id,
-            'event' => 'appointment_confirmed',
+            'event' => 'appointment_scheduled',
             'recipient' => fake()->safeEmail(),
             'message' => fake()->sentence(),
         ];

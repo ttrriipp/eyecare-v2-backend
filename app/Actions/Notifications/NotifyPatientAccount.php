@@ -44,10 +44,12 @@ class NotifyPatientAccount
 
     public function appointmentRequestDeclined(AppointmentRequest $request): void
     {
+        $message = "Your appointment request {$request->request_number} was not approved. Open the request for its current status.";
+
         $this->handleAccount($request->user, new PatientDatabaseNotification(
             kind: PatientNotificationKind::AppointmentRequestDeclined,
             title: 'Appointment Request Declined',
-            body: "Your appointment request {$request->request_number} was not approved. Open the request for its current status.",
+            body: $message,
             icon: 'heroicon-o-calendar-days',
             status: 'warning',
             mobileActionType: PatientNotificationActionType::AppointmentRequest,
@@ -57,6 +59,12 @@ class NotifyPatientAccount
             relatedId: $request->id,
             eventKey: "appointment_request.declined:{$request->id}",
         ));
+
+        $this->queuePatientSms->handleForRecipient(
+            recipient: $request->user?->phone,
+            event: 'appointment_request_declined',
+            message: $message,
+        );
     }
 
     public function appointmentRescheduled(Appointment $appointment): void
@@ -169,10 +177,12 @@ class NotifyPatientAccount
 
     public function accessoryOrderRequestAccepted(AccessoryOrderRequest $request, JobOrder $order): void
     {
+        $message = "Your accessory order request {$request->request_number} was accepted. Payment is due for order {$order->job_order_number}.";
+
         $this->handlePatient($order->patient, new PatientDatabaseNotification(
             kind: PatientNotificationKind::AccessoryOrderRequestAccepted,
             title: 'Payment Required',
-            body: "Your accessory order request {$request->request_number} was accepted. Payment is due for order {$order->job_order_number}.",
+            body: $message,
             icon: 'heroicon-o-banknotes',
             status: 'info',
             mobileActionType: PatientNotificationActionType::OpticalOrder,
@@ -183,14 +193,23 @@ class NotifyPatientAccount
             eventKey: "accessory_order_request.accepted:{$request->id}",
             patientId: $order->patient_id,
         ));
+
+        $this->queuePatientSms->handle(
+            patient: $order->patient,
+            event: 'accessory_order_request_accepted',
+            message: $message,
+            jobOrder: $order,
+        );
     }
 
     public function accessoryOrderRequestDeclined(AccessoryOrderRequest $request): void
     {
+        $message = "Your accessory order request {$request->request_number} was declined. Open the request for its current status.";
+
         $this->handlePatient($request->patient, new PatientDatabaseNotification(
             kind: PatientNotificationKind::AccessoryOrderRequestDeclined,
             title: 'Order Request Declined',
-            body: "Your accessory order request {$request->request_number} was declined. Open the request for its current status.",
+            body: $message,
             icon: 'heroicon-o-shopping-bag',
             status: 'warning',
             mobileActionType: PatientNotificationActionType::AccessoryOrderRequest,
@@ -201,6 +220,12 @@ class NotifyPatientAccount
             eventKey: "accessory_order_request.declined:{$request->id}",
             patientId: $request->patient_id,
         ));
+
+        $this->queuePatientSms->handleForRecipient(
+            recipient: $request->patient?->phone,
+            event: 'accessory_order_request_declined',
+            message: $message,
+        );
     }
 
     public function opticalOrderReady(JobOrder $order): void
