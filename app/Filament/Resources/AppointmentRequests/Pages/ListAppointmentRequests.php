@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\AppointmentRequests\Pages;
 
-use App\Enums\AppointmentRequestKind;
-use App\Enums\AppointmentRequestStatus;
-use App\Enums\AppointmentStatusName;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
+use App\Filament\Resources\AppointmentRequests\Widgets\AppointmentRequestStatsWidget;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
@@ -27,6 +25,11 @@ class ListAppointmentRequests extends ListRecords
     protected function getHeaderActions(): array
     {
         return [];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [AppointmentRequestStatsWidget::class];
     }
 
     public function getEmptyStateHeading(): string
@@ -66,42 +69,13 @@ class ListAppointmentRequests extends ListRecords
             'all' => Tab::make('All'),
 
             'needs_link' => Tab::make('Needs Link')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->actionablePending()
-                    ->whereNull('patient_id')
-                ),
+                ->modifyQueryUsing(fn (Builder $query) => $query->needsLink()),
 
             'needs_review' => Tab::make('Needs Review')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->actionablePending()
-                    ->whereNotNull('patient_id')
-                ),
+                ->modifyQueryUsing(fn (Builder $query) => $query->needsReview()),
 
             'resolved' => Tab::make('Resolved')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where(function (Builder $query): void {
-                    $query
-                        ->where('status', '!=', AppointmentRequestStatus::Pending)
-                        ->orWhere(function (Builder $query): void {
-                            $query
-                                ->where('status', AppointmentRequestStatus::Pending)
-                                ->where('expires_at', '<=', now());
-                        })
-                        ->orWhere(function (Builder $query): void {
-                            $query
-                                ->where('status', AppointmentRequestStatus::Pending)
-                                ->where('expires_at', '>', now())
-                                ->where('request_type', AppointmentRequestKind::Reschedule->value)
-                                ->whereDoesntHave('appointment', function (Builder $appointmentQuery): void {
-                                    $appointmentQuery->whereHas(
-                                        'status',
-                                        fn (Builder $statusQuery): Builder => $statusQuery->where(
-                                            'name',
-                                            AppointmentStatusName::Scheduled->value,
-                                        ),
-                                    );
-                                });
-                        });
-                })),
+                ->modifyQueryUsing(fn (Builder $query) => $query->resolvedForTriage()),
         ];
     }
 }

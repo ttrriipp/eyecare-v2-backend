@@ -64,6 +64,20 @@ class FrameRatingInfolist
                                 ->placeholder('No comment provided')
                                 ->columnSpanFull(),
 
+                            TextEntry::make('public_display_consent_at')
+                                ->label('Public comment display consent')
+                                ->state(fn (FrameRating $record): string => $record->public_display_consent_at === null
+                                    ? 'Not granted'
+                                    : 'Granted on '.$record->public_display_consent_at->format('M j, Y g:i A')),
+
+                            TextEntry::make('public_attachment_consent_at')
+                                ->label('Public photo display consent')
+                                ->state(fn (FrameRating $record): string => match (true) {
+                                    blank($record->attachment_path) => 'No photo attached',
+                                    $record->public_attachment_consent_at === null => 'Not granted',
+                                    default => 'Granted on '.$record->public_attachment_consent_at->format('M j, Y g:i A'),
+                                }),
+
                             TextEntry::make('created_at')
                                 ->label('Submitted')
                                 ->dateTime('M j, Y g:i A'),

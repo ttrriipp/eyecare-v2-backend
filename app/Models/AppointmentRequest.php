@@ -144,6 +144,62 @@ class AppointmentRequest extends Model
             });
     }
 
+    /**
+     * Scope requests that still need to be linked to a patient record.
+     *
+     * @param  Builder<AppointmentRequest>  $query
+     * @return Builder<AppointmentRequest>
+     */
+    public function scopeNeedsLink(Builder $query): Builder
+    {
+        return $query->actionablePending()->whereNull('patient_id');
+    }
+
+    /**
+     * Scope actionable requests that are ready for staff review.
+     *
+     * @param  Builder<AppointmentRequest>  $query
+     * @return Builder<AppointmentRequest>
+     */
+    public function scopeNeedsReview(Builder $query): Builder
+    {
+        return $query->actionablePending()->whereNotNull('patient_id');
+    }
+
+    /**
+     * Scope requests in the resolved triage tab, including expired and stale reschedules.
+     *
+     * @param  Builder<AppointmentRequest>  $query
+     * @return Builder<AppointmentRequest>
+     */
+    public function scopeResolvedForTriage(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->where('status', '!=', AppointmentRequestStatus::Pending->value)
+                ->orWhere(function (Builder $query): void {
+                    $query
+                        ->where('status', AppointmentRequestStatus::Pending->value)
+                        ->where('expires_at', '<=', now());
+                })
+                ->orWhere(function (Builder $query): void {
+                    $query
+                        ->where('status', AppointmentRequestStatus::Pending->value)
+                        ->where('expires_at', '>', now())
+                        ->where('request_type', AppointmentRequestKind::Reschedule->value)
+                        ->whereDoesntHave('appointment', function (Builder $appointmentQuery): void {
+                            $appointmentQuery->whereHas(
+                                'status',
+                                fn (Builder $statusQuery): Builder => $statusQuery->where(
+                                    'name',
+                                    AppointmentStatusName::Scheduled->value,
+                                ),
+                            );
+                        });
+                });
+        });
+    }
+
     public function isRebooking(): bool
     {
         return $this->request_type === AppointmentRequestKind::Reschedule;

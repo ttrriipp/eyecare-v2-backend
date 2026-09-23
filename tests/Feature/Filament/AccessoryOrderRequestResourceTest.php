@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\DiscountProofStatus;
+use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ListAccessoryOrderRequests;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ViewAccessoryOrderRequest;
 use App\Filament\Resources\AccessoryOrderRequests\Widgets\AccessoryOrderRequestStatsWidget;
@@ -23,6 +24,24 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
+});
+
+test('navigation badge counts only pending order requests', function (): void {
+    AccessoryOrderRequest::factory()->count(2)->create();
+    AccessoryOrderRequest::factory()->accepted()->create();
+    AccessoryOrderRequest::factory()->rejected()->create();
+    AccessoryOrderRequest::factory()->cancelled()->create();
+
+    expect(AccessoryOrderRequestResource::getNavigationBadge())->toBe('2')
+        ->and(AccessoryOrderRequestResource::getNavigationBadgeColor())->toBe('warning');
+});
+
+test('navigation badge is hidden when no order requests are pending', function (): void {
+    AccessoryOrderRequest::factory()->accepted()->create();
+    AccessoryOrderRequest::factory()->rejected()->create();
+    AccessoryOrderRequest::factory()->cancelled()->create();
+
+    expect(AccessoryOrderRequestResource::getNavigationBadge())->toBeNull();
 });
 
 test('staff can see order request status KPIs on the list', function (): void {

@@ -3,12 +3,14 @@
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\AppointmentRequests\Pages\ListAppointmentRequests;
+use App\Filament\Resources\AppointmentRequests\Widgets\AppointmentRequestStatsWidget;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -30,6 +32,42 @@ test('resource uses correct model', function () {
 
 test('resource cannot create records', function () {
     expect(AppointmentRequestResource::canCreate())->toBeFalse();
+});
+
+test('appointment request list shows KPI counts matching its workflow tabs', function () {
+    $staff = User::factory()->staff()->create();
+    AppointmentRequest::factory()->create([
+        'patient_id' => null,
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addDay(),
+    ]);
+    AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addDay(),
+    ]);
+    AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+    AppointmentRequest::factory()->linked()->accepted()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertSee('Total Requests')
+        ->assertSee('Needs Link')
+        ->assertSee('Needs Review')
+        ->assertSee('Resolved');
+
+    $widget = Livewire::test(AppointmentRequestStatsWidget::class)->instance();
+    $stats = collect((fn (): array => $this->getStats())->call($widget))->keyBy(
+        fn (Stat $stat): string => (string) $stat->getLabel(),
+    );
+
+    expect($stats->get('Total Requests')?->getValue())->toBe('4')
+        ->and($stats->get('Needs Link')?->getValue())->toBe('1')
+        ->and($stats->get('Needs Review')?->getValue())->toBe('1')
+        ->and($stats->get('Resolved')?->getValue())->toBe('2');
 });
 
 // --- Table ---

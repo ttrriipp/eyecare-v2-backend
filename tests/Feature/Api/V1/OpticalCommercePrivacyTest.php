@@ -79,7 +79,7 @@ test('patient optical order resources present confirmed lens options additively'
     expect($item->exists)->toBeTrue();
 });
 
-test('optical order frame items expose their primary catalog image in list and detail responses', function (): void {
+test('optical order catalog items expose their primary catalog image in list and detail responses', function (): void {
     $frame = Product::factory()->create([
         'product_type' => 'frame',
         'images' => ['products/everyday-frame.jpg'],
@@ -99,6 +99,13 @@ test('optical order frame items expose their primary catalog image in list and d
         'product_id' => $contactLens->id,
         'images' => ['variants/contact-lens.jpg'],
     ]);
+    $accessory = Product::factory()->accessory()->create([
+        'images' => ['products/lacryl-hydrate-eye-drops.jpg'],
+    ]);
+    $accessoryVariant = ProductVariant::factory()->create([
+        'product_id' => $accessory->id,
+        'images' => [],
+    ]);
     $jobOrder = JobOrder::factory()->create([
         'patient_id' => $this->patient->patient->id,
     ]);
@@ -111,6 +118,11 @@ test('optical order frame items expose their primary catalog image in list and d
         'job_order_id' => $jobOrder->id,
         'product_variant_id' => $contactLensVariant->id,
         'item_kind' => CommercialItemKind::ContactLens,
+    ]);
+    $accessoryItem = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $accessoryVariant->id,
+        'item_kind' => CommercialItemKind::Accessory,
     ]);
     $lensPackageItem = JobOrderItem::factory()->create([
         'job_order_id' => $jobOrder->id,
@@ -125,7 +137,8 @@ test('optical order frame items expose their primary catalog image in list and d
 
     expect($listItems->get($frameItem->id)['image_url'])
         ->toBe('variants/everyday-frame-front.jpg')
-        ->and($listItems->get($contactLensItem->id)['image_url'])->toBeNull()
+        ->and($listItems->get($contactLensItem->id)['image_url'])->toBe('variants/contact-lens.jpg')
+        ->and($listItems->get($accessoryItem->id)['image_url'])->toBe('products/lacryl-hydrate-eye-drops.jpg')
         ->and($listItems->get($lensPackageItem->id)['image_url'])->toBeNull();
 
     $detailItems = collect($this->actingAs($this->patient)
@@ -136,7 +149,8 @@ test('optical order frame items expose their primary catalog image in list and d
 
     expect($detailItems->get($frameItem->id)['image_url'])
         ->toBe('variants/everyday-frame-front.jpg')
-        ->and($detailItems->get($contactLensItem->id)['image_url'])->toBeNull()
+        ->and($detailItems->get($contactLensItem->id)['image_url'])->toBe('variants/contact-lens.jpg')
+        ->and($detailItems->get($accessoryItem->id)['image_url'])->toBe('products/lacryl-hydrate-eye-drops.jpg')
         ->and($detailItems->get($lensPackageItem->id)['image_url'])->toBeNull();
 });
 

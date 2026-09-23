@@ -74,13 +74,14 @@ class OpticalOrderResource extends JsonResource
         }
 
         $variant = $item->variant;
+        $product = $variant?->product;
 
-        if ($variant?->product?->product_type !== 'frame') {
+        if ($product === null) {
             return null;
         }
 
         return $this->firstCatalogImage($variant->images)
-            ?? $this->firstCatalogImage($variant->product->images);
+            ?? $this->firstCatalogImage($product->images);
     }
 
     /**

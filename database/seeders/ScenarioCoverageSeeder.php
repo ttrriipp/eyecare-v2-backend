@@ -1094,47 +1094,116 @@ class ScenarioCoverageSeeder extends Seeder
 
     private function seedAccessoryOrderRequest(): void
     {
-        $patient = $this->flagshipPatient();
+        $this->upsertAccessoryOrderRequest(
+            requestNumber: 'ORQ-2026-000001',
+            patient: $this->flagshipPatient(),
+            status: AccessoryOrderRequestStatus::Pending,
+            items: [
+                ['sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML', 'quantity' => 1],
+                ['sku' => 'ACC-LACRYL-HYDRATE-10ML', 'quantity' => 1],
+            ],
+        );
+
+        $this->upsertAccessoryOrderRequest(
+            requestNumber: 'ORQ-2026-000002',
+            patient: Patient::query()->where('patient_number', 'PAT-2026-000004')->firstOrFail(),
+            status: AccessoryOrderRequestStatus::Pending,
+            items: [
+                ['sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML', 'quantity' => 1],
+            ],
+        );
+
+        $this->upsertAccessoryOrderRequest(
+            requestNumber: 'ORQ-2026-000003',
+            patient: Patient::query()->where('patient_number', 'PAT-2026-000005')->firstOrFail(),
+            status: AccessoryOrderRequestStatus::Rejected,
+            items: [
+                ['sku' => 'ACC-LACRYL-HYDRATE-10ML', 'quantity' => 1],
+            ],
+            resolution: [
+                'resolved_by' => $this->staff()->id,
+                'resolved_at' => now()->subDay(),
+                'rejection_reason' => 'The selected accessory is temporarily unavailable.',
+            ],
+        );
+
+        $this->upsertAccessoryOrderRequest(
+            requestNumber: 'ORQ-2026-000004',
+            patient: Patient::query()->where('patient_number', 'PAT-2026-000006')->firstOrFail(),
+            status: AccessoryOrderRequestStatus::Cancelled,
+            items: [
+                ['sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML', 'quantity' => 2],
+            ],
+            resolution: [
+                'cancelled_at' => now()->subHours(2),
+                'encrypted_cancellation_reason' => 'The patient no longer needs the requested items.',
+            ],
+        );
+    }
+
+    /**
+     * @param  array<int, array{sku: string, quantity: int}>  $items
+     * @param  array<string, mixed>  $resolution
+     */
+    private function upsertAccessoryOrderRequest(
+        string $requestNumber,
+        Patient $patient,
+        AccessoryOrderRequestStatus $status,
+        array $items,
+        array $resolution = [],
+    ): void {
+        if ($patient->user_id === null) {
+            throw new RuntimeException("The seeded order request patient [{$patient->patient_number}] must be linked to a portal account.");
+        }
+
         $variants = ProductVariant::query()
             ->with('product')
-            ->whereIn('sku', [
-                'ACC-SYSTANE-COMPLETE-PF-10ML',
-                'ACC-LACRYL-HYDRATE-10ML',
-            ])
+            ->whereIn('sku', collect($items)->pluck('sku')->unique())
             ->get()
             ->keyBy('sku');
+        $resolvedItems = [];
+        $subtotal = 0.0;
+
+        foreach ($items as $item) {
+            $variant = $variants->get($item['sku']);
+
+            if ($variant === null || $variant->product === null) {
+                throw new RuntimeException("Missing seeded accessory variant [{$item['sku']}].");
+            }
+
+            $unitPrice = (float) $variant->price;
+            $amount = round($unitPrice * $item['quantity'], 2);
+            $subtotal += $amount;
+            $resolvedItems[] = [
+                'variant' => $variant,
+                'quantity' => $item['quantity'],
+                'unit_price' => $unitPrice,
+                'amount' => $amount,
+            ];
+        }
 
         $request = AccessoryOrderRequest::query()->updateOrCreate(
-            ['request_number' => 'ORQ-2026-000001'],
+            ['request_number' => $requestNumber],
             [
                 'user_id' => $patient->user_id,
                 'patient_id' => $patient->id,
-                'status' => AccessoryOrderRequestStatus::Pending,
-                'subtotal_amount' => 1300,
+                'status' => $status,
+                'subtotal_amount' => $subtotal,
                 'requested_discount_type' => 'none',
                 'job_order_id' => null,
                 'resolved_by' => null,
                 'resolved_at' => null,
                 'rejection_reason' => null,
                 'cancelled_at' => null,
+                'encrypted_cancellation_reason' => null,
+                ...$resolution,
             ],
         );
-
-        $items = [
-            ['sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML', 'quantity' => 1],
-            ['sku' => 'ACC-LACRYL-HYDRATE-10ML', 'quantity' => 1],
-        ];
         $variantIds = [];
 
-        foreach ($items as $item) {
-            $variant = $variants->get($item['sku']);
-
-            if ($variant === null) {
-                throw new RuntimeException("Missing seeded accessory variant [{$item['sku']}].");
-            }
-
+        foreach ($resolvedItems as $item) {
+            $variant = $item['variant'];
             $variantIds[] = $variant->id;
-            $unitPrice = (float) $variant->price;
 
             AccessoryOrderRequestItem::query()->updateOrCreate(
                 [
@@ -1144,8 +1213,8 @@ class ScenarioCoverageSeeder extends Seeder
                 [
                     'description' => $variant->product->name.' — '.$variant->name,
                     'quantity' => $item['quantity'],
-                    'unit_price' => $unitPrice,
-                    'amount' => $unitPrice * $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'amount' => $item['amount'],
                     'item_kind' => CommercialItemKind::Accessory,
                     'item_snapshot' => [
                         'product_variant_id' => $variant->id,

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AccessoryOrderRequests;
 
+use App\Enums\AccessoryOrderRequestStatus;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ListAccessoryOrderRequests;
 use App\Filament\Resources\AccessoryOrderRequests\Pages\ViewAccessoryOrderRequest;
 use App\Filament\Resources\AccessoryOrderRequests\Schemas\AccessoryOrderRequestInfolist;
@@ -30,6 +31,20 @@ class AccessoryOrderRequestResource extends Resource
     protected static ?string $modelLabel = 'Order Request';
 
     protected static ?string $pluralModelLabel = 'Order Requests';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = AccessoryOrderRequest::query()
+            ->where('status', AccessoryOrderRequestStatus::Pending)
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
 
     public static function table(Table $table): Table
     {

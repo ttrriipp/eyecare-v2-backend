@@ -6,6 +6,7 @@ use App\Filament\Resources\FrameRatings\Pages\ListFrameRatings;
 use App\Models\FrameRating;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -63,9 +64,14 @@ test('staff can open a frame rating from an actionable notification link', funct
 
 test('staff can view frame rating details', function () {
     $staff = User::factory()->staff()->create();
+    $commentConsentAt = Carbon::parse('2026-09-20 10:00:00');
+    $photoConsentAt = Carbon::parse('2026-09-21 14:30:00');
     $rating = FrameRating::factory()->create([
         'rating' => 5,
         'comment' => 'Comfortable and lightweight.',
+        'public_display_consent_at' => $commentConsentAt,
+        'attachment_path' => 'ratings/public-review.png',
+        'public_attachment_consent_at' => $photoConsentAt,
     ]);
 
     $this->actingAs($staff);
@@ -79,8 +85,31 @@ test('staff can view frame rating details', function () {
         ->assertSee($rating->variant->product->name)
         ->assertSee('5 of 5 stars')
         ->assertSee('Comfortable and lightweight.')
+        ->assertSee('Public comment display consent')
+        ->assertSee('Granted on '.$commentConsentAt->format('M j, Y g:i A'))
+        ->assertSee('Public photo display consent')
+        ->assertSee('Granted on '.$photoConsentAt->format('M j, Y g:i A'))
         ->assertSee('Submitted')
         ->assertDontSee('Moderation reason')
         ->assertDontSee('Moderated')
         ->assertDontSee('Save changes');
+});
+
+test('staff can see when public display consent was not granted', function () {
+    $staff = User::factory()->staff()->create();
+    $rating = FrameRating::factory()->create([
+        'comment' => 'Private review.',
+        'attachment_path' => 'ratings/private-review.png',
+        'attachment_mime_type' => 'image/png',
+        'public_display_consent_at' => null,
+        'public_attachment_consent_at' => null,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditFrameRating::class, ['record' => $rating->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Public comment display consent')
+        ->assertSee('Public photo display consent')
+        ->assertSee('Not granted');
 });

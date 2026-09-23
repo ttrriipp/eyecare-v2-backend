@@ -2882,7 +2882,7 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `items[].unit_price` | string | no | Unit price, two decimal places |
 | `items[].amount` | string | no | Line amount, two decimal places |
 | `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
-| `items[].image_url` | string | yes | Primary public catalog image for frame items; uses the same relative image path format as `GET /frames`, or `null` when the item is not a frame or has no image |
+| `items[].image_url` | string | yes | Primary public catalog image for any catalog product item with a variant; uses the same relative image path format as `GET /frames`, or `null` when the item has no catalog variant or valid image |
 | `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
 | `items[].rating` | object | yes | Current rating summary; null when not yet rated |
 | `items[].rating.rating` | integer | no | Patient's current 1–5 product rating |

@@ -513,6 +513,40 @@ test('canonical seed data includes public product reviews and visit feedback for
     }
 });
 
+test('canonical seed data includes multiple linked accessory order request scenarios', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $requests = AccessoryOrderRequest::query()
+        ->with(['patient', 'items'])
+        ->whereIn('request_number', [
+            'ORQ-2026-000001',
+            'ORQ-2026-000002',
+            'ORQ-2026-000003',
+            'ORQ-2026-000004',
+        ])
+        ->get()
+        ->keyBy('request_number');
+
+    expect($requests)->toHaveCount(4)
+        ->and($requests['ORQ-2026-000001']->status)->toBe(AccessoryOrderRequestStatus::Pending)
+        ->and($requests['ORQ-2026-000002']->status)->toBe(AccessoryOrderRequestStatus::Pending)
+        ->and($requests['ORQ-2026-000002']->patient->patient_number)->toBe('PAT-2026-000004')
+        ->and($requests['ORQ-2026-000003']->status)->toBe(AccessoryOrderRequestStatus::Rejected)
+        ->and($requests['ORQ-2026-000003']->patient->patient_number)->toBe('PAT-2026-000005')
+        ->and($requests['ORQ-2026-000003']->rejection_reason)->not->toBeEmpty()
+        ->and($requests['ORQ-2026-000003']->resolved_by)->not->toBeNull()
+        ->and($requests['ORQ-2026-000004']->status)->toBe(AccessoryOrderRequestStatus::Cancelled)
+        ->and($requests['ORQ-2026-000004']->patient->patient_number)->toBe('PAT-2026-000006')
+        ->and($requests['ORQ-2026-000004']->encrypted_cancellation_reason)->not->toBeEmpty()
+        ->and($requests['ORQ-2026-000004']->cancelled_at)->not->toBeNull();
+
+    foreach ($requests as $request) {
+        expect($request->user_id)->toBe($request->patient->user_id)
+            ->and($request->items)->not->toBeEmpty()
+            ->and($request->items->pluck('item_kind')->unique()->all())->toBe([CommercialItemKind::Accessory]);
+    }
+});
+
 test('seed data has no legacy model references', function () {
     $this->seed(DatabaseSeeder::class);
 
