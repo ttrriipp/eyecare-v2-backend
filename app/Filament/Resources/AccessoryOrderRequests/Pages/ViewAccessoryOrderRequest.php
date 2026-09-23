@@ -23,6 +23,13 @@ class ViewAccessoryOrderRequest extends ViewRecord
 {
     protected static string $resource = AccessoryOrderRequestResource::class;
 
+    public function getTitle(): string
+    {
+        $patientName = $this->getRecord()->patient?->full_name ?? 'Unknown patient';
+
+        return 'Order Request of '.$patientName;
+    }
+
     /**
      * @var array<string, string>
      */

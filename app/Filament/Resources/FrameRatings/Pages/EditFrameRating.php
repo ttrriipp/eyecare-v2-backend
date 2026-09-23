@@ -14,7 +14,7 @@ class EditFrameRating extends ViewRecord
         $record = $this->getRecord();
         $patientName = $record->patient?->full_name ?? 'Unknown patient';
 
-        return 'View for '.$patientName;
+        return 'Rating of '.$patientName;
     }
 
     public function getBreadcrumbs(): array

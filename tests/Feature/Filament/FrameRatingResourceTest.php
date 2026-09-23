@@ -78,7 +78,8 @@ test('staff can view frame rating details', function () {
 
     Livewire::test(EditFrameRating::class, ['record' => $rating->getRouteKey()])
         ->assertSuccessful()
-        ->assertSee("View for {$rating->patient->full_name}")
+        ->assertSee("Rating of {$rating->patient->full_name}")
+        ->assertDontSee("Order for {$rating->patient->full_name}")
         ->assertSee('Product context')
         ->assertSee('Product feedback')
         ->assertSee($rating->patient->full_name)

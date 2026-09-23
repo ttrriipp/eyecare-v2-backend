@@ -103,6 +103,8 @@ test('staff can view the accessory order request details', function (): void {
 
     Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
         ->assertSuccessful()
+        ->assertSee("Order Request of {$account->patient->full_name}")
+        ->assertDontSee('View Order Request')
         ->assertSee('Request details')
         ->assertSee('Order items')
         ->assertSee($request->request_number)
