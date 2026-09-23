@@ -84,7 +84,7 @@ class BillingRecordResource extends Resource
             ->with([
                 'patient',
                 'items',
-                'jobOrder',
+                'jobOrder.accessoryOrderRequest',
             ]);
     }
 }

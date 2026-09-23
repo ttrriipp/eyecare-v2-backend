@@ -7,11 +7,13 @@ use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
+use App\Models\AccessoryOrderRequest;
 use App\Models\BillingRecord;
 use App\Models\InventoryLot;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
 use App\Models\LensOption;
+use App\Models\OrderPaymentProof;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Product;
@@ -424,6 +426,136 @@ test('dispense modal enables balance release override when a balance remains', f
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->mountAction('dispense')
         ->assertActionDataSet(['admin_override' => true]);
+});
+
+test('optical order timeline hides milestones that have not been reached', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+        'started_at' => null,
+        'ready_at' => null,
+        'dispensed_at' => null,
+        'cancelled_at' => null,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertSchemaComponentVisible('created_at')
+        ->assertSchemaComponentHidden('started_at')
+        ->assertSchemaComponentHidden('ready_at')
+        ->assertSchemaComponentHidden('dispensed_at')
+        ->assertSchemaComponentHidden('cancelled_at');
+});
+
+test('optical order timeline shows each milestone after its timestamp is recorded', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Cancelled,
+        'started_at' => now()->subHours(3),
+        'ready_at' => now()->subHours(2),
+        'dispensed_at' => now()->subHour(),
+        'cancelled_at' => now(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertSchemaComponentVisible('started_at')
+        ->assertSchemaComponentVisible('ready_at')
+        ->assertSchemaComponentVisible('dispensed_at')
+        ->assertSchemaComponentVisible('cancelled_at');
+});
+
+test('staff cannot manually record payment for an accepted accessory order request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+    ]);
+    AccessoryOrderRequest::factory()->accepted()->create([
+        'patient_id' => $jobOrder->patient_id,
+        'job_order_id' => $jobOrder->id,
+    ]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'patient_id' => $jobOrder->patient_id,
+        'status' => BillingRecordStatus::Unpaid,
+        'balance_due' => 1000,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertActionHidden('recordPayment');
+});
+
+test('staff can manually record payment for a normal optical order', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+    ]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'patient_id' => $jobOrder->patient_id,
+        'status' => BillingRecordStatus::Unpaid,
+        'balance_due' => 1000,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertActionVisible('recordPayment');
+});
+
+test('payment proof rejection offers preset reasons and saves the selected reason', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::PaymentReview,
+    ]);
+    $proof = OrderPaymentProof::factory()->create([
+        'job_order_id' => $jobOrder->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->mountAction('rejectProof')
+        ->assertSchemaComponentExists('reason_category', checkComponentUsing: function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                'unreadable' => 'The payment proof is blurry or unreadable.',
+                'amount_mismatch' => 'The payment amount does not match the order total.',
+                'reference_unverified' => 'The payment reference could not be verified.',
+                'payment_not_received' => 'The payment could not be verified as received.',
+                'other' => 'Other',
+            ]);
+
+            return true;
+        });
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->callAction('rejectProof', ['reason_category' => 'amount_mismatch'])
+        ->assertNotified('Payment rejected, order cancelled');
+
+    expect($proof->fresh()->rejection_reason)
+        ->toBe('The payment amount does not match the order total.');
+});
+
+test('payment proof rejection requires custom details for other', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::PaymentReview,
+    ]);
+    $proof = OrderPaymentProof::factory()->create([
+        'job_order_id' => $jobOrder->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->callAction('rejectProof', ['reason_category' => 'other'])
+        ->assertHasActionErrors(['rejection_details']);
+
+    expect($proof->fresh()->status->value)->toBe('pending');
 });
 
 test('immediate checkout paid in full is dispensed with a zero balance', function () {

@@ -96,7 +96,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
                         return;
                     }
 
-                    $this->record = $this->record->fresh(['discountProof.reviewedBy']);
+                    $this->getRecord()->refresh()->load(['discountProof.reviewedBy']);
 
                     Notification::make()
                         ->title('Discount proof accepted')
@@ -147,7 +147,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
                         return;
                     }
 
-                    $this->record = $this->record->fresh(['discountProof.reviewedBy']);
+                    $this->getRecord()->refresh()->load(['discountProof.reviewedBy']);
 
                     Notification::make()
                         ->title('Discount proof rejected')
@@ -169,12 +169,12 @@ class ViewAccessoryOrderRequest extends ViewRecord
                     .'This will create an Optical Order and Billing Record. Stock will be committed.')
                 ->action(function (): void {
                     try {
-                        $result = app(AcceptAccessoryOrderRequest::class)->handle(
+                        app(AcceptAccessoryOrderRequest::class)->handle(
                             orderRequest: $this->record,
                             reviewer: auth()->user(),
                         );
 
-                        $this->record = $this->record->fresh(['jobOrder']);
+                        $this->getRecord()->refresh()->load('jobOrder');
 
                         Notification::make()
                             ->title('Request accepted')
@@ -228,7 +228,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
                         return;
                     }
 
-                    $this->record = $this->record->fresh();
+                    $this->getRecord()->refresh();
 
                     Notification::make()
                         ->title('Request rejected')

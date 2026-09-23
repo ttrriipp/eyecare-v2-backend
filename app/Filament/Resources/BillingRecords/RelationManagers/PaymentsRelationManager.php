@@ -82,7 +82,8 @@ class PaymentsRelationManager extends RelationManager
                                 $this->finalizePayment($data);
                             }),
                     ])
-                    ->visible(fn (): bool => Gate::allows('recordPayment', $this->getOwnerRecord())
+                    ->visible(fn (): bool => ! $this->isAccessoryOrderRequest()
+                        && Gate::allows('recordPayment', $this->getOwnerRecord())
                         && in_array($this->getOwnerRecord()->status, [
                             BillingRecordStatus::Unpaid,
                             BillingRecordStatus::PartiallyPaid,
@@ -240,9 +241,15 @@ class PaymentsRelationManager extends RelationManager
         /** @var BillingRecord $billingRecord */
         $billingRecord = $this->getOwnerRecord();
 
-        Gate::authorize('recordPayment', $billingRecord);
-
         try {
+            if ($this->isAccessoryOrderRequest()) {
+                throw ValidationException::withMessages([
+                    'payment' => ['Payments for accessory order requests must be submitted through the patient app.'],
+                ]);
+            }
+
+            Gate::authorize('recordPayment', $billingRecord);
+
             app(RecordBillingPayment::class)->handle(
                 billingRecord: $billingRecord,
                 amount: (float) $data['amount'],
@@ -263,6 +270,11 @@ class PaymentsRelationManager extends RelationManager
                 ->danger()
                 ->send();
         }
+    }
+
+    private function isAccessoryOrderRequest(): bool
+    {
+        return $this->getOwnerRecord()->jobOrder?->accessoryOrderRequest !== null;
     }
 
     private function hasPostedPayments(): bool

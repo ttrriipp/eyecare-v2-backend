@@ -101,6 +101,14 @@ class JobOrder extends Model
     }
 
     /**
+     * @return HasOne<AccessoryOrderRequest, $this>
+     */
+    public function accessoryOrderRequest(): HasOne
+    {
+        return $this->hasOne(AccessoryOrderRequest::class);
+    }
+
+    /**
      * @return HasMany<DispensingEvent, $this>
      */
     public function dispensingEvents(): HasMany

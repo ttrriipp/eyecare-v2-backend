@@ -177,18 +177,20 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => $record->created_at?->diffForHumans() ?? '—'),
                             Placeholder::make('started_at')
                                 ->label('Started')
-                                ->content(fn (JobOrder $record): string => $record->started_at?->diffForHumans() ?? '—'),
+                                ->content(fn (JobOrder $record): string => $record->started_at->diffForHumans())
+                                ->visible(fn (JobOrder $record): bool => $record->started_at !== null),
                             Placeholder::make('ready_at')
                                 ->label('Ready')
-                                ->content(fn (JobOrder $record): string => $record->ready_at?->diffForHumans() ?? '—'),
+                                ->content(fn (JobOrder $record): string => $record->ready_at->diffForHumans())
+                                ->visible(fn (JobOrder $record): bool => $record->ready_at !== null),
                             Placeholder::make('dispensed_at')
                                 ->label('Dispensed')
-                                ->content(fn (JobOrder $record): string => $record->dispensed_at?->diffForHumans() ?? '—')
-                                ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Dispensed),
+                                ->content(fn (JobOrder $record): string => $record->dispensed_at->diffForHumans())
+                                ->visible(fn (JobOrder $record): bool => $record->dispensed_at !== null),
                             Placeholder::make('cancelled_at')
                                 ->label('Cancelled')
-                                ->content(fn (JobOrder $record): string => $record->cancelled_at?->diffForHumans() ?? '—')
-                                ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Cancelled),
+                                ->content(fn (JobOrder $record): string => $record->cancelled_at->diffForHumans())
+                                ->visible(fn (JobOrder $record): bool => $record->cancelled_at !== null),
                         ]),
 
                     Section::make('Dispensing')

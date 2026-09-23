@@ -85,6 +85,7 @@ class OpticalOrderResource extends Resource
                 'prescription.author',
                 'billingRecord',
                 'activeBillingRecord',
+                'accessoryOrderRequest',
             ]);
     }
 }

@@ -107,6 +107,7 @@ class AccessoryOrderRequestInfolist
                     ->columnSpanFull()
                     ->visible(fn (AccessoryOrderRequest $record): bool => $record->discountProof?->status === DiscountProofStatus::Rejected),
             ])
+            ->visible(fn (AccessoryOrderRequest $record): bool => $record->requested_discount_type !== 'none')
             ->columns(2);
 
         $orderItems = Section::make('Order items')

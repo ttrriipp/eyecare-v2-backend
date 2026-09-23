@@ -8,6 +8,7 @@ use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\AccessoryOrderRequest;
 use App\Models\AccessoryOrderRequestDiscountProof;
 use App\Models\AccessoryOrderRequestItem;
+use App\Models\InventoryLot;
 use App\Models\JobOrder;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -87,6 +88,7 @@ test('staff can view the accessory order request details', function (): void {
         ->assertSee($request->request_number)
         ->assertSee($account->patient->full_name)
         ->assertSee('Pending')
+        ->assertDontSee('Discount proof')
         ->assertSee('Hydrating Eye Drops — 10 mL')
         ->assertSee('Submitted')
         ->assertDontSee('Resolved by')
@@ -168,10 +170,58 @@ test('staff can reject an accessory order request with a preset reason', functio
     Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
         ->callAction('reject', ['reason_category' => 'out_of_stock'])
         ->assertHasNoActionErrors()
-        ->assertNotified('Request rejected');
+        ->assertNotified('Request rejected')
+        ->assertSee('Rejected')
+        ->assertDontSee('Pending')
+        ->assertSee('Out of stock');
 
     expect($request->fresh()->status->value)->toBe('rejected')
         ->and($request->fresh()->rejection_reason)->toBe('Out of stock');
+});
+
+test('staff acceptance refreshes the order request page to the accepted state', function (): void {
+    $this->seed(NotificationStatusSeeder::class);
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $product = Product::factory()->accessory()->create();
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'is_active' => true,
+        'price' => 100,
+        'stock_quantity' => 10,
+    ]);
+    InventoryLot::factory()->create([
+        'product_variant_id' => $variant->id,
+        'received_by' => $account->id,
+        'quantity_on_hand' => 10,
+        'expires_on' => now()->addMonths(6)->toDateString(),
+    ]);
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'subtotal_amount' => 100,
+    ]);
+    AccessoryOrderRequestItem::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'product_variant_id' => $variant->id,
+        'description' => 'Care Kit',
+        'quantity' => 1,
+        'unit_price' => 100,
+        'amount' => 100,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSee('Pending')
+        ->callAction('accept')
+        ->assertNotified('Request accepted')
+        ->assertSee('Accepted')
+        ->assertDontSee('Pending')
+        ->assertSee('Resolved by')
+        ->assertActionVisible('viewOpticalOrder')
+        ->assertActionHidden('accept')
+        ->assertActionHidden('reject');
 });
 
 test('staff can review a pending discount proof from the order request page', function (): void {

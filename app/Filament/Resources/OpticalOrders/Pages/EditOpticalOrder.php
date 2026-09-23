@@ -33,6 +33,17 @@ class EditOpticalOrder extends EditRecord
 {
     protected static string $resource = OpticalOrderResource::class;
 
+    /**
+     * @var array<string, string>
+     */
+    private const PAYMENT_PROOF_REJECTION_REASON_OPTIONS = [
+        'unreadable' => 'The payment proof is blurry or unreadable.',
+        'amount_mismatch' => 'The payment amount does not match the order total.',
+        'reference_unverified' => 'The payment reference could not be verified.',
+        'payment_not_received' => 'The payment could not be verified as received.',
+        'other' => 'Other',
+    ];
+
     public function getTitle(): string
     {
         $record = $this->getRecord();
@@ -146,16 +157,30 @@ class EditOpticalOrder extends EditRecord
                     && $this->record->status === JobOrderStatus::PaymentReview
                     && $this->record->paymentProof?->isPending())
                 ->form([
-                    Textarea::make('reason')
+                    Select::make('reason_category')
                         ->label('Rejection reason')
-                        ->required(),
+                        ->options(self::PAYMENT_PROOF_REJECTION_REASON_OPTIONS)
+                        ->required()
+                        ->live()
+                        ->helperText('Choose the closest match. Select Other to enter a custom reason.'),
+                    Textarea::make('rejection_details')
+                        ->label('Details')
+                        ->visible(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->required(fn (Get $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
                     try {
+                        $category = (string) ($data['reason_category'] ?? '');
+                        $reason = $category === 'other'
+                            ? trim((string) ($data['rejection_details'] ?? ''))
+                            : self::PAYMENT_PROOF_REJECTION_REASON_OPTIONS[$category] ?? '';
+
                         app(RejectPaymentProof::class)->handle(
                             proof: $this->record->paymentProof,
                             reviewer: auth()->user(),
-                            reason: $data['reason'],
+                            reason: $reason,
                         );
                         $this->record->refresh();
                         Notification::make()->title('Payment rejected, order cancelled')->success()->send();
@@ -228,7 +253,8 @@ class EditOpticalOrder extends EditRecord
                 ->label('Record Payment')
                 ->icon('heroicon-o-banknotes')
                 ->color('info')
-                ->visible(fn (): bool => ($billingRecord = $this->activeBillingRecord()) !== null
+                ->visible(fn (): bool => $this->record->accessoryOrderRequest === null
+                    && ($billingRecord = $this->activeBillingRecord()) !== null
                     && Gate::allows('recordPayment', $billingRecord)
                     && in_array($billingRecord->status, [
                         BillingRecordStatus::Unpaid,
@@ -280,9 +306,15 @@ class EditOpticalOrder extends EditRecord
                         return;
                     }
 
-                    Gate::authorize('recordPayment', $billingRecord);
-
                     try {
+                        if ($this->record->accessoryOrderRequest !== null) {
+                            throw ValidationException::withMessages([
+                                'payment' => ['Payments for accessory order requests must be submitted through the patient app.'],
+                            ]);
+                        }
+
+                        Gate::authorize('recordPayment', $billingRecord);
+
                         app(RecordBillingPayment::class)->handle(
                             billingRecord: $billingRecord,
                             amount: (float) $data['amount'],
