@@ -34,6 +34,23 @@ beforeEach(function () {
     $this->seed(NotificationStatusSeeder::class);
 });
 
+test('initial payment method options exclude card payments', function (): void {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->assertSchemaComponentExists('deposit_payment_method', checkComponentUsing: function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                'cash' => 'Cash',
+                'gcash' => 'GCash',
+                'bank_transfer' => 'Bank Transfer',
+            ]);
+
+            return true;
+        });
+});
+
 test('direct order discount input uses spinner-free decimal styling', function () {
     $staff = User::factory()->staff()->create();
 
@@ -562,6 +579,38 @@ test('staff can manually record payment for a normal optical order', function ()
 
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->assertActionVisible('recordPayment');
+});
+
+test('optical order payment reference is hidden for cash and shown for non-cash methods', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+    ]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'patient_id' => $jobOrder->patient_id,
+        'status' => BillingRecordStatus::Unpaid,
+        'balance_due' => 1000,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->mountAction('recordPayment')
+        ->assertSchemaComponentExists('payment_method', checkComponentUsing: function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                'cash' => 'Cash',
+                'gcash' => 'GCash',
+                'bank_transfer' => 'Bank Transfer',
+            ]);
+
+            return true;
+        })
+        ->assertSchemaComponentHidden('reference_number')
+        ->assertMountedActionModalDontSee('Reference #')
+        ->setActionData(['payment_method' => 'gcash'])
+        ->assertSchemaComponentVisible('reference_number')
+        ->assertMountedActionModalSee('Reference #');
 });
 
 test('payment proof rejection offers preset reasons and saves the selected reason', function (): void {

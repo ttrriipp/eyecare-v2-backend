@@ -9,6 +9,7 @@ use App\Models\JobOrder;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -71,4 +72,30 @@ test('billing page keeps manual payment entry for a normal optical order', funct
     expect($recordPaymentAction)
         ->toBeInstanceOf(Action::class)
         ->and($recordPaymentAction->isVisible())->toBeTrue();
+});
+
+test('billing record payment reference is hidden for cash and shown for non-cash methods', function (): void {
+    $staff = User::factory()->staff()->create();
+    $billingRecord = BillingRecord::factory()->partiallyPaid()->create();
+
+    Livewire::actingAs($staff)
+        ->test(PaymentsRelationManager::class, [
+            'ownerRecord' => $billingRecord,
+            'pageClass' => EditBillingRecord::class,
+        ])
+        ->mountTableAction('recordPayment')
+        ->assertSchemaComponentExists('payment_method', checkComponentUsing: function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                'cash' => 'Cash',
+                'gcash' => 'GCash',
+                'bank_transfer' => 'Bank Transfer',
+            ]);
+
+            return true;
+        })
+        ->assertSchemaComponentHidden('reference_number')
+        ->assertMountedActionModalDontSee('Reference #')
+        ->setTableActionData(['payment_method' => 'gcash'])
+        ->assertSchemaComponentVisible('reference_number')
+        ->assertMountedActionModalSee('Reference #');
 });

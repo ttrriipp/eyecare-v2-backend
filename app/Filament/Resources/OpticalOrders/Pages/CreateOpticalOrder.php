@@ -380,7 +380,6 @@ class CreateOpticalOrder extends CreateRecord
                                             'cash' => 'Cash',
                                             'gcash' => 'GCash',
                                             'bank_transfer' => 'Bank Transfer',
-                                            'card' => 'Card',
                                         ])
                                         ->default('cash')
                                         ->required(fn (Get $get): bool => filled($get('deposit_amount')))

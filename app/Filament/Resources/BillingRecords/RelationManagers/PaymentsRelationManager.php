@@ -17,6 +17,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -115,12 +116,13 @@ class PaymentsRelationManager extends RelationManager
                                 'cash' => 'Cash',
                                 'gcash' => 'GCash',
                                 'bank_transfer' => 'Bank Transfer',
-                                'card' => 'Card',
                             ])
                             ->default('cash')
-                            ->required(),
+                            ->required()
+                            ->live(),
                         TextInput::make('reference_number')
                             ->label('Reference #')
+                            ->visible(fn (Get $get): bool => $get('payment_method') !== 'cash')
                             ->nullable(),
                         Textarea::make('notes')
                             ->label('Notes')

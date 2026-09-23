@@ -272,12 +272,13 @@ class EditOpticalOrder extends EditRecord
                             'cash' => 'Cash',
                             'gcash' => 'GCash',
                             'bank_transfer' => 'Bank Transfer',
-                            'card' => 'Card',
                         ])
                         ->default('cash')
-                        ->required(),
+                        ->required()
+                        ->live(),
                     TextInput::make('reference_number')
                         ->label('Reference #')
+                        ->visible(fn (Get $get): bool => $get('payment_method') !== 'cash')
                         ->nullable(),
                     Textarea::make('payment_notes')
                         ->label('Notes')
