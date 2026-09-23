@@ -33,7 +33,7 @@ class OpticalOrdersRelationManager extends RelationManager
                         JobOrderStatus::PendingPayment => 'Awaiting Payment',
                         JobOrderStatus::PaymentReview => 'Payment Review',
                         JobOrderStatus::Queued => 'Confirmed',
-                        JobOrderStatus::InProgress => 'Processing',
+                        JobOrderStatus::InProgress => 'Preparing',
                         JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
                         JobOrderStatus::Dispensed => 'Completed',
                         JobOrderStatus::Cancelled => 'Cancelled',

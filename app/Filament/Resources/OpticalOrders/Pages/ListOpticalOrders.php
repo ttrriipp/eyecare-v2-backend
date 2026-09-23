@@ -44,7 +44,7 @@ class ListOpticalOrders extends ListRecords
             'confirmed' => Tab::make('Confirmed')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::Queued)),
 
-            'production' => Tab::make('Processing')
+            'production' => Tab::make('Preparing')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::InProgress)),
 
             'ready' => Tab::make('Ready for Pickup')

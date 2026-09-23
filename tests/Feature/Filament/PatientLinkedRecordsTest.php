@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EncounterStatus;
+use App\Enums\JobOrderStatus;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Resources\Patients\RelationManagers\BillingRelationManager;
@@ -61,7 +62,10 @@ test('encounters relation manager renders cancelled consultations', function () 
 test('optical orders relation manager lists the patient\'s job orders', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
-    $jobOrder = JobOrder::factory()->create(['patient_id' => $patient->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => JobOrderStatus::InProgress,
+    ]);
     $otherJobOrder = JobOrder::factory()->create();
 
     $this->actingAs($staff);
@@ -71,6 +75,7 @@ test('optical orders relation manager lists the patient\'s job orders', function
         'pageClass' => EditPatient::class,
     ])
         ->assertCanSeeTableRecords([$jobOrder])
+        ->assertTableColumnFormattedStateSet('status', 'Preparing', record: $jobOrder)
         ->assertCanNotSeeTableRecords([$otherJobOrder]);
 });
 

@@ -43,7 +43,7 @@ class OpticalOrderForm
                                     JobOrderStatus::PendingPayment => 'Awaiting Payment',
                                     JobOrderStatus::PaymentReview => 'Payment Review',
                                     JobOrderStatus::Queued => 'Confirmed',
-                                    JobOrderStatus::InProgress => 'Processing',
+                                    JobOrderStatus::InProgress => 'Preparing',
                                     JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
                                     JobOrderStatus::Dispensed => 'Completed',
                                     JobOrderStatus::Cancelled => 'Cancelled',
@@ -59,7 +59,7 @@ class OpticalOrderForm
                                     JobOrderStatus::Cancelled => 'danger',
                                 }),
                             Placeholder::make('fulfillment_mode')
-                                ->label('Processing Method')
+                                ->label('Preparation Method')
                                 ->content(fn (JobOrder $record): string => match ($record->fulfillment_mode) {
                                     'immediate' => 'Immediate Release',
                                     'prepared' => 'Prepare Order',

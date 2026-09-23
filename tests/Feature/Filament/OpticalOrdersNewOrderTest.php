@@ -402,6 +402,7 @@ test('optical order list exposes payment lifecycle tabs and status labels', func
     $awaitingPayment = JobOrder::factory()->create(['status' => JobOrderStatus::PendingPayment]);
     $paymentReview = JobOrder::factory()->create(['status' => JobOrderStatus::PaymentReview]);
     $confirmed = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+    $preparing = JobOrder::factory()->create(['status' => JobOrderStatus::InProgress]);
 
     $this->actingAs($staff);
 
@@ -415,12 +416,34 @@ test('optical order list exposes payment lifecycle tabs and status labels', func
         ->assertTableColumnFormattedStateSet('status', 'Awaiting Payment', record: $awaitingPayment)
         ->assertTableColumnFormattedStateSet('status', 'Payment Review', record: $paymentReview)
         ->assertTableColumnFormattedStateSet('status', 'Confirmed', record: $confirmed)
+        ->assertTableColumnFormattedStateSet('status', 'Preparing', record: $preparing)
+        ->assertSee('Preparing')
+        ->assertDontSee('Processing')
+        ->assertDontSee('In Progress')
         ->set('activeTab', 'awaiting_payment')
         ->assertCanSeeTableRecords([$awaitingPayment])
         ->assertCanNotSeeTableRecords([$paymentReview, $confirmed])
         ->set('activeTab', 'payment_review')
         ->assertCanSeeTableRecords([$paymentReview])
-        ->assertCanNotSeeTableRecords([$awaitingPayment, $confirmed]);
+        ->assertCanNotSeeTableRecords([$awaitingPayment, $confirmed])
+        ->set('activeTab', 'production')
+        ->assertCanSeeTableRecords([$preparing])
+        ->assertCanNotSeeTableRecords([$awaitingPayment, $paymentReview, $confirmed]);
+});
+
+test('optical order start action uses preparation wording', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertActionVisible('start')
+        ->assertSee('Start Preparing')
+        ->assertDontSee('Start Processing')
+        ->mountAction('start')
+        ->assertActionMounted('start')
+        ->assertMountedActionModalSee('Begin preparing this optical order.');
 });
 
 test('dispense modal enables balance release override when a balance remains', function () {
@@ -733,10 +756,11 @@ test('direct order page reveals the dedicated eyewear builder for a selected pre
             'Include prescription eyewear',
             'Prescription Eyewear',
             'Other Items',
-            'Processing Method',
+            'Preparation Method',
             'Payment',
             'Create Order & Billing',
         ])
+        ->assertDontSee('Processing Method')
         ->assertFormFieldExists('eyewear_frame_source')
         ->assertFormFieldExists('eyewear_lens_category_id')
         ->assertFormFieldExists('eyewear_lens_options');

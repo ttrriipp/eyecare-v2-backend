@@ -84,7 +84,7 @@ class OpticalOrdersReport extends ReportsClusterPage
 
         $statusLabels = [
             JobOrderStatus::Queued->value => 'Confirmed',
-            JobOrderStatus::InProgress->value => 'Processing',
+            JobOrderStatus::InProgress->value => 'Preparing',
             JobOrderStatus::ReadyForDispensing->value => 'Ready for Pickup',
             JobOrderStatus::Dispensed->value => 'Completed',
             JobOrderStatus::Cancelled->value => 'Cancelled',

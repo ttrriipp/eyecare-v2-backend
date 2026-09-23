@@ -294,10 +294,10 @@ class CreateOpticalOrder extends CreateRecord
                     Grid::make(1)
                         ->columnSpan(['default' => 1, 'lg' => 1])
                         ->schema([
-                            Section::make('Processing Method')
+                            Section::make('Preparation Method')
                                 ->schema([
                                     Radio::make('fulfillment_mode')
-                                        ->label('Processing Method')
+                                        ->label('Preparation Method')
                                         ->options([
                                             'immediate' => 'Immediate Release',
                                             'prepared' => 'Prepare Order',

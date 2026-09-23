@@ -94,7 +94,7 @@ test('optical orders report separates created, dispensed, and cancelled event co
 
     expect($statuses->get('Confirmed')['value'])
         ->toBe(1)
-        ->and($statuses->get('Processing')['value'])
+        ->and($statuses->get('Preparing')['value'])
         ->toBe(1)
         ->and($statuses->get('Completed')['value'])
         ->toBe(1)

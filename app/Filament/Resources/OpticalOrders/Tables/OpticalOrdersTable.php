@@ -44,7 +44,7 @@ class OpticalOrdersTable
                         JobOrderStatus::PendingPayment => 'Awaiting Payment',
                         JobOrderStatus::PaymentReview => 'Payment Review',
                         JobOrderStatus::Queued => 'Confirmed',
-                        JobOrderStatus::InProgress => 'Processing',
+                        JobOrderStatus::InProgress => 'Preparing',
                         JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
                         JobOrderStatus::Dispensed => 'Completed',
                         JobOrderStatus::Cancelled => 'Cancelled',
@@ -89,7 +89,15 @@ class OpticalOrdersTable
             ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('status')
-                    ->options(JobOrderStatus::class),
+                    ->options([
+                        JobOrderStatus::PendingPayment->value => 'Awaiting Payment',
+                        JobOrderStatus::PaymentReview->value => 'Payment Review',
+                        JobOrderStatus::Queued->value => 'Confirmed',
+                        JobOrderStatus::InProgress->value => 'Preparing',
+                        JobOrderStatus::ReadyForDispensing->value => 'Ready for Pickup',
+                        JobOrderStatus::Dispensed->value => 'Completed',
+                        JobOrderStatus::Cancelled->value => 'Cancelled',
+                    ]),
             ])
             ->recordActions([
                 ActionGroup::make([
@@ -98,13 +106,13 @@ class OpticalOrdersTable
                         ->icon('heroicon-o-eye')
                         ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('edit', ['record' => $record])),
                     Action::make('start')
-                        ->label('Start Processing')
+                        ->label('Start Preparing')
                         ->icon('heroicon-o-play')
                         ->color('warning')
                         ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Queued)
                         ->requiresConfirmation()
-                        ->modalHeading('Start Processing')
-                        ->modalDescription('Begin processing this optical order.')
+                        ->modalHeading('Start Preparing')
+                        ->modalDescription('Begin preparing this optical order.')
                         ->action(function (JobOrder $record): void {
                             try {
                                 app(UpdateJobOrderStatus::class)->handle($record, 'in_progress', auth()->user());

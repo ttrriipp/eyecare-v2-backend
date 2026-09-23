@@ -34,7 +34,7 @@ class OpticalOrderStatsWidget extends BaseWidget
         return [
             Stat::make('Confirmed', number_format($confirmedCount))
                 ->color('warning'),
-            Stat::make('Processing', number_format($processingCount))
+            Stat::make('Preparing', number_format($processingCount))
                 ->color('primary'),
             Stat::make('Ready for Pickup', number_format($readyCount))
                 ->color('success'),

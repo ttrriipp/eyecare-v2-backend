@@ -62,14 +62,14 @@ class EditOpticalOrder extends EditRecord
     {
         return [
             Action::make('start')
-                ->label('Start Processing')
+                ->label('Start Preparing')
                 ->icon('heroicon-o-play')
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === JobOrderStatus::Queued)
                 ->requiresConfirmation()
-                ->modalHeading('Start Processing')
-                ->modalDescription('Begin processing this optical order.')
-                ->modalSubmitActionLabel('Start Processing')
+                ->modalHeading('Start Preparing')
+                ->modalDescription('Begin preparing this optical order.')
+                ->modalSubmitActionLabel('Start Preparing')
                 ->action(function (): void {
                     try {
                         app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress', auth()->user());
