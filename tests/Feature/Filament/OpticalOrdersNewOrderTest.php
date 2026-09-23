@@ -448,6 +448,30 @@ test('optical order timeline hides milestones that have not been reached', funct
         ->assertSchemaComponentHidden('cancelled_at');
 });
 
+test('mark ready confirmation does not ask for the supplier invoice number again', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::InProgress,
+        'uses_external_supplier' => true,
+        'supplier_invoice_number' => 'SUP-INV-2001',
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()]);
+
+    $component
+        ->assertSchemaComponentExists('supplier_invoice_number')
+        ->mountAction('markReady')
+        ->assertSchemaComponentDoesNotExist('supplier_invoice_number')
+        ->assertMountedActionModalDontSee('Supplier Invoice Number')
+        ->callMountedAction()
+        ->assertNotified('Order marked ready');
+
+    expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::ReadyForDispensing)
+        ->and($jobOrder->fresh()->supplier_invoice_number)->toBe('SUP-INV-2001');
+});
+
 test('optical order details show a submitted payment proof preview and download action', function (): void {
     $staff = User::factory()->staff()->create();
     $jobOrder = JobOrder::factory()->create([

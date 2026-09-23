@@ -23,7 +23,6 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -91,24 +90,12 @@ class EditOpticalOrder extends EditRecord
                 ->modalHeading('Mark Ready for Pickup')
                 ->modalDescription('Mark this order as ready for patient pickup.')
                 ->modalSubmitActionLabel('Mark Ready')
-                ->schema([
-                    TextInput::make('supplier_invoice_number')
-                        ->label('Supplier Invoice Number')
-                        ->default(fn (): ?string => $this->record->supplier_invoice_number)
-                        ->required(fn (): bool => $this->record->uses_external_supplier)
-                        ->maxLength(100),
-                ])
-                ->action(function (array $data): void {
+                ->action(function (): void {
                     try {
-                        DB::transaction(function () use ($data): void {
-                            $this->record->update([
-                                'supplier_invoice_number' => $data['supplier_invoice_number'],
-                            ]);
-                            app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing', auth()->user());
-                        });
+                        app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing', auth()->user());
                         $this->record->refresh();
                         Notification::make()->title('Order marked ready')->success()->send();
-                        $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
+                        $this->refreshFormData(['status', 'ready_at']);
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot mark ready')->body($e->getMessage())->danger()->send();
                     }
