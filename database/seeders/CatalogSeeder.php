@@ -698,7 +698,9 @@ class CatalogSeeder extends Seeder
                         'target_stock_level' => 12,
                         'opening_stock' => [
                             'quantity' => 6,
-                            'lot_number' => 'CL-ALCON-AOC2-'.strtoupper(str_replace(' ', '-', $color)).'-202609',
+                            'randomize_lot_number' => true,
+                            'lot_number_format' => 'numeric_8_digit',
+                            'previous_seeded_lot_number' => 'CL-ALCON-AOC2-'.strtoupper(str_replace(' ', '-', $color)).'-202609',
                             'expires_on' => '2027-09-30',
                             'purchased_at' => '2026-09-01',
                         ],
@@ -807,7 +809,7 @@ class CatalogSeeder extends Seeder
     }
 
     /**
-     * @param  array{quantity: int, purchased_at: string, lot_number?: string, randomize_lot_number?: bool, previous_seeded_lot_number?: string, legacy_lot_number?: string, expires_on?: string|null}  $openingStock
+     * @param  array{quantity: int, purchased_at: string, lot_number?: string, lot_number_format?: 'numeric_8_digit', randomize_lot_number?: bool, previous_seeded_lot_number?: string, legacy_lot_number?: string, expires_on?: string|null}  $openingStock
      */
     private function seedOpeningStockMovement(
         ProductVariant $variant,
@@ -835,7 +837,7 @@ class CatalogSeeder extends Seeder
     }
 
     /**
-     * @param  array{quantity: int, purchased_at: string, lot_number?: string, randomize_lot_number?: bool, previous_seeded_lot_number?: string, legacy_lot_number?: string, expires_on?: string|null}  $openingStock
+     * @param  array{quantity: int, purchased_at: string, lot_number?: string, lot_number_format?: 'numeric_8_digit', randomize_lot_number?: bool, previous_seeded_lot_number?: string, legacy_lot_number?: string, expires_on?: string|null}  $openingStock
      */
     private function seedOpeningStockBatch(
         ProductVariant $variant,
@@ -863,7 +865,10 @@ class CatalogSeeder extends Seeder
 
         $batchNumber = match (true) {
             $existingCatalogBatch !== null && ! $existingCatalogBatchIsLegacy => $existingCatalogBatch->lot_number,
-            $shouldRandomizeLotNumber => $this->randomOpeningStockBatchNumber($variant),
+            $shouldRandomizeLotNumber => $this->randomOpeningStockBatchNumber(
+                $variant,
+                $openingStock['lot_number_format'] ?? null,
+            ),
             default => $openingStock['lot_number']
                 ?? $this->openingStockBatchNumber($variant, $openingStock['purchased_at']),
         };
@@ -907,18 +912,20 @@ class CatalogSeeder extends Seeder
         );
     }
 
-    private function randomOpeningStockBatchNumber(ProductVariant $variant): string
+    private function randomOpeningStockBatchNumber(ProductVariant $variant, ?string $lotNumberFormat = null): string
     {
         $letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
         do {
-            $batchNumber = sprintf(
-                '%02d%s%d%s',
-                random_int(10, 99),
-                $letters[random_int(0, 25)].$letters[random_int(0, 25)],
-                random_int(0, 9),
-                $letters[random_int(0, 25)],
-            );
+            $batchNumber = $lotNumberFormat === 'numeric_8_digit'
+                ? (string) random_int(10_000_000, 99_999_999)
+                : sprintf(
+                    '%02d%s%d%s',
+                    random_int(10, 99),
+                    $letters[random_int(0, 25)].$letters[random_int(0, 25)],
+                    random_int(0, 9),
+                    $letters[random_int(0, 25)],
+                );
         } while (InventoryLot::query()
             ->where('product_variant_id', $variant->id)
             ->where('lot_number', $batchNumber)

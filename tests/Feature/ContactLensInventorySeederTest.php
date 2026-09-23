@@ -59,6 +59,70 @@ test('canonical contact lens inventory is idempotent when the database is reseed
         ->toBe($initialStocks->all());
 });
 
+test('contact lens opening lots use eight digit numeric codes and migrate legacy lot numbers', function (): void {
+    Storage::fake('public');
+    User::factory()->staff()->create();
+
+    $this->seed(CatalogSeeder::class);
+
+    $contactLensVariants = ProductVariant::query()
+        ->contactLenses()
+        ->orderBy('sku')
+        ->get();
+    $legacyLotNumbers = [];
+
+    foreach ($contactLensVariants as $variant) {
+        $seededLotNumber = InventoryLot::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->sole()
+            ->lot_number;
+
+        expect($seededLotNumber)->toMatch('/\A[0-9]{8}\z/');
+
+        $legacyLotNumber = 'CL-ALCON-AOC2-'.strtoupper(str_replace(' ', '-', $variant->name)).'-202609';
+        $legacyLotNumbers[$variant->sku] = $legacyLotNumber;
+
+        InventoryLot::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->sole()
+            ->update(['lot_number' => $legacyLotNumber]);
+    }
+
+    $initialLotCount = InventoryLot::query()->count();
+    $this->seed(CatalogSeeder::class);
+
+    $migratedLotNumbers = [];
+
+    foreach ($contactLensVariants as $variant) {
+        $lotNumber = InventoryLot::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->sole()
+            ->lot_number;
+
+        expect($lotNumber)
+            ->toMatch('/\A[0-9]{8}\z/')
+            ->not->toBe($legacyLotNumbers[$variant->sku]);
+
+        $migratedLotNumbers[$variant->sku] = $lotNumber;
+    }
+
+    expect(InventoryLot::query()->count())->toBe($initialLotCount);
+
+    $this->seed(CatalogSeeder::class);
+
+    $reseededLotNumbers = [];
+
+    foreach ($contactLensVariants as $variant) {
+        $reseededLotNumbers[$variant->sku] = InventoryLot::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->sole()
+            ->lot_number;
+    }
+
+    expect($reseededLotNumbers)->toBe($migratedLotNumbers)
+        ->and(InventoryLot::query()->count())->toBe($initialLotCount);
+});
+
 test('accessory opening lots use random printed codes and remain stable when the catalog is reseeded', function (): void {
     Storage::fake('public');
     User::factory()->staff()->create();
