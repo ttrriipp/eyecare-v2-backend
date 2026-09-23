@@ -531,7 +531,7 @@ class AcceptAppointmentRequest
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_scheduled',
             'recipient' => $recipient,
-            'message' => SmsMessageFormatter::brand("Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}."),
+            'message' => SmsMessageFormatter::brand("Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->format('M j, Y g:i A')}."),
         ]);
     }
 

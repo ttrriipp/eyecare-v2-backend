@@ -111,6 +111,7 @@ test('creating a scheduled appointment queues a confirmation sms', function () {
         ->and($sms->event)->toBe('appointment_scheduled')
         ->and($sms->recipient)->toBe($this->patient->patient->phone)
         ->and($sms->message)->toStartWith('EyeCare: ')
+        ->and($sms->message)->toContain('Jul 13, 2026 10:00 AM')
         ->and($sms->status->name)->toBe('queued');
 });
 
