@@ -13,8 +13,40 @@ Schedule::command('appointments:send-reminders')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping()
     ->onOneServer();
+
+$hasSmsReminderTestConfiguration = static function (): bool {
+    $appointmentId = filter_var(
+        config('services.sms_reminder_test.appointment_id'),
+        FILTER_VALIDATE_INT,
+        ['options' => ['min_range' => 1]],
+    );
+    $recipient = config('services.sms_reminder_test.recipient');
+
+    return $appointmentId !== false
+        && is_string($recipient)
+        && preg_match('/^\+[1-9]\d{7,14}$/', $recipient) === 1;
+};
+
 Schedule::command('sms:process')
     ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::call(static function () use ($hasSmsReminderTestConfiguration): void {
+    if (! $hasSmsReminderTestConfiguration()) {
+        return;
+    }
+
+    Artisan::call('appointments:send-reminders', [
+        '--test-appointment' => (int) config('services.sms_reminder_test.appointment_id'),
+        '--test-recipient' => config('services.sms_reminder_test.recipient'),
+        '--scheduled-test' => true,
+    ]);
+})
+    ->everyMinute()
+    ->timezone(config('app.timezone'))
+    ->name('sms-reminder-scheduler-test')
+    ->when($hasSmsReminderTestConfiguration)
     ->withoutOverlapping()
     ->onOneServer();
 Schedule::command('sms:textbee:sync')

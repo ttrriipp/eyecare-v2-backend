@@ -60,4 +60,9 @@ return [
         'driver' => env('SMS_DRIVER', 'semaphore'),
     ],
 
+    'sms_reminder_test' => [
+        'appointment_id' => env('SMS_REMINDER_TEST_APPOINTMENT_ID'),
+        'recipient' => env('SMS_REMINDER_TEST_RECIPIENT'),
+    ],
+
 ];

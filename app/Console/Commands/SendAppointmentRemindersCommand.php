@@ -13,7 +13,8 @@ class SendAppointmentRemindersCommand extends Command
 {
     protected $signature = 'appointments:send-reminders
                             {--test-appointment= : Appointment ID for a one-off five-minute reminder test}
-                            {--test-recipient= : E.164 phone number controlled by the operator}';
+                            {--test-recipient= : E.164 phone number controlled by the operator}
+                            {--scheduled-test : Restrict scheduler test reminders to marked test appointments and wait for the five-minute window}';
 
     protected $description = 'Queue 24-hour appointment reminders or one explicitly targeted five-minute test reminder';
 
@@ -27,7 +28,7 @@ class SendAppointmentRemindersCommand extends Command
             return self::FAILURE;
         }
 
-        if ($this->option('test-appointment') !== null || $this->option('test-recipient') !== null) {
+        if ($this->option('test-appointment') !== null || $this->option('test-recipient') !== null || $this->option('scheduled-test')) {
             return $this->queueTestReminder((int) $queuedStatusId);
         }
 
@@ -75,12 +76,17 @@ class SendAppointmentRemindersCommand extends Command
 
         $appointment = Appointment::query()
             ->whereKey($appointmentId)
+            ->when($this->option('scheduled-test'), fn ($query) => $query->where('source', 'sms_test'))
             ->whereHas('status', fn ($query) => $query->where('name', 'scheduled'))
             ->where('scheduled_at', '>=', now()->addMinutes(4))
             ->where('scheduled_at', '<=', now()->addMinutes(6))
             ->first();
 
         if ($appointment === null) {
+            if ($this->option('scheduled-test')) {
+                return self::SUCCESS;
+            }
+
             $this->error('The selected appointment must be scheduled and about five minutes away.');
 
             return self::FAILURE;
@@ -96,7 +102,9 @@ class SendAppointmentRemindersCommand extends Command
 
         SendSmsJob::dispatch($sms);
 
-        $this->info('Queued one five-minute test reminder to the supplied number.');
+        $this->info($this->option('scheduled-test')
+            ? 'Queued one scheduled five-minute test reminder.'
+            : 'Queued one five-minute test reminder to the supplied number.');
 
         return self::SUCCESS;
     }

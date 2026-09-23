@@ -15,7 +15,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Validation\ValidationException;
 
-#[Signature('appointments:create-sms-test {--force : Confirm that temporary test records should be created}')]
+#[Signature('appointments:create-sms-test {--force : Confirm that temporary test records should be created} {--minutes-ahead=7 : Minutes until the test appointment, from 7 to 120}')]
 #[Description('Create a temporary appointment for a targeted SMS reminder test')]
 class CreateSmsTestAppointmentCommand extends Command
 {
@@ -26,6 +26,14 @@ class CreateSmsTestAppointmentCommand extends Command
     ): int {
         if (! $this->option('force')) {
             $this->error('This command creates temporary patient and appointment records. Re-run with --force to confirm.');
+
+            return self::FAILURE;
+        }
+
+        $minutesAhead = filter_var($this->option('minutes-ahead'), FILTER_VALIDATE_INT);
+
+        if ($minutesAhead === false || $minutesAhead < 7 || $minutesAhead > 120) {
+            $this->error('The test appointment must be scheduled 7 to 120 minutes ahead.');
 
             return self::FAILURE;
         }
@@ -45,7 +53,7 @@ class CreateSmsTestAppointmentCommand extends Command
             return self::FAILURE;
         }
 
-        $scheduledAt = now()->addMinutes(7);
+        $scheduledAt = now()->addMinutes($minutesAhead);
 
         try {
             $appointment = $database->transaction(function () use (
@@ -87,7 +95,8 @@ class CreateSmsTestAppointmentCommand extends Command
 
         $this->info("Created temporary SMS test appointment ID {$appointment->id} ({$appointment->appointment_number}) for {$appointment->scheduled_at->format('M j, Y g:i:s A')}.");
         $this->line("Fake patient: {$appointment->patient->full_name} ({$appointment->patient->patient_number}); no phone number or booking SMS was added.");
-        $this->line("In about 1–3 minutes, run: php artisan appointments:send-reminders --test-appointment={$appointment->id} --test-recipient=+63XXXXXXXXXX (replace with your test number).");
+        $minutesUntilReminderWindow = max(0, $minutesAhead - 6);
+        $this->line("The five-minute reminder window starts in about {$minutesUntilReminderWindow} minute(s). For a manual test, run: php artisan appointments:send-reminders --test-appointment={$appointment->id} --test-recipient=+63XXXXXXXXXX (replace with your test number) when the appointment is 4–6 minutes away.");
 
         return self::SUCCESS;
     }
