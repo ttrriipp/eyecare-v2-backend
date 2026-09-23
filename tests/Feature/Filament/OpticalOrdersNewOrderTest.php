@@ -448,6 +448,39 @@ test('optical order timeline hides milestones that have not been reached', funct
         ->assertSchemaComponentHidden('cancelled_at');
 });
 
+test('optical order details show a submitted payment proof preview and download action', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::PaymentReview,
+    ]);
+    $proof = OrderPaymentProof::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'mime_type' => 'image/jpeg',
+    ]);
+    $previewUrl = route('payment-proofs.preview', ['proof' => $proof]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertSchemaComponentVisible('payment_proof_preview')
+        ->assertSee($previewUrl, false)
+        ->assertSee('Submitted payment proof')
+        ->assertActionVisible('downloadProof');
+});
+
+test('optical order details hide payment proof preview when none has been submitted', function (): void {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::PendingPayment,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertSchemaComponentHidden('payment_proof_preview')
+        ->assertActionHidden('downloadProof');
+});
+
 test('optical order timeline shows each milestone after its timestamp is recorded', function (): void {
     $staff = User::factory()->staff()->create();
     $jobOrder = JobOrder::factory()->create([

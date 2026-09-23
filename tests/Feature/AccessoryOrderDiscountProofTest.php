@@ -264,11 +264,52 @@ test('active staff can download a private discount proof', function (): void {
         ->assertHeader('X-Content-Type-Options', 'nosniff');
 });
 
+test('active staff can preview a private discount proof inline', function (): void {
+    $reviewer = User::factory()->staff()->create();
+    $proof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'original_name' => "pwd\nproof.jpg",
+        'mime_type' => 'image/jpeg',
+        'file_path' => 'discount-proofs/pwd.jpg',
+    ]);
+    Storage::disk('discount_proofs')->put($proof->file_path, 'proof image bytes');
+
+    $this->actingAs($reviewer)
+        ->get(route('discount-proofs.preview', ['proof' => $proof]))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/jpeg')
+        ->assertHeader('Cache-Control', 'no-store, private')
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertStreamedContent('proof image bytes');
+});
+
+test('discount proof preview rejects missing files and unsupported mime types', function (): void {
+    $reviewer = User::factory()->staff()->create();
+    $missingProof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'mime_type' => 'image/jpeg',
+        'file_path' => 'discount-proofs/missing.jpg',
+    ]);
+    $unsupportedProof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'mime_type' => 'application/pdf',
+        'file_path' => 'discount-proofs/document.pdf',
+    ]);
+    Storage::disk('discount_proofs')->put($unsupportedProof->file_path, 'not an image');
+
+    $this->actingAs($reviewer)
+        ->get(route('discount-proofs.preview', ['proof' => $missingProof]))
+        ->assertNotFound();
+
+    $this->get(route('discount-proofs.preview', ['proof' => $unsupportedProof]))
+        ->assertNotFound();
+});
+
 test('optometrist-only accounts cannot download discount proofs', function (): void {
     $optometrist = User::factory()->optometrist()->create();
     $proof = AccessoryOrderRequestDiscountProof::factory()->create();
 
     $this->actingAs($optometrist)
         ->get("/discount-proofs/{$proof->id}/download")
+        ->assertForbidden();
+
+    $this->get(route('discount-proofs.preview', ['proof' => $proof]))
         ->assertForbidden();
 });

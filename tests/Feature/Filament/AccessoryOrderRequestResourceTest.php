@@ -9,6 +9,7 @@ use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\AccessoryOrderRequest;
 use App\Models\AccessoryOrderRequestDiscountProof;
 use App\Models\AccessoryOrderRequestItem;
+use App\Models\BillingRecord;
 use App\Models\InventoryLot;
 use App\Models\JobOrder;
 use App\Models\Product;
@@ -157,6 +158,61 @@ test('staff can view resolution details for a resolved accessory order request',
         ->assertSee('Test rejection');
 });
 
+test('staff do not see a rejection reason for an accepted accessory order request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->accepted()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Accepted')
+        ->assertDontSee('Rejection reason')
+        ->assertDontSee('Discount amount')
+        ->assertDontSee('Order total');
+});
+
+test('staff can see the applied discount and total for a discounted accepted request', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $order = JobOrder::factory()->create([
+        'patient_id' => $account->patient->id,
+    ]);
+    BillingRecord::factory()->create([
+        'patient_id' => $account->patient->id,
+        'job_order_id' => $order->id,
+        'subtotal_amount' => 1000,
+        'discount_amount' => 200,
+        'total_amount' => 800,
+        'balance_due' => 800,
+    ]);
+    $request = AccessoryOrderRequest::factory()->accepted()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'job_order_id' => $order->id,
+        'subtotal_amount' => 1000,
+        'requested_discount_type' => 'pwd',
+    ]);
+    AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'status' => DiscountProofStatus::Accepted,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Discount amount')
+        ->assertSee('₱200.00')
+        ->assertSee('Order total')
+        ->assertSee('₱800.00');
+});
+
 test('staff can view a patient cancellation reason in the request details', function (): void {
     $staff = User::factory()->staff()->create();
     $account = User::factory()->patient()->create();
@@ -267,6 +323,31 @@ test('staff can review a pending discount proof from the order request page', fu
         ->assertNotified('Discount proof accepted');
 
     expect($proof->fresh()->status)->toBe(DiscountProofStatus::Accepted);
+});
+
+test('staff can see the discount proof image on the order request details page', function (): void {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->patient()->create();
+    $request = AccessoryOrderRequest::factory()->create([
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'requested_discount_type' => 'pwd',
+    ]);
+    $proof = AccessoryOrderRequestDiscountProof::factory()->create([
+        'accessory_order_request_id' => $request->id,
+        'user_id' => $account->id,
+        'mime_type' => 'image/png',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAccessoryOrderRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Proof attachment')
+        ->assertSee(route('discount-proofs.preview', ['proof' => $proof]), escape: false)
+        ->assertSee('Download discount proof')
+        ->assertDontSee('View discount proof')
+        ->assertActionVisible('viewDiscountProof');
 });
 
 test('staff can reject a discount proof with a preset reason from the order request page', function (): void {

@@ -4,9 +4,11 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Http\Controllers\DiscountProofDownloadController;
+use App\Http\Controllers\DiscountProofPreviewController;
 use App\Http\Controllers\MessageAttachmentDownloadController;
 use App\Http\Controllers\MessageAttachmentPreviewController;
 use App\Http\Controllers\PaymentProofDownloadController;
+use App\Http\Controllers\PaymentProofPreviewController;
 use App\Http\Controllers\PilotReadinessController;
 use App\Models\Encounter;
 use App\Models\Prescription;
@@ -50,8 +52,14 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/payment-proofs/{proof}/download', PaymentProofDownloadController::class)
         ->name('payment-proofs.download');
 
+    Route::get('/payment-proofs/{proof}/preview', PaymentProofPreviewController::class)
+        ->name('payment-proofs.preview');
+
     Route::get('/discount-proofs/{proof}/download', DiscountProofDownloadController::class)
         ->name('discount-proofs.download');
+
+    Route::get('/discount-proofs/{proof}/preview', DiscountProofPreviewController::class)
+        ->name('discount-proofs.preview');
 
     Route::get('/pdf/prescriptions/{prescription}', function (Prescription $prescription, PdfService $pdf) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);

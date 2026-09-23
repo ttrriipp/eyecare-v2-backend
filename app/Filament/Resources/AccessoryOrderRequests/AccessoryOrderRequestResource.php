@@ -72,6 +72,12 @@ class AccessoryOrderRequestResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['patient', 'items', 'resolvedBy', 'jobOrder', 'discountProof.reviewedBy']);
+            ->with([
+                'patient',
+                'items',
+                'resolvedBy',
+                'jobOrder.activeBillingRecord',
+                'discountProof.reviewedBy',
+            ]);
     }
 }

@@ -50,7 +50,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
     {
         return [
             Action::make('viewDiscountProof')
-                ->label('View discount proof')
+                ->label('Download discount proof')
                 ->icon('heroicon-o-identification')
                 ->color('gray')
                 ->url(fn (): string => route(
@@ -174,7 +174,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
                             reviewer: auth()->user(),
                         );
 
-                        $this->getRecord()->refresh()->load('jobOrder');
+                        $this->getRecord()->refresh()->load('jobOrder.activeBillingRecord');
 
                         Notification::make()
                             ->title('Request accepted')

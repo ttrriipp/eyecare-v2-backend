@@ -115,15 +115,12 @@ class EditOpticalOrder extends EditRecord
                 }),
 
             // Payment proof review actions (only for pending_payment/payment_review orders)
-            Action::make('viewProof')
-                ->label('View Payment Proof')
-                ->icon('heroicon-o-document')
+            Action::make('downloadProof')
+                ->label('Download Payment Proof')
+                ->icon('heroicon-o-arrow-down-tray')
                 ->color('info')
-                ->visible(fn (): bool => $this->canReviewPaymentProof()
-                    && in_array($this->record->status, [JobOrderStatus::PendingPayment, JobOrderStatus::PaymentReview], true)
-                    && $this->record->paymentProof !== null)
-                ->url(fn (): string => route('payment-proofs.download', ['proof' => $this->record->paymentProof]))
-                ->openUrlInNewTab(),
+                ->visible(fn (): bool => $this->canReviewPaymentProof() && $this->record->paymentProof !== null)
+                ->url(fn (): string => route('payment-proofs.download', ['proof' => $this->record->paymentProof])),
 
             Action::make('acceptProof')
                 ->label('Accept Payment')

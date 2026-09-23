@@ -11,6 +11,7 @@ use App\Models\JobOrder;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -209,6 +210,22 @@ class OpticalOrderForm
                         ]),
                 ]),
             ]),
+            Section::make('Payment Proof')
+                ->schema([
+                    ImageEntry::make('payment_proof_preview')
+                        ->label('Submitted payment proof')
+                        ->state(fn (JobOrder $record): ?string => $record->paymentProof === null
+                            ? null
+                            : route('payment-proofs.preview', ['proof' => $record->paymentProof]))
+                        ->imageHeight(420)
+                        ->extraImgAttributes([
+                            'alt' => 'Submitted payment proof',
+                            'loading' => 'lazy',
+                        ])
+                        ->columnSpanFull(),
+                ])
+                ->visible(fn (JobOrder $record): bool => $record->paymentProof !== null)
+                ->columnSpanFull(),
         ]);
     }
 

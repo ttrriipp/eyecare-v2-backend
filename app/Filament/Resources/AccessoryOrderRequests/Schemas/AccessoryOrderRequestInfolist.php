@@ -6,6 +6,7 @@ use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\DiscountProofStatus;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use App\Models\AccessoryOrderRequest;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -18,6 +19,10 @@ class AccessoryOrderRequestInfolist
 {
     public static function configure(Schema $schema): Schema
     {
+        $hasAppliedDiscount = fn (AccessoryOrderRequest $record): bool => $record->status === AccessoryOrderRequestStatus::Accepted
+            && $record->jobOrder?->activeBillingRecord !== null
+            && (float) $record->jobOrder->activeBillingRecord->discount_amount > 0;
+
         $requestDetails = Section::make('Request details')
             ->schema([
                 TextEntry::make('request_number')
@@ -50,6 +55,14 @@ class AccessoryOrderRequestInfolist
                 TextEntry::make('subtotal_amount')
                     ->label('Subtotal')
                     ->money('PHP'),
+                TextEntry::make('jobOrder.activeBillingRecord.discount_amount')
+                    ->label('Discount amount')
+                    ->money('PHP')
+                    ->visible($hasAppliedDiscount),
+                TextEntry::make('jobOrder.activeBillingRecord.total_amount')
+                    ->label('Order total')
+                    ->money('PHP')
+                    ->visible($hasAppliedDiscount),
             ])
             ->columns(2);
 
@@ -79,7 +92,8 @@ class AccessoryOrderRequestInfolist
                     ->label('Rejection reason')
                     ->placeholder('—')
                     ->columnSpanFull()
-                    ->visible($isResolved),
+                    ->visible(fn (AccessoryOrderRequest $record): bool => $record->status === AccessoryOrderRequestStatus::Rejected
+                        && filled($record->rejection_reason)),
             ])
             ->columns(2);
 
@@ -98,6 +112,18 @@ class AccessoryOrderRequestInfolist
                         'pending' => 'warning',
                         default => 'gray',
                     }),
+                ImageEntry::make('discount_proof_preview')
+                    ->label('Proof attachment')
+                    ->state(fn (AccessoryOrderRequest $record): ?string => $record->discountProof === null
+                        ? null
+                        : route('discount-proofs.preview', ['proof' => $record->discountProof]))
+                    ->imageHeight(360)
+                    ->extraImgAttributes([
+                        'alt' => 'Submitted discount proof',
+                        'loading' => 'lazy',
+                    ])
+                    ->columnSpanFull()
+                    ->visible(fn (AccessoryOrderRequest $record): bool => $record->discountProof !== null),
                 TextEntry::make('discountProof.reviewedBy.full_name')
                     ->label('Reviewed by')
                     ->placeholder('Awaiting review'),
@@ -105,7 +131,8 @@ class AccessoryOrderRequestInfolist
                     ->label('Rejection reason')
                     ->placeholder('—')
                     ->columnSpanFull()
-                    ->visible(fn (AccessoryOrderRequest $record): bool => $record->discountProof?->status === DiscountProofStatus::Rejected),
+                    ->visible(fn (AccessoryOrderRequest $record): bool => $record->discountProof?->status === DiscountProofStatus::Rejected
+                        && filled($record->discountProof->rejection_reason)),
             ])
             ->visible(fn (AccessoryOrderRequest $record): bool => $record->requested_discount_type !== 'none')
             ->columns(2);
