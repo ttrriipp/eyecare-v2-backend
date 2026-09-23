@@ -97,14 +97,14 @@
 > primary `scheduled_at` proposal, not the associated appointment's current
 > schedule. Clinic-initiated appointment cancellations are unaffected.
 
-> **Shipped (2026-09-13): required patient cancellation reasons.** Both patient
+> **Shipped (2026-09-13; accessory Order Request added 2026-09-23): required
+> patient cancellation reasons.** Patient appointment and Order Request
 > cancellation APIs require nonblank `reason_details` text (maximum 1,000
-> characters). Confirmed-appointment reasons use the existing cancellation
-> detail column; pending appointment-request reasons use the encrypted
-> `encrypted_cancellation_reason` column and are returned as
-> `cancellation_reason` only to the owning account. Staff can read both reasons
-> from their appointment/request detail screens. Audit metadata does not copy
-> free-text cancellation reasons.
+> characters). Confirmed appointments use the existing cancellation detail
+> column; appointment requests and accessory Order Requests use the encrypted
+> `encrypted_cancellation_reason` column and return it as `cancellation_reason`
+> to the owning account. Staff can read these reasons in their detail screens.
+> Audit metadata does not copy free-text cancellation reasons.
 
 > **Shipped (2026-09-07): patient-action admin database notifications.** Eight
 > operational patient events now create queued, after-commit Filament bell
@@ -876,7 +876,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
 | `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `encrypted_cancellation_reason` (nullable encrypted patient reason, required on patient cancellation and returned as `cancellation_reason` to the owning account), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The one-active-booking rule allows one actionable pending request or one future scheduled/checked-in appointment. Only stored `pending` rows with a future `expires_at` are counted, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A patient must send nonblank `reason_details` (up to 1,000 characters) when cancelling; the reason is encrypted at rest and visible on the staff request detail screen. A patient may update only the schedule preferences on an unexpired pending row; the update preserves all identity and booking fields, recalculates `expires_at`, rechecks all candidates under locks, and writes an atomic `appointment_request.schedule_updated` audit. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
-| `accessory_order_requests` | Immutable patient Order Requests. `request_number` (`ORQ-YYYY-NNNNNN`), `user_id`, `patient_id`, `status` (`pending`/`accepted`/`rejected`/`cancelled`), server-derived `subtotal_amount`, declared `requested_discount_type` (`none`/`senior_citizen`/`pwd`), unique nullable `job_order_id`, `resolved_by`, `resolved_at`, patient-visible `rejection_reason`, and `cancelled_at`. One pending row per account is enforced under the account lock; pending rows do not reserve stock or expire automatically. |
+| `accessory_order_requests` | Immutable patient Order Requests. `request_number` (`ORQ-YYYY-NNNNNN`), `user_id`, `patient_id`, `status` (`pending`/`accepted`/`rejected`/`cancelled`), server-derived `subtotal_amount`, declared `requested_discount_type` (`none`/`senior_citizen`/`pwd`), unique nullable `job_order_id`, `resolved_by`, `resolved_at`, patient-visible `rejection_reason`, `cancelled_at`, and nullable encrypted `encrypted_cancellation_reason` (required from the patient on cancellation; returned as `cancellation_reason`). One pending row per account is enforced under the account lock; pending rows do not reserve stock or expire automatically. Audit metadata excludes free-text cancellation reasons. |
 | `accessory_order_request_items` | Immutable request line snapshots: `product_variant_id`, description, quantity, unit price, amount, accessory `item_kind`, and catalog `item_snapshot`. The live variant is revalidated during staff acceptance; the snapshot preserves history. |
 | `accessory_order_request_discount_proofs` | One private proof per discount-requested Order Request: submitting account, `status` (`pending`/`accepted`/`rejected`), generated private path, original name/MIME/size, reviewer/time, and bounded rejection reason. Proof metadata is never serialized into patient responses; staff/admin download uses an authenticated attachment route. A rejected proof may be replaced while its request remains pending, reusing the proof row and deleting the prior private object. |
 | `clinic_payment_methods` | Admin-managed online order methods (`gcash`, `bank_transfer`), display label, account/bank details, optional private QR image path, and active flag. Methods are deactivated rather than deleted so environment fallback cannot unexpectedly return after configuration. |
@@ -1175,7 +1175,7 @@ Public product reviews use `GET /api/v1/frames/{id}/reviews` and
 `GET /api/v1/accessories/{id}/reviews`, with each route applying its matching
 catalog's existing authentication, role, and product-visibility rules. Both
 return paginated records containing only `rating`, profanity-masked `comment`,
-and ISO `created_at`; for example:
+ISO `created_at`, and nullable `attachment_url`; for example:
 
 ```json
 {
@@ -1183,7 +1183,8 @@ and ISO `created_at`; for example:
     {
       "rating": 5,
       "comment": "Comfortable and sturdy.",
-      "created_at": "2026-09-20T10:00:00+08:00"
+      "created_at": "2026-09-20T10:00:00+08:00",
+      "attachment_url": null
     }
   ],
   "links": { "first": "...", "last": "...", "prev": null, "next": null },
@@ -1201,6 +1202,18 @@ comments are excluded. Clients must present a separate, unchecked-by-default
 opt-in and send consent only after the patient selects it. The existing rating
 aggregates continue to include hidden ratings and do not depend on comment
 consent.
+
+Product-rating writes also accept one optional JPEG or PNG `attachment` (up to
+10 MB and 8000x8000 pixels). It is stored privately. A separate
+`public_attachment_consent` opt-in is required before a review may expose an
+`attachment_url`; both comment and attachment consent are required before the
+image appears on a public review. Omitting or withdrawing attachment consent
+keeps it private. Attachment URLs contain an opaque UUID and stream through a
+route that rechecks the matching frame/accessory catalog access rules, comment
+consent, attachment consent, moderation state, and deletion state. Existing
+ratings have no attachment consent and are never published by this addition.
+The patient client must explain that an opted-in image is public to catalog
+readers and may itself contain identifying details.
 
 ### Authenticated Patient Account (token + patient role)
 ```

@@ -151,6 +151,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::get('frames', [FrameController::class, 'index']);
         Route::get('frames/{frame}', [FrameController::class, 'show']);
         Route::get('frames/{frame}/reviews', [FrameController::class, 'reviews']);
+        Route::get('frames/{frame}/reviews/attachments/{attachment}', [FrameController::class, 'reviewAttachment'])
+            ->name('api.v1.frames.reviews.attachments.show');
 
         // Saved Frames (account-owned preferences, no patient link required)
         Route::get('saved-frames', [SavedFrameController::class, 'index']);
@@ -168,6 +170,8 @@ Route::prefix('v1')->middleware([
     Route::get('accessories', [AccessoryCatalogController::class, 'index']);
     Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
     Route::get('accessories/{accessory}/reviews', [AccessoryCatalogController::class, 'reviews']);
+    Route::get('accessories/{accessory}/reviews/attachments/{attachment}', [AccessoryCatalogController::class, 'reviewAttachment'])
+        ->name('api.v1.accessories.reviews.attachments.show');
 });
 
 // Authenticated clinical routes (active patient link required)

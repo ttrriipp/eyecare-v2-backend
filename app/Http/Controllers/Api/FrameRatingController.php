@@ -33,6 +33,8 @@ class FrameRatingController extends Controller
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'comment' => ['nullable', 'string', 'max:1000'],
             'public_display_consent' => ['sometimes', 'boolean'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:10240', 'dimensions:max_width=8000,max_height=8000'],
+            'public_attachment_consent' => ['sometimes', 'boolean'],
             'dispensing_event_id' => ['nullable', 'integer', 'exists:dispensing_events,id'],
         ]);
 
@@ -69,6 +71,8 @@ class FrameRatingController extends Controller
             comment: $request->input('comment'),
             dispensingEvent: $dispensingEvent,
             publicDisplayConsent: $request->boolean('public_display_consent'),
+            attachment: $request->file('attachment'),
+            publicAttachmentConsent: $request->boolean('public_attachment_consent'),
         );
 
         return response()->json(['data' => FrameRatingResource::make($rating)], 201);

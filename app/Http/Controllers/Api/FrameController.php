@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Ratings\StreamPublicProductReviewAttachment;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\PublicProductReviewResource;
 use App\Http\Resources\FrameResource;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FrameController extends Controller
 {
@@ -86,6 +88,7 @@ class FrameController extends Controller
 
         $reviews = FrameRating::query()
             ->publiclyDisplayable()
+            ->with(['variant:id,product_id', 'variant.product:id,product_type'])
             ->whereHas('variant', fn (Builder $query) => $query
                 ->where('product_id', $frame->getKey()))
             ->orderByDesc('created_at')
@@ -93,6 +96,20 @@ class FrameController extends Controller
             ->paginate((int) ($validated['per_page'] ?? 15));
 
         return PublicProductReviewResource::collection($reviews);
+    }
+
+    public function reviewAttachment(Product $frame, string $attachment): StreamedResponse
+    {
+        abort_unless($this->frameCatalogQuery()->whereKey($frame->getKey())->exists(), 404);
+
+        $rating = FrameRating::query()
+            ->publiclyShareableAttachment()
+            ->where('attachment_public_id', $attachment)
+            ->whereHas('variant', fn (Builder $query) => $query
+                ->where('product_id', $frame->getKey()))
+            ->firstOrFail();
+
+        return app(StreamPublicProductReviewAttachment::class)->handle($rating);
     }
 
     /**

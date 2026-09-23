@@ -51,6 +51,8 @@ function configureValidPilotDeployment(): void
         'ar.assets.published_disk' => 'ar_published',
         'filesystems.message_attachments_disk' => 'message_attachments',
         'filesystems.disks.message_attachments.visibility' => 'private',
+        'filesystems.product_review_attachments_disk' => 'product_review_attachments',
+        'filesystems.disks.product_review_attachments.visibility' => 'private',
         'filesystems.disks.ar_quarantine.visibility' => 'private',
         'filesystems.disks.ar_published.visibility' => 'public',
         'services.sms.driver' => 'semaphore',
@@ -245,6 +247,7 @@ test('preflight fails closed for storage release policy and alert settings', fun
         ->assertFailed();
 })->with([
     ['filesystems.disks.message_attachments.visibility', 'public', 'storage.message_attachments'],
+    ['filesystems.disks.product_review_attachments.visibility', 'public', 'storage.product_review_attachments'],
     ['filesystems.disks.ar_quarantine.visibility', 'public', 'storage.ar_quarantine'],
     ['filesystems.disks.ar_published.visibility', 'private', 'storage.ar_published'],
     ['deployment.release_id', '', 'deployment.release_id'],

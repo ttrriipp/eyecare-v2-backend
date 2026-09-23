@@ -24,6 +24,7 @@ class FrameRatingResource extends JsonResource
             'comment' => $this->shouldShowComment($isAuthor)
                 ? app(FilterProfanity::class)->handle($this->comment)
                 : null,
+            'has_attachment' => filled($this->attachment_path),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

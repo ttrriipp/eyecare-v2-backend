@@ -16,6 +16,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'rating',
     'comment',
     'public_display_consent_at',
+    'attachment_path',
+    'attachment_public_id',
+    'attachment_mime_type',
+    'public_attachment_consent_at',
     'is_hidden',
     'moderation_reason',
     'moderated_by',
@@ -41,6 +45,24 @@ class FrameRating extends Model
             ->where($model->qualifyColumn('is_hidden'), false)
             ->whereNotNull($commentColumn)
             ->whereRaw("TRIM({$commentColumn}) <> ?", ['']);
+    }
+
+    /**
+     * Scope to attachments independently opted into public display.
+     *
+     * @param  Builder<FrameRating>  $query
+     * @return Builder<FrameRating>
+     */
+    public function scopePubliclyShareableAttachment(Builder $query): Builder
+    {
+        $model = $query->getModel();
+
+        return $query
+            ->publiclyDisplayable()
+            ->whereNotNull($model->qualifyColumn('attachment_path'))
+            ->whereNotNull($model->qualifyColumn('attachment_public_id'))
+            ->whereIn($model->qualifyColumn('attachment_mime_type'), ['image/jpeg', 'image/png'])
+            ->whereNotNull($model->qualifyColumn('public_attachment_consent_at'));
     }
 
     /**
@@ -77,6 +99,7 @@ class FrameRating extends Model
             'is_hidden' => 'boolean',
             'moderated_at' => 'datetime',
             'public_display_consent_at' => 'datetime',
+            'public_attachment_consent_at' => 'datetime',
         ];
     }
 }

@@ -2516,14 +2516,23 @@ required.
 default 15).
 
 The response uses the same paginated shape and allowlisted review fields as
-`GET /frames/{id}/reviews`: `rating`, profanity-masked `comment`, and ISO
-`created_at`. It excludes review IDs and all patient/account identity,
-contact, order, dispensing, and moderation fields. A review is included only
-when its comment is non-blank, its rating has explicit public-display consent,
-and it is neither hidden nor soft-deleted. The customer app displays the
-fixed label `Verified buyer`. Existing comments remain private unless
-resubmitted with explicit consent. Hidden rating stars continue to count in
-the existing product rating aggregates.
+`GET /frames/{id}/reviews`: `rating`, profanity-masked `comment`, ISO
+`created_at`, and nullable `attachment_url`. It excludes review IDs and all
+patient/account identity, contact, order, dispensing, and moderation fields. A
+review is included only when its comment is non-blank, its rating has explicit
+public-display consent, and it is neither hidden nor soft-deleted. An
+`attachment_url` is returned only for a current image with separate explicit
+attachment-display consent; otherwise it is `null`. The customer app displays
+the fixed label `Verified buyer`. Existing comments and attachments remain
+private unless opted in. Hidden rating stars continue to count in the existing
+product rating aggregates.
+
+`GET /frames/{id}/reviews/attachments/{opaque_attachment_id}` and
+`GET /accessories/{id}/reviews/attachments/{opaque_attachment_id}` stream an
+opted-in review image. These routes apply the matching product catalog's
+authentication, role, and product-visibility rules and re-check comment and
+attachment eligibility on every request. Images remain in private storage;
+their unguessable attachment IDs do not expose rating row IDs.
 
 ### Order request lifecycle
 
@@ -2603,6 +2612,32 @@ Example accessory item:
 
 Patients may cancel only a pending request. Cancellation is idempotent and
 creates no commerce or inventory records. Ownership failures return `404`.
+The cancellation request must include a nonblank `reason_details` string of at
+most 1,000 characters. Missing, blank, or overlong values return `422` and
+leave the request pending.
+
+| Field | Type | Requirement | Meaning |
+|---|---|---|---|
+| `reason_details` | string | required, 1–1,000 characters | Patient's reason for cancelling |
+
+Example:
+
+```json
+{
+  "reason_details": "I selected the wrong accessories."
+}
+```
+
+The API returns the reason as `cancellation_reason` in the cancel, list, and
+detail responses:
+
+| Field | Type | Nullable | Meaning |
+|---|---|---:|---|
+| `cancellation_reason` | string | yes | `null` until cancellation; then the patient's reason |
+
+It is encrypted at rest and never copied into audit metadata. A repeated
+cancellation remains idempotent and preserves the reason from the first
+successful cancellation.
 
 #### Discount-proof fields in request responses
 
@@ -3005,6 +3040,8 @@ or revision history.
   "rating": "integer (required, 1-5)",
   "comment": "string (nullable, max:1000)",
   "public_display_consent": "boolean (optional; true opts the current non-empty comment into public display)",
+  "attachment": "optional JPEG or PNG image (max 10 MB; max dimensions 8000x8000)",
+  "public_attachment_consent": "boolean (optional; true opts the current attachment into public display)",
   "dispensing_event_id": "integer (nullable, must belong to the same job order)"
 }
 ```
@@ -3020,6 +3057,19 @@ unchecked-by-default opt-in and send `true` only after the patient selects it.
 Existing rows have no consent timestamp and are never made public by default.
 This field does not change rating-write eligibility.
 
+`attachment` is an optional single image stored on a private disk. The separate
+`public_attachment_consent` opt-in is unchecked by default and applies only to
+that image. It does not publish the comment; both comment and image consent are
+required before an image appears on a public review. Omitted or false consent
+keeps the image private. A later rating submission can opt in an existing
+attachment again. Uploading a replacement image replaces the current image and
+requires fresh attachment consent. Existing ratings have no attachment and are
+not changed by this addition.
+When including `attachment`, submit the rating as `multipart/form-data`; rating
+submissions without an image can continue using the existing JSON request.
+The client must explain that an opted-in image appears alongside the review
+for catalog readers and may itself contain identifying details.
+
 **Response:** `201 Created` on both the first rating and later updates.
 
 The response is wrapped in a `FrameRatingResource` that exposes only
@@ -3033,6 +3083,7 @@ patient-safe fields:
     "product_variant_id": 42,
     "rating": 5,
     "comment": "Excellent frame quality",
+    "has_attachment": true,
     "created_at": "2026-08-05T10:00:00+08:00"
   }
 }
@@ -3049,6 +3100,13 @@ non-hidden, non-deleted comments with an explicit consent timestamp.
 **Fields excluded from response:** `patient_id`, `is_hidden`, `moderation_reason`,
 `moderated_by`, `moderated_at`, `current_revision_id`, `deleted_at`, `updated_at`,
 `dispensing_event_id`.
+
+The rating-write response includes only the boolean `has_attachment`, never an
+internal file path or filename. Public review entries include
+`attachment_url: null` unless the image has its own explicit consent timestamp.
+The URL is an opaque relative API path; its response is streamed from private
+storage and rechecks both consents, moderation state, deletion state, and
+catalog access rules.
 
 **Errors:**
 - `403`: Item belongs to another patient.
@@ -3585,13 +3643,15 @@ authentication path. Current behavior is authoritative in the sections above.
 | `GET /optical-orders/{id}` | Get optical order detail |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
 | `GET /frames/{id}/reviews` | List consented public frame reviews |
+| `GET /frames/{id}/reviews/attachments/{opaque_attachment_id}` | Stream an opted-in frame review image |
 | `GET /accessories` | List active, in-stock accessory Products with rating/filter support |
 | `GET /accessories/{id}` | Get one patient-safe accessory Product |
 | `GET /accessories/{id}/reviews` | List consented public accessory reviews |
+| `GET /accessories/{id}/reviews/attachments/{opaque_attachment_id}` | Stream an opted-in accessory review image |
 | `GET /accessory-order-requests` | List linked-account current/history Order Requests |
 | `POST /accessory-order-requests` | Submit a multi-item accessory Order Request |
 | `GET /accessory-order-requests/{id}` | Get an owned Order Request |
-| `POST /accessory-order-requests/{id}/cancel` | Idempotently cancel a pending owned request |
+| `POST /accessory-order-requests/{id}/cancel` | Cancel a pending owned request with `reason_details` |
 | `POST /accessory-order-requests/{id}/discount-proof` | Upload or replace one private discount proof while the request is pending |
 | `POST /optical-orders/{id}/payment-proof` | Upload one private GCash or bank-transfer proof for an accepted order |
 | `GET /optical-orders/{id}/payment-instructions/{method}/qr` | Stream the selected order's private clinic QR image (`method` is `gcash` or `bank_transfer`) |
@@ -3863,7 +3923,7 @@ GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/accessory-order-requests       List Order Requests
 POST   /api/v1/accessory-order-requests       Submit Order Request
 GET    /api/v1/accessory-order-requests/{id}  Get Order Request
-POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request
+POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request with reason_details
 POST   /api/v1/accessory-order-requests/{id}/discount-proof  Upload discount proof
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order

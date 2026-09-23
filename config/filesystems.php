@@ -4,6 +4,8 @@ $catalogDriver = (string) env('CATALOG_DRIVER', 'local');
 $catalogRoot = env('CATALOG_ROOT');
 $messageAttachmentsDriver = (string) env('MESSAGE_ATTACHMENTS_DRIVER', 'local');
 $messageAttachmentsRoot = env('MESSAGE_ATTACHMENTS_ROOT');
+$productReviewAttachmentsDriver = (string) env('PRODUCT_REVIEW_ATTACHMENTS_DRIVER', 'local');
+$productReviewAttachmentsRoot = env('PRODUCT_REVIEW_ATTACHMENTS_ROOT');
 $arQuarantineDriver = (string) env('AR_QUARANTINE_DRIVER', 'local');
 $arQuarantineRoot = env('AR_QUARANTINE_ROOT');
 $arPublishedDriver = (string) env('AR_PUBLISHED_DRIVER', 'local');
@@ -18,6 +20,12 @@ if (! is_string($messageAttachmentsRoot) || trim($messageAttachmentsRoot) === ''
     $messageAttachmentsRoot = $messageAttachmentsDriver === 'local'
         ? storage_path('app/private/message-attachments')
         : 'message-attachments';
+}
+
+if (! is_string($productReviewAttachmentsRoot) || trim($productReviewAttachmentsRoot) === '') {
+    $productReviewAttachmentsRoot = $productReviewAttachmentsDriver === 'local'
+        ? storage_path('app/private/product-review-attachments')
+        : 'product-review-attachments';
 }
 
 if (! is_string($arQuarantineRoot) || trim($arQuarantineRoot) === '') {
@@ -64,6 +72,7 @@ return [
     */
 
     'message_attachments_disk' => env('MESSAGE_ATTACHMENTS_DISK', 'message_attachments'),
+    'product_review_attachments_disk' => env('PRODUCT_REVIEW_ATTACHMENTS_DISK', 'product_review_attachments'),
     'catalog_disk' => env('CATALOG_DISK', 'public'),
     'payment_proof_disk' => env('PAYMENT_PROOF_DISK', 'payment_proofs'),
     'discount_proof_disk' => env('DISCOUNT_PROOF_DISK', 'discount_proofs'),
@@ -160,6 +169,24 @@ return [
             'endpoint' => env('MESSAGE_ATTACHMENTS_ENDPOINT', env('AWS_ENDPOINT')),
             'use_path_style_endpoint' => env(
                 'MESSAGE_ATTACHMENTS_USE_PATH_STYLE_ENDPOINT',
+                env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            ),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'product_review_attachments' => [
+            'driver' => $productReviewAttachmentsDriver,
+            'root' => $productReviewAttachmentsRoot,
+            'key' => env('PRODUCT_REVIEW_ATTACHMENTS_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('PRODUCT_REVIEW_ATTACHMENTS_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('PRODUCT_REVIEW_ATTACHMENTS_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('PRODUCT_REVIEW_ATTACHMENTS_BUCKET', env('AWS_BUCKET')),
+            'url' => env('PRODUCT_REVIEW_ATTACHMENTS_URL', env('AWS_URL')),
+            'endpoint' => env('PRODUCT_REVIEW_ATTACHMENTS_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env(
+                'PRODUCT_REVIEW_ATTACHMENTS_USE_PATH_STYLE_ENDPOINT',
                 env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             ),
             'visibility' => 'private',

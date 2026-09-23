@@ -144,6 +144,9 @@ final class PilotDeploymentPreflight
         $this->addCheck($checks, 'storage.message_attachments', fn (): ?string => $this->privateDisk(
             config('filesystems.message_attachments_disk'),
         ) ? null : 'Message attachments must use a configured private disk.');
+        $this->addCheck($checks, 'storage.product_review_attachments', fn (): ?string => $this->privateDisk(
+            config('filesystems.product_review_attachments_disk'),
+        ) ? null : 'Product review attachments must use a configured private disk.');
         $this->addCheck($checks, 'storage.ar_quarantine', fn (): ?string => $this->privateDisk(
             config('ar.assets.quarantine_disk'),
         ) ? null : 'AR quarantine assets must use a configured private disk.');

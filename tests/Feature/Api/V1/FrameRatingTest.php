@@ -11,6 +11,8 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -162,6 +164,105 @@ test('public comment consent is recorded and withdrawn when a revision omits con
         ->assertCreated();
 
     expect($rating->fresh()->public_display_consent_at)->toBeNull();
+});
+
+test('patient can submit an optional product image with separate public attachment consent', function (): void {
+    Storage::fake('product_review_attachments');
+    config(['filesystems.product_review_attachments_disk' => 'product_review_attachments']);
+
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'ar_eligible' => false,
+    ]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+
+    $this->actingAs($user)
+        ->post("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 5,
+            'comment' => 'Comfortable frames.',
+            'public_display_consent' => true,
+            'attachment' => UploadedFile::fake()->image('frame.png', 100, 100),
+        ], ['Accept' => 'application/json'])
+        ->assertCreated()
+        ->assertJsonPath('data.has_attachment', true)
+        ->assertJsonMissingPath('data.attachment_path')
+        ->assertJsonMissingPath('data.public_attachment_consent_at');
+
+    $rating = FrameRating::query()->sole();
+
+    expect($rating->attachment_path)->not->toBeEmpty()
+        ->and($rating->attachment_public_id)->not->toBeEmpty()
+        ->and($rating->public_attachment_consent_at)->toBeNull();
+
+    Storage::disk('product_review_attachments')->assertExists($rating->attachment_path);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/frames/{$frame->id}/reviews")
+        ->assertOk()
+        ->assertJsonPath('data.0.attachment_url', null);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 5,
+            'comment' => 'Comfortable frames.',
+            'public_display_consent' => true,
+            'public_attachment_consent' => true,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.has_attachment', true);
+
+    expect($rating->fresh()->public_attachment_consent_at)->not->toBeNull();
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/frames/{$frame->id}/reviews")
+        ->assertOk()
+        ->assertJsonPath('data.0.attachment_url', route('api.v1.frames.reviews.attachments.show', [
+            'frame' => $frame->id,
+            'attachment' => $rating->fresh()->attachment_public_id,
+        ], false));
+
+    $originalPath = $rating->fresh()->attachment_path;
+    $originalPublicId = $rating->fresh()->attachment_public_id;
+
+    $this->actingAs($user)
+        ->post("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 5,
+            'comment' => 'Comfortable frames.',
+            'public_display_consent' => true,
+            'public_attachment_consent' => true,
+            'attachment' => UploadedFile::fake()->image('replacement.jpg', 100, 100),
+        ], ['Accept' => 'application/json'])
+        ->assertCreated()
+        ->assertJsonPath('data.has_attachment', true);
+
+    $rating->refresh();
+
+    expect($rating->attachment_path)->not->toBe($originalPath)
+        ->and($rating->attachment_public_id)->not->toBe($originalPublicId)
+        ->and($rating->public_attachment_consent_at)->not->toBeNull();
+
+    Storage::disk('product_review_attachments')
+        ->assertMissing($originalPath)
+        ->assertExists($rating->attachment_path);
+
+    $this->actingAs($user)
+        ->post("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 5,
+            'comment' => 'Comfortable frames.',
+            'attachment' => UploadedFile::fake()->create('notes.pdf', 100, 'application/pdf'),
+        ], ['Accept' => 'application/json'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['attachment']);
 });
 
 test('rating is rejected for another patients job order item', function () {
