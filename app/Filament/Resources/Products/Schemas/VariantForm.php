@@ -294,6 +294,15 @@ final class VariantForm
                 Select::make('attributes.color')
                     ->label('Color')
                     ->options(config('catalog.variant_presets.colors'))
+                    ->getOptionLabelUsing(function (?string $value): ?string {
+                        if ($value === null) {
+                            return null;
+                        }
+
+                        return config('catalog.variant_presets.colors')[$value]
+                            ?? config('catalog.variant_presets.legacy_color_labels')[$value]
+                            ?? null;
+                    })
                     ->searchable()
                     ->default($defaults['color'] ?? null),
                 Select::make('attributes.material')

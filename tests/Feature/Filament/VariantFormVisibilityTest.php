@@ -228,10 +228,10 @@ test('frame variant creation saves product other details', function () {
             'pageClass' => EditProduct::class,
         ])
         ->callTableAction('create', null, [
-            'name' => 'Dark Gunmetal / Black',
+            'name' => 'Dark Gunmetal',
             'price' => 1999,
             'attributes' => [
-                'color' => 'Dark Gunmetal / Black',
+                'color' => 'Dark Gunmetal',
                 'material' => 'Metal',
                 'lens_width' => 53,
             ],
@@ -245,7 +245,7 @@ test('frame variant creation saves product other details', function () {
         ->assertHasNoActionErrors();
 
     expect($product->variants()->firstOrFail()->attributes)->toMatchArray([
-        'color' => 'Dark Gunmetal / Black',
+        'color' => 'Dark Gunmetal',
         'material' => 'Metal',
         'lens_width' => 53,
         'model_code' => 'P002',
@@ -378,6 +378,27 @@ test('frame color and material fields use the shared preset options', function (
 
             return true;
         });
+});
+
+test('frame color presets use unique single-color names', function (): void {
+    expect(config('catalog.variant_presets.colors'))->toBe([
+        'Black' => 'Black',
+        'Blue' => 'Blue',
+        'Champagne' => 'Champagne',
+        'Clear' => 'Clear',
+        'Dark Gunmetal' => 'Dark Gunmetal',
+        'Dark Tortoise' => 'Dark Tortoise',
+        'Gold' => 'Gold',
+        'Gray' => 'Gray',
+        'Green' => 'Green',
+        'Orange' => 'Orange',
+        'Red' => 'Red',
+        'Silver' => 'Silver',
+        'Smoke Gray' => 'Smoke Gray',
+        'Tortoise' => 'Tortoise',
+        'Violet' => 'Violet',
+        'Yellow' => 'Yellow',
+    ]);
 });
 
 test('product frame defaults use the shared color and material preset options', function () {
@@ -523,6 +544,11 @@ test('frame variant edit form shows other details from the variant', function ()
             'pageClass' => EditProduct::class,
         ])
         ->mountTableAction('edit', $variant)
+        ->assertFormFieldExists('attributes.color', function (Select $field): bool {
+            expect($field->getOptionLabel())->toBe('Dark Gunmetal');
+
+            return true;
+        })
         ->assertTableActionDataSet([
             'frame_other_details' => [
                 'model_code' => 'P002',
