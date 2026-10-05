@@ -181,6 +181,23 @@ test('status filters use the effective expired status', function () {
         ->assertCanNotSeeTableRecords([$expiredPending]);
 });
 
+test('request queue can be filtered to primary appointment preferences for today', function () {
+    $staff = User::factory()->staff()->create();
+    $todayRequest = AppointmentRequest::factory()->linked()->accepted()->create([
+        'scheduled_at' => today()->setTime(10, 0),
+    ]);
+    $tomorrowRequest = AppointmentRequest::factory()->linked()->accepted()->create([
+        'scheduled_at' => today()->addDay()->setTime(10, 0),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->filterTable('requested_today')
+        ->assertCanSeeTableRecords([$todayRequest])
+        ->assertCanNotSeeTableRecords([$tomorrowRequest]);
+});
+
 test('request queue shows scheduling context', function () {
     $staff = User::factory()->staff()->create();
     $type = AppointmentType::factory()->create([

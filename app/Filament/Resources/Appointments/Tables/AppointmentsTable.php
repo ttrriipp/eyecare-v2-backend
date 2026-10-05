@@ -100,6 +100,10 @@ class AppointmentsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Filter::make('today')
+                    ->label("Today's appointments")
+                    ->query(fn (Builder $query): Builder => $query->whereDate('scheduled_at', today()))
+                    ->toggle(),
                 Filter::make('walk_in_queue')
                     ->label("Today's walk-ins")
                     ->query(fn (Builder $query): Builder => $query

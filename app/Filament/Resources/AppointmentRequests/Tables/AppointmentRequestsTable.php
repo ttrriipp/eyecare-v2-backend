@@ -22,6 +22,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -104,6 +105,10 @@ class AppointmentRequestsTable
                     ->orderBy('created_at', 'desc');
             })
             ->filters([
+                Filter::make('requested_today')
+                    ->label('Requested for today')
+                    ->query(fn (Builder $query): Builder => $query->whereDate('scheduled_at', today()))
+                    ->toggle(),
                 SelectFilter::make('status')
                     ->options(AppointmentRequestStatus::class)
                     ->query(function (Builder $query, array $data): void {

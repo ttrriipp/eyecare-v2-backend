@@ -105,6 +105,23 @@ test('appointment table prioritizes active appointments and sorts them by earlie
         ], inOrder: true);
 });
 
+test('appointment list can be filtered to appointments scheduled today', function () {
+    $staff = User::factory()->staff()->create();
+    $todayAppointment = Appointment::factory()->create([
+        'scheduled_at' => today()->setTime(10, 0),
+    ]);
+    $tomorrowAppointment = Appointment::factory()->create([
+        'scheduled_at' => today()->addDay()->setTime(10, 0),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->filterTable('today')
+        ->assertCanSeeTableRecords([$todayAppointment])
+        ->assertCanNotSeeTableRecords([$tomorrowAppointment]);
+});
+
 test('appointment resource has no billing relation manager', function () {
     expect(AppointmentResource::getRelations())->toBeEmpty();
 });
