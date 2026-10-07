@@ -2,6 +2,7 @@
 
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
+use App\Enums\VatTreatment;
 use App\Filament\Resources\BillingRecords\Pages\CreateBillingRecord;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
@@ -34,6 +35,8 @@ test('staff can create a service-only bill from the bill preview page', function
     $component = Livewire::test(CreateBillingRecord::class)
         ->assertFormFieldExists('items')
         ->assertFormFieldExists('service_items')
+        ->assertSchemaComponentDoesNotExist('vat_exempt_sales')
+        ->assertSchemaComponentDoesNotExist('zero_rated_sales')
         ->assertFormFieldDoesNotExist('job_order_id');
 
     expect($component->get('data.items'))->toBeEmpty()
@@ -65,11 +68,55 @@ test('staff can create a service-only bill from the bill preview page', function
         ->and($billingRecord->getSourceContext())->toBe('Direct Service')
         ->and($billingRecord->status)->toBe(BillingRecordStatus::Unpaid)
         ->and((float) $billingRecord->total_amount)->toBe(800.0)
+        ->and($billingRecord->vat_calculation_version)->toBe(1)
+        ->and((float) $billingRecord->vatable_sales_amount)->toBe(714.29)
+        ->and((float) $billingRecord->vat_amount)->toBe(85.71)
         ->and($billingRecord->notes)->toBe('Pay at the front desk.')
         ->and($billingItem->source_kind)->toBe(BillingItemSourceKind::DirectService)
         ->and($billingItem->service_id)->toBe($service->id)
         ->and($billingItem->description)->toBe('Comprehensive Eye Exam')
         ->and((float) $billingItem->unit_price)->toBe(800.0);
+});
+
+test('staff billing uses the service tax treatment and benefit eligibility configured by an administrator', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $service = Service::factory()->create([
+        'name' => 'Qualifying Medical Service',
+        'price' => 800,
+        'vat_treatment' => VatTreatment::Exempt->value,
+        'statutory_discount_eligible' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateBillingRecord::class)
+        ->assertDontSee('Qualifies for SC/PWD benefit')
+        ->fillForm([
+            'patient_id' => $patient->id,
+            'items' => [],
+            'service_items' => [[
+                'service_source' => 'catalog',
+                'service_id' => $service->id,
+                'quantity' => 1,
+            ]],
+            'discount_type' => 'pwd',
+            'discount_eligibility_verified' => true,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Bill created');
+
+    $billingRecord = BillingRecord::query()->where('patient_id', $patient->id)->firstOrFail();
+    $billingItem = $billingRecord->items()->firstOrFail();
+
+    expect($billingItem->vat_treatment)->toBe(VatTreatment::Exempt)
+        ->and($billingItem->statutory_discount_eligible)->toBeTrue()
+        ->and((float) $billingRecord->vatable_sales_amount)->toBe(0.0)
+        ->and((float) $billingRecord->vat_amount)->toBe(0.0)
+        ->and((float) $billingRecord->vat_exempt_sales_amount)->toBe(800.0)
+        ->and((float) $billingRecord->discount_amount)->toBe(160.0)
+        ->and((float) $billingRecord->total_amount)->toBe(640.0);
 });
 
 test('an administrator can create a bill with an optical order and services', function () {

@@ -67,10 +67,10 @@ test('does not reuse record with posted payments', function () {
     expect($result->id)->not->toBe($existing->id);
 });
 
-test('does not reuse voided record', function () {
+test('does not reuse cancelled record', function () {
     $jobOrder = JobOrder::factory()->create(['patient_id' => $this->patient->id]);
 
-    BillingRecord::factory()->voided()->create([
+    BillingRecord::factory()->cancelled()->create([
         'patient_id' => $this->patient->id,
         'job_order_id' => $jobOrder->id,
     ]);

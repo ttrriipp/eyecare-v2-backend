@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BillingRecordStatus;
+use App\Enums\DiscountType;
 use Database\Factories\BillingRecordFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'subtotal_amount',
     'discount_amount',
+    'vat_calculation_version',
+    'discount_type',
+    'discount_eligibility_verified',
+    'vatable_sales_amount',
+    'vat_amount',
+    'vat_exempt_sales_amount',
+    'zero_rated_sales_amount',
+    'vat_exemption_amount',
     'total_amount',
     'amount_paid',
     'balance_due',
@@ -187,8 +196,16 @@ class BillingRecord extends Model
     {
         return [
             'status' => BillingRecordStatus::class,
+            'discount_type' => DiscountType::class,
+            'discount_eligibility_verified' => 'boolean',
             'subtotal_amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
+            'vat_calculation_version' => 'integer',
+            'vatable_sales_amount' => 'decimal:2',
+            'vat_amount' => 'decimal:2',
+            'vat_exempt_sales_amount' => 'decimal:2',
+            'zero_rated_sales_amount' => 'decimal:2',
+            'vat_exemption_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'balance_due' => 'decimal:2',

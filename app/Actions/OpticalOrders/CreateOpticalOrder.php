@@ -7,6 +7,7 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\DiscountType;
+use App\Enums\VatTreatment;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\Encounter;
@@ -49,6 +50,7 @@ class CreateOpticalOrder
         ?string $recipientName = null,
         ?float $discountAmount = null,
         ?string $discountType = null,
+        bool $discountEligibilityVerified = false,
     ): array {
         if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
@@ -62,7 +64,10 @@ class CreateOpticalOrder
             ]);
         }
 
-        $validatedItems = $this->validateItems($items);
+        $validatedItems = $this->validateItems(
+            $items,
+            allowCatalogTaxOverrides: $creator->isAdmin(),
+        );
 
         $discountType = DiscountType::tryFrom(
             $discountType ?? ($discountAmount !== null
@@ -76,17 +81,32 @@ class CreateOpticalOrder
             ]);
         }
 
-        if ($this->isSeniorCitizenEligible($patient) && $discountType !== DiscountType::SeniorCitizen) {
+        if ($discountType === DiscountType::SeniorCitizen && ! $this->isSeniorCitizenEligible($patient)) {
             throw ValidationException::withMessages([
-                'discount_type' => ['Age-eligible patients must use the Senior Citizen discount.'],
+                'discount_type' => ['Senior Citizen discount requires the patient to be at least 60 years old.'],
             ]);
+        }
+
+        if ($discountType->isStatutory()) {
+            if (! $discountEligibilityVerified) {
+                throw ValidationException::withMessages([
+                    'discount_eligibility_verified' => ['Verify the patient’s entitlement and exclusive use before applying this discount.'],
+                ]);
+            }
+
+            if (! collect($validatedItems)->contains(
+                fn (array $item): bool => (bool) ($item['statutory_discount_eligible'] ?? false),
+            )) {
+                throw ValidationException::withMessages([
+                    'discount_type' => ['Mark at least one legally qualifying line before applying this statutory discount.'],
+                ]);
+            }
         }
 
         $discountAmount = $this->resolveDiscountAmount(
             discountType: $discountType,
             requestedAmount: $discountAmount,
             items: $validatedItems,
-            patient: $patient,
             creator: $creator,
         );
 
@@ -136,7 +156,7 @@ class CreateOpticalOrder
             allowMultipleFrameQuantity: true,
         );
 
-        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $encounter, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $creator) {
+        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $encounter, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $discountType, $discountEligibilityVerified, $creator) {
             $itemSnapshots = collect($validatedItems)->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -157,6 +177,8 @@ class CreateOpticalOrder
                     'lens_option_id' => $item['lens_option_id'] ?? null,
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
+                    'vat_treatment' => $item['vat_treatment'],
+                    'statutory_discount_eligible' => $item['statutory_discount_eligible'],
                 ];
             });
 
@@ -184,15 +206,29 @@ class CreateOpticalOrder
                 actor: $creator,
             );
 
+            $billingRecord->update([
+                'discount_type' => $discountType,
+                'discount_eligibility_verified' => $discountEligibilityVerified,
+                'discount_amount' => $discountType === DiscountType::Other ? ($discountAmount ?? 0) : 0,
+            ]);
+
             $orderItems = $jobOrder->items()
+                ->orderBy('id')
                 ->get()
-                ->map(fn ($item): array => [
-                    'description' => $item->description,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->unit_price,
-                    'amount' => $item->amount,
-                    'job_order_item_id' => $item->id,
-                ]);
+                ->values()
+                ->map(function ($item, int $index) use ($itemSnapshots): array {
+                    $snapshot = $itemSnapshots->get($index);
+
+                    return [
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'amount' => $item->amount,
+                        'job_order_item_id' => $item->id,
+                        'vat_treatment' => $snapshot['vat_treatment'] ?? VatTreatment::Vatable->value,
+                        'statutory_discount_eligible' => (bool) ($snapshot['statutory_discount_eligible'] ?? false),
+                    ];
+                });
 
             app(AddChargesToBilling::class)->handle(
                 billingRecord: $billingRecord,
@@ -235,7 +271,7 @@ class CreateOpticalOrder
      * @param  array<int, array<string, mixed>>  $items
      * @return array<int, array<string, mixed>>
      */
-    private function validateItems(array $items): array
+    private function validateItems(array $items, bool $allowCatalogTaxOverrides): array
     {
         $validator = Validator::make(['items' => $items], [
             'items' => ['required', 'array', 'min:1', 'max:50'],
@@ -262,6 +298,8 @@ class CreateOpticalOrder
                 'integer',
                 Rule::exists('lens_options', 'id')->where('is_active', true),
             ],
+            'items.*.vat_treatment' => ['nullable', Rule::enum(VatTreatment::class)],
+            'items.*.statutory_discount_eligible' => ['nullable', 'boolean'],
         ]);
 
         $validator->after(function ($validator) use ($items): void {
@@ -333,7 +371,34 @@ class CreateOpticalOrder
             }
         });
 
-        return $validator->validate()['items'];
+        $validatedItems = $validator->validate()['items'];
+        $catalogVariants = ProductVariant::query()
+            ->with('product')
+            ->whereKey(collect($validatedItems)->pluck('product_variant_id')->filter())
+            ->get()
+            ->keyBy('id');
+
+        return collect($validatedItems)
+            ->map(function (array $item) use ($allowCatalogTaxOverrides, $catalogVariants): array {
+                $product = filled($item['product_variant_id'] ?? null)
+                    ? $catalogVariants->get((int) $item['product_variant_id'])?->product
+                    : null;
+                $canUseProvidedTreatment = $allowCatalogTaxOverrides
+                    && filled($item['vat_treatment'] ?? null);
+                $canUseProvidedEligibility = $allowCatalogTaxOverrides
+                    && array_key_exists('statutory_discount_eligible', $item);
+
+                return [
+                    ...$item,
+                    'vat_treatment' => $product !== null && ! $canUseProvidedTreatment
+                        ? ($product->vat_treatment?->value ?? VatTreatment::Vatable->value)
+                        : ($item['vat_treatment'] ?? VatTreatment::Vatable->value),
+                    'statutory_discount_eligible' => $product !== null && ! $canUseProvidedEligibility
+                        ? (bool) $product->statutory_discount_eligible
+                        : (bool) ($item['statutory_discount_eligible'] ?? $product?->statutory_discount_eligible ?? false),
+                ];
+            })
+            ->all();
     }
 
     private function formatMoney(int $amountInCents): string
@@ -342,8 +407,7 @@ class CreateOpticalOrder
     }
 
     /**
-     * Resolve statutory discounts from the validated subtotal and protect
-     * administrator-only custom discounts at the server boundary.
+     * Resolve custom discounts and protect them at the server boundary.
      *
      * @param  array<int, array<string, mixed>>  $items
      */
@@ -351,7 +415,6 @@ class CreateOpticalOrder
         DiscountType $discountType,
         ?float $requestedAmount,
         array $items,
-        Patient $patient,
         User $creator,
     ): ?float {
         $subtotalInCents = array_sum(array_map(
@@ -362,10 +425,7 @@ class CreateOpticalOrder
 
         $discountInCents = match ($discountType) {
             DiscountType::None => $this->resolveNoDiscount($requestedAmount),
-            DiscountType::SeniorCitizen => $this->resolveSeniorCitizenDiscount($patient, $subtotalInCents),
-            DiscountType::Pwd => (int) round(
-                $subtotalInCents * (($discountType->percentage() ?? 0) / 100),
-            ),
+            DiscountType::SeniorCitizen, DiscountType::Pwd => 0,
             DiscountType::Other => $this->resolveCustomDiscount($requestedAmount),
         };
 
@@ -382,17 +442,6 @@ class CreateOpticalOrder
         }
 
         return $discountInCents > 0 ? $discountInCents / 100 : null;
-    }
-
-    private function resolveSeniorCitizenDiscount(Patient $patient, int $subtotalInCents): int
-    {
-        if (! $this->isSeniorCitizenEligible($patient)) {
-            throw ValidationException::withMessages([
-                'discount_type' => ['Senior Citizen discount requires the patient to be at least 60 years old.'],
-            ]);
-        }
-
-        return (int) round($subtotalInCents * ((DiscountType::SeniorCitizen->percentage() ?? 0) / 100));
     }
 
     private function isSeniorCitizenEligible(Patient $patient): bool

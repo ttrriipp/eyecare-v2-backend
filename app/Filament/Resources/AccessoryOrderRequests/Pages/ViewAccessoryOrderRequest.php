@@ -8,11 +8,13 @@ use App\Actions\AccessoryOrderRequests\RejectAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\RejectDiscountProof;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\DiscountProofStatus;
+use App\Enums\DiscountType;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
@@ -170,15 +172,22 @@ class ViewAccessoryOrderRequest extends ViewRecord
                     && $this->canReviewCommerce()
                     && ($this->record->requested_discount_type === 'none'
                         || $this->record->discountProof?->status === DiscountProofStatus::Accepted))
+                ->schema([
+                    Toggle::make('exclusive_use_verified')
+                        ->label('Items are for the eligible patient’s exclusive use')
+                        ->required(fn (): bool => DiscountType::tryFrom($this->record->requested_discount_type)?->isStatutory() ?? false)
+                        ->visible(fn (): bool => DiscountType::tryFrom($this->record->requested_discount_type)?->isStatutory() ?? false),
+                ])
                 ->requiresConfirmation()
                 ->modalHeading('Accept Order Request')
-                ->modalDescription(($this->record->requested_discount_type === 'none' ? '' : 'The verified 20% discount will be applied automatically. ')
+                ->modalDescription(($this->record->requested_discount_type === 'none' ? '' : 'The statutory discount and VAT exemption will be calculated from eligible items. ')
                     .'This will create an Optical Order and Billing Record. Stock will be committed.')
-                ->action(function (): void {
+                ->action(function (array $data): void {
                     try {
                         app(AcceptAccessoryOrderRequest::class)->handle(
                             orderRequest: $this->record,
                             reviewer: auth()->user(),
+                            exclusiveUseVerified: (bool) ($data['exclusive_use_verified'] ?? false),
                         );
 
                         $this->getRecord()->refresh()->load('jobOrder.activeBillingRecord');

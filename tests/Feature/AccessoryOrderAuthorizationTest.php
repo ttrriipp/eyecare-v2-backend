@@ -71,6 +71,7 @@ test('optometrist-only accounts cannot accept or reject accessory requests', fun
 
 test('staff acceptance automatically applies the verified statutory discount', function (): void {
     $reviewer = User::factory()->staff()->create();
+    $this->variant->product->update(['statutory_discount_eligible' => true]);
     $this->request->update(['requested_discount_type' => 'pwd']);
     AccessoryOrderRequestDiscountProof::factory()->create([
         'accessory_order_request_id' => $this->request->id,
@@ -81,12 +82,17 @@ test('staff acceptance automatically applies the verified statutory discount', f
     $result = app(AcceptAccessoryOrderRequest::class)->handle(
         orderRequest: $this->request,
         reviewer: $reviewer,
+        exclusiveUseVerified: true,
     );
     $billingRecord = $result['order']->fresh(['billingRecord'])->billingRecord;
 
     expect($this->request->fresh()->status->value)->toBe('accepted')
-        ->and((float) $billingRecord->discount_amount)->toBe(20.0)
-        ->and((float) $billingRecord->total_amount)->toBe(80.0);
+        ->and((float) $billingRecord->vatable_sales_amount)->toBe(0.0)
+        ->and((float) $billingRecord->vat_amount)->toBe(0.0)
+        ->and((float) $billingRecord->vat_exempt_sales_amount)->toBe(89.29)
+        ->and((float) $billingRecord->vat_exemption_amount)->toBe(10.71)
+        ->and((float) $billingRecord->discount_amount)->toBe(17.86)
+        ->and((float) $billingRecord->total_amount)->toBe(71.43);
 });
 
 test('an administrator accepts the complete request into a pending-payment order', function (): void {

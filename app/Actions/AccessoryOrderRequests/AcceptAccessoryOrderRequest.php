@@ -4,7 +4,6 @@ namespace App\Actions\AccessoryOrderRequests;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\BillingRecords\AddChargesToBilling;
-use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Notifications\NotifyPatientAccount;
 use App\Actions\OpticalOrders\BuildOpticalOrder;
@@ -16,6 +15,7 @@ use App\Enums\DiscountType;
 use App\Enums\JobOrderStatus;
 use App\Models\AccessoryOrderRequest;
 use App\Models\JobOrder;
+use App\Models\Patient;
 use App\Models\User;
 use App\Services\Payments\PaymentInstructionCatalog;
 use Illuminate\Support\Carbon;
@@ -41,10 +41,11 @@ class AcceptAccessoryOrderRequest
     public function handle(
         AccessoryOrderRequest $orderRequest,
         User $reviewer,
+        bool $exclusiveUseVerified = false,
     ): array {
         $this->assertReviewer($reviewer);
 
-        return DB::transaction(function () use ($orderRequest, $reviewer): array {
+        return DB::transaction(function () use ($orderRequest, $reviewer, $exclusiveUseVerified): array {
             // Lock and recheck
             $lockedRequest = AccessoryOrderRequest::query()
                 ->lockForUpdate()
@@ -75,7 +76,15 @@ class AcceptAccessoryOrderRequest
                 ]);
             }
 
-            if ($lockedRequest->requested_discount_type !== 'none') {
+            $discountType = DiscountType::tryFrom((string) $lockedRequest->requested_discount_type);
+
+            if ($discountType === null) {
+                throw ValidationException::withMessages([
+                    'discount_type' => ['The requested discount type is invalid.'],
+                ]);
+            }
+
+            if ($discountType->isStatutory()) {
                 $discountProof = $lockedRequest->discountProof()
                     ->lockForUpdate()
                     ->first();
@@ -85,15 +94,23 @@ class AcceptAccessoryOrderRequest
                         'discount_proof' => ['A verified discount proof is required before accepting this request.'],
                     ]);
                 }
+
+                if (! $exclusiveUseVerified) {
+                    throw ValidationException::withMessages([
+                        'exclusive_use_verified' => ['Confirm the items are for the eligible patient’s exclusive use.'],
+                    ]);
+                }
+
+                $patient = Patient::query()->findOrFail($lockedRequest->patient_id);
+
+                if ($discountType === DiscountType::SeniorCitizen && ! $this->isSeniorCitizenEligible($patient)) {
+                    throw ValidationException::withMessages([
+                        'discount_type' => ['Senior Citizen discount requires the patient to be at least 60 years old.'],
+                    ]);
+                }
             }
 
-            $discountType = DiscountType::tryFrom((string) $lockedRequest->requested_discount_type);
-            $discountAmount = $discountType?->isStatutory()
-                ? round(
-                    (float) $lockedRequest->subtotal_amount * (($discountType->percentage() ?? 0) / 100),
-                    2,
-                )
-                : 0.0;
+            $discountAmount = $discountType === DiscountType::Other ? 0.0 : null;
 
             // Revalidate items: active accessory with sufficient usable stock
             $items = $lockedRequest->items()->lockForUpdate()->get();
@@ -134,6 +151,15 @@ class AcceptAccessoryOrderRequest
                     'product_variant_id' => $item->product_variant_id,
                     'item_kind' => $item->item_kind,
                     'item_snapshot' => $item->item_snapshot,
+                    'vat_treatment' => $variant->product->vat_treatment?->value ?? 'vatable',
+                    'statutory_discount_eligible' => (bool) $variant->product->statutory_discount_eligible,
+                ]);
+            }
+
+            if ($discountType->isStatutory()
+                && ! $itemSnapshots->contains(fn (array $item): bool => $item['statutory_discount_eligible'])) {
+                throw ValidationException::withMessages([
+                    'discount_type' => ['At least one legally qualifying line is required for a statutory discount.'],
                 ]);
             }
 
@@ -162,6 +188,12 @@ class AcceptAccessoryOrderRequest
                 actor: $reviewer,
             );
 
+            $billingRecord->update([
+                'discount_type' => $discountType->value,
+                'discount_eligibility_verified' => $discountType->isStatutory(),
+                'discount_amount' => $discountAmount ?? 0,
+            ]);
+
             $jobOrderItemsByVariant = $jobOrder->items()
                 ->orderBy('id')
                 ->get()
@@ -184,19 +216,14 @@ class AcceptAccessoryOrderRequest
                         'unit_price' => $item['unit_price'],
                         'amount' => $item['amount'],
                         'job_order_item_id' => $jobOrderItem->id,
+                        'vat_treatment' => $item['vat_treatment'],
+                        'statutory_discount_eligible' => $item['statutory_discount_eligible'],
                     ];
                 }),
                 actor: $reviewer,
             );
 
-            // Apply discount if provided
-            if ($discountAmount > 0) {
-                $billingRecord->update(['discount_amount' => $discountAmount]);
-                app(RecalculateBillingRecordTotals::class)->handle(
-                    $billingRecord,
-                    discountAmount: $discountAmount,
-                );
-            }
+            $billingRecord = $billingRecord->fresh();
 
             $jobOrder->update([
                 'payment_instructions' => $this->paymentInstructions->snapshot(
@@ -223,7 +250,7 @@ class AcceptAccessoryOrderRequest
                     'billing_record_id' => $billingRecord->id,
                     'item_count' => $items->count(),
                     'subtotal' => $lockedRequest->subtotal_amount,
-                    'discount_amount' => $discountAmount,
+                    'discount_amount' => $billingRecord->discount_amount,
                 ],
                 actorId: $reviewer->id,
             );
@@ -247,5 +274,13 @@ class AcceptAccessoryOrderRequest
                 'reviewer' => ['Only active staff or administrators can accept requests.'],
             ]);
         }
+    }
+
+    private function isSeniorCitizenEligible(Patient $patient): bool
+    {
+        $age = $patient->ageInYears();
+        $minimumAge = DiscountType::SeniorCitizen->minimumAge();
+
+        return $age !== null && $minimumAge !== null && $age >= $minimumAge;
     }
 }

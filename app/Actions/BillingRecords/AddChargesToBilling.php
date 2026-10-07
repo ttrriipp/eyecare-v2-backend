@@ -5,6 +5,7 @@ namespace App\Actions\BillingRecords;
 use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\BillingItemSourceKind;
+use App\Enums\VatTreatment;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\User;
@@ -56,6 +57,8 @@ class AddChargesToBilling
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'amount' => $item['amount'],
+                    'vat_treatment' => $item['vat_treatment'] ?? VatTreatment::Vatable->value,
+                    'statutory_discount_eligible' => (bool) ($item['statutory_discount_eligible'] ?? false),
                     'job_order_item_id' => $item['job_order_item_id'] ?? null,
                     'encounter_id' => $item['encounter_id'] ?? null,
                     'service_id' => $item['service_id'] ?? null,

@@ -31,6 +31,7 @@ beforeEach(function (): void {
         'is_active' => true,
         'price' => 100,
     ]);
+    $this->variant->product->update(['statutory_discount_eligible' => true]);
 });
 
 function createPendingDiscountRequest(User $account, ProductVariant $variant): AccessoryOrderRequest
@@ -242,6 +243,7 @@ test('an accepted discount proof allows the request to become a pending-payment 
     $result = app(AcceptAccessoryOrderRequest::class)->handle(
         orderRequest: $request,
         reviewer: $reviewer,
+        exclusiveUseVerified: true,
     );
 
     expect($proof->fresh()->status)->toBe(DiscountProofStatus::Accepted)

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProductUsage;
+use App\Enums\VatTreatment;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,6 +25,8 @@ use Illuminate\Support\Str;
     'usage',
     'images',
     'default_variant_attributes',
+    'vat_treatment',
+    'statutory_discount_eligible',
 ])]
 class Product extends Model
 {
@@ -160,6 +163,8 @@ class Product extends Model
         return [
             'is_active' => 'boolean',
             'usage' => ProductUsage::class,
+            'vat_treatment' => VatTreatment::class,
+            'statutory_discount_eligible' => 'boolean',
             'images' => 'array',
             'default_variant_attributes' => 'array',
         ];

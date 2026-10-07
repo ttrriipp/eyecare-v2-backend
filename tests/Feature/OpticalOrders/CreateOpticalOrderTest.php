@@ -2,6 +2,7 @@
 
 use App\Actions\OpticalOrders\CreateOpticalOrder;
 use App\Enums\JobOrderStatus;
+use App\Enums\VatTreatment;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
 use App\Models\Patient;
@@ -43,6 +44,35 @@ test('staff creates a direct product order with no quotation', function () {
         ->and($result['job_order']->items)->toHaveCount(1)
         ->and($variant->fresh()->stock_quantity)->toBe(9)
         ->and($result['billing_record']->patient_id)->toBe($patient->id)
+        ->and((float) $result['billing_record']->total_amount)->toBe(2500.0)
+        ->and($result['billing_record']->vat_calculation_version)->toBe(1)
+        ->and((float) $result['billing_record']->vatable_sales_amount)->toBe(2232.14)
+        ->and((float) $result['billing_record']->vat_amount)->toBe(267.86);
+});
+
+test('catalog VAT treatment is used when a staff member creates the bill', function () {
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+    $variant->product->update(['vat_treatment' => VatTreatment::Exempt->value]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [[
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 2500,
+            'product_variant_id' => $variant->id,
+            'vat_treatment' => VatTreatment::Vatable->value,
+        ]],
+    );
+
+    $line = $result['billing_record']->items()->firstOrFail();
+
+    expect($line->vat_treatment)->toBe(VatTreatment::Exempt)
+        ->and((float) $result['billing_record']->vatable_sales_amount)->toBe(0.0)
+        ->and((float) $result['billing_record']->vat_amount)->toBe(0.0)
+        ->and((float) $result['billing_record']->vat_exempt_sales_amount)->toBe(2500.0)
         ->and((float) $result['billing_record']->total_amount)->toBe(2500.0);
 });
 
@@ -160,7 +190,7 @@ test('senior citizen discount requires the patient to be at least 60 years old',
     );
 })->throws(ValidationException::class, 'Senior Citizen discount requires the patient to be at least 60 years old.');
 
-test('an age-eligible patient must use the senior citizen discount', function () {
+test('senior citizen discount requires verified entitlement and exclusive use', function () {
     $patient = Patient::factory()->create([
         'date_of_birth' => today()->subYears(60),
     ]);
@@ -176,10 +206,10 @@ test('an age-eligible patient must use the senior citizen discount', function ()
             'unit_price' => 2500,
             'product_variant_id' => $variant->id,
         ]],
-        discountType: 'other',
-        discountAmount: 500,
+        discountType: 'senior_citizen',
+        discountEligibilityVerified: false,
     );
-})->throws(ValidationException::class, 'Age-eligible patients must use the Senior Citizen discount.');
+})->throws(ValidationException::class, 'Verify the patient’s entitlement and exclusive use');
 
 test('no discount leaves the billing record total unchanged', function () {
     $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);

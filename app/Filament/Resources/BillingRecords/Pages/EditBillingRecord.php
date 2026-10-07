@@ -73,17 +73,21 @@ class EditBillingRecord extends EditRecord
                             ->hiddenLabel()
                             ->table([
                                 TableColumn::make('Description')
-                                    ->width('46%'),
+                                    ->width('32%'),
                                 TableColumn::make('Source')
-                                    ->width('18%'),
+                                    ->width('14%'),
                                 TableColumn::make('Quantity')
                                     ->width('8%')
                                     ->alignCenter(),
+                                TableColumn::make('VAT treatment')
+                                    ->width('14%'),
+                                TableColumn::make('SC/PWD eligible')
+                                    ->width('12%'),
                                 TableColumn::make('Unit Price')
-                                    ->width('14%')
+                                    ->width('10%')
                                     ->alignEnd(),
                                 TableColumn::make('Amount')
-                                    ->width('14%')
+                                    ->width('10%')
                                     ->alignEnd(),
                             ])
                             ->schema([
@@ -98,6 +102,13 @@ class EditBillingRecord extends EditRecord
                                 TextEntry::make('quantity')
                                     ->hiddenLabel()
                                     ->alignCenter(),
+                                TextEntry::make('vat_treatment')
+                                    ->hiddenLabel()
+                                    ->badge()
+                                    ->state(fn (BillingRecordItem $record): string => $record->vat_treatment?->getLabel() ?? 'Legacy'),
+                                TextEntry::make('statutory_discount_eligible')
+                                    ->hiddenLabel()
+                                    ->state(fn (BillingRecordItem $record): string => $record->statutory_discount_eligible ? 'Yes' : 'No'),
                                 TextEntry::make('unit_price')
                                     ->hiddenLabel()
                                     ->alignEnd()
@@ -115,6 +126,24 @@ class EditBillingRecord extends EditRecord
 
                 Grid::make(1)->columnSpan(['default' => 1, 'lg' => 1])->schema([
                     Section::make('Financial Summary')->schema([
+                        Placeholder::make('subtotal_amount')
+                            ->label('Subtotal')
+                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->subtotal_amount, 2)),
+                        Placeholder::make('vatable_sales_amount')
+                            ->label('VATable sales (VAT-exclusive)')
+                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->vatable_sales_amount, 2))
+                            ->visible(fn (BillingRecord $record): bool => $record->vat_calculation_version === 1),
+                        Placeholder::make('vat_amount')
+                            ->label('12% VAT')
+                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->vat_amount, 2))
+                            ->visible(fn (BillingRecord $record): bool => $record->vat_calculation_version === 1),
+                        Placeholder::make('vat_exemption_amount')
+                            ->label('VAT exemption')
+                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->vat_exemption_amount, 2))
+                            ->visible(fn (BillingRecord $record): bool => $record->vat_calculation_version === 1),
+                        Placeholder::make('discount_amount')
+                            ->label('Discount')
+                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->discount_amount, 2)),
                         Placeholder::make('total_amount')
                             ->label('Total Amount')
                             ->content(fn (BillingRecord $record): string => '₱'.number_format($record->total_amount, 2)),
@@ -139,7 +168,19 @@ class EditBillingRecord extends EditRecord
     public function refreshBillingRecordSummary(): void
     {
         $this->record->refresh();
-        $this->refreshFormData(['status', 'amount_paid', 'balance_due']);
+        $this->refreshFormData([
+            'status',
+            'subtotal_amount',
+            'discount_amount',
+            'vatable_sales_amount',
+            'vat_amount',
+            'vat_exempt_sales_amount',
+            'zero_rated_sales_amount',
+            'vat_exemption_amount',
+            'total_amount',
+            'amount_paid',
+            'balance_due',
+        ]);
     }
 
     protected function getHeaderActions(): array

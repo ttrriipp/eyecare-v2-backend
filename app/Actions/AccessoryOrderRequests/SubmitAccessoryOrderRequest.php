@@ -5,6 +5,7 @@ namespace App\Actions\AccessoryOrderRequests;
 use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\CommercialItemKind;
+use App\Enums\DiscountType;
 use App\Exceptions\AccessoryNotOrderableException;
 use App\Exceptions\ActiveOrderRequestExistsException;
 use App\Models\AccessoryOrderRequest;
@@ -29,6 +30,14 @@ class SubmitAccessoryOrderRequest
         string $requestedDiscountType = 'none',
     ): AccessoryOrderRequest {
         return DB::transaction(function () use ($account, $items, $requestedDiscountType): AccessoryOrderRequest {
+            $discountType = DiscountType::tryFrom($requestedDiscountType);
+
+            if ($discountType === null || ($discountType !== DiscountType::None && ! $discountType->isStatutory())) {
+                throw ValidationException::withMessages([
+                    'discount_type' => ['Select no discount, Senior Citizen, or PWD.'],
+                ]);
+            }
+
             // Lock account and check one-pending-request limit
             $account = User::query()->lockForUpdate()->findOrFail($account->id);
             $account->load('patient');

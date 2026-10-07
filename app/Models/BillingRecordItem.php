@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BillingItemSourceKind;
+use App\Enums\VatTreatment;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'quantity',
     'unit_price',
     'amount',
+    'vat_treatment',
+    'statutory_discount_eligible',
     'job_order_item_id',
     'service_id',
     'encounter_id',
@@ -27,6 +30,8 @@ class BillingRecordItem extends Model
     {
         return [
             'source_kind' => BillingItemSourceKind::class,
+            'vat_treatment' => VatTreatment::class,
+            'statutory_discount_eligible' => 'boolean',
         ];
     }
 

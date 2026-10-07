@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
+use App\Actions\BillingRecords\CalculatePhilippineVatSummary;
 use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
 use App\Enums\DiscountType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -74,7 +75,7 @@ class CreateOpticalOrder extends CreateRecord
             $this->form->fill([
                 'patient_id' => $patientRecord?->id,
                 'prescription_id' => $this->resolvePrescription()?->id,
-                'discount_type' => $this->automaticDiscountTypeForPatient($patientRecord),
+                'discount_type' => DiscountType::None->value,
                 'include_prescription_eyewear' => $this->prescriptionId !== null,
                 'items' => $this->prescriptionId !== null ? [] : [[
                     'item_kind' => 'catalog',
@@ -114,28 +115,26 @@ class CreateOpticalOrder extends CreateRecord
             $prescriptionEyewearResolver,
             true,
         );
-        $discountAmount = function (Get $get) use ($subtotal): float {
+        $vatSummary = function (Get $get) use ($prescriptionEyewearResolver): array {
             $discountType = DiscountType::tryFrom((string) ($get('discount_type') ?? DiscountType::None->value));
 
-            return match ($discountType) {
-                DiscountType::SeniorCitizen, DiscountType::Pwd => round(
-                    $subtotal($get) * (($discountType->percentage() ?? 0) / 100),
-                    2,
+            return app(CalculatePhilippineVatSummary::class)->handle(
+                items: OpticalOrderCreationForm::vatLines(
+                    $get,
+                    $prescriptionEyewearResolver,
+                    true,
                 ),
-                DiscountType::Other => max((float) ($get('discount_amount') ?? 0), 0),
-                default => 0,
-            };
+                discountType: $discountType ?? DiscountType::None,
+                discountAmount: $discountType === DiscountType::Other
+                    ? max((float) ($get('discount_amount') ?? 0), 0)
+                    : 0,
+            );
         };
-        $discountedTotal = fn (Get $get): float => max(
-            $subtotal($get) - $discountAmount($get),
-            0,
-        );
+        $discountAmount = fn (Get $get): float => $vatSummary($get)['discount_cents'] / 100;
+        $discountedTotal = fn (Get $get): float => $vatSummary($get)['total_cents'] / 100;
         $patientById = fn (mixed $patientId): ?Patient => filled($patientId)
             ? Patient::query()->find((int) $patientId)
             : null;
-        $automaticDiscountType = fn (?string $patientId): string => $this->automaticDiscountTypeForPatient(
-            $patientById($patientId),
-        );
         $seniorCitizenEligible = fn (Get $get): bool => $this->isSeniorCitizenEligible(
             $patientById($get('patient_id')),
         );
@@ -165,7 +164,7 @@ class CreateOpticalOrder extends CreateRecord
                                         ->searchable()
                                         ->preload()
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, Get $get, ?string $state, LivewireComponent $livewire) use ($automaticDiscountType): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, ?string $state, LivewireComponent $livewire): void {
                                             $set('prescription_id', null);
                                             $set('include_prescription_eyewear', false);
                                             $set('eyewear_frame_source', null);
@@ -174,8 +173,9 @@ class CreateOpticalOrder extends CreateRecord
                                             $set('eyewear_patient_frame_price', null);
                                             $set('eyewear_lens_category_id', null);
                                             $set('eyewear_lens_options', []);
-                                            $set('discount_type', $automaticDiscountType($state));
+                                            $set('discount_type', DiscountType::None->value);
                                             $set('discount_amount', null);
+                                            $set('discount_eligibility_verified', false);
 
                                             if (blank($get('items'))) {
                                                 $set('items', [[
@@ -323,13 +323,36 @@ class CreateOpticalOrder extends CreateRecord
                                     Placeholder::make('order_total')
                                         ->label('Subtotal')
                                         ->content(fn (Get $get): string => '₱'.number_format($subtotal($get), 2)),
+                                    Placeholder::make('vatable_sales_amount')
+                                        ->label('VATable sales (VAT-exclusive)')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            $vatSummary($get)['vatable_sales_cents'] / 100,
+                                            2,
+                                        )),
+                                    Placeholder::make('vat_amount')
+                                        ->label('12% VAT')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            $vatSummary($get)['vat_amount_cents'] / 100,
+                                            2,
+                                        )),
+                                    Placeholder::make('vat_exempt_sales_amount')
+                                        ->label('VAT-exempt sales')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            $vatSummary($get)['vat_exempt_sales_cents'] / 100,
+                                            2,
+                                        )),
+                                    Placeholder::make('zero_rated_sales_amount')
+                                        ->label('Zero-rated sales')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            $vatSummary($get)['zero_rated_sales_cents'] / 100,
+                                            2,
+                                        )),
                                     Select::make('discount_type')
                                         ->label('Discount type')
                                         ->options(DiscountType::options())
                                         ->default(DiscountType::None->value)
                                         ->selectablePlaceholder(false)
-                                        ->disabled(fn (Get $get): bool => auth()->user()?->isAdmin() !== true
-                                            || $seniorCitizenEligible($get))
+                                        ->disabled(fn (): bool => auth()->user()?->hasPanelRole() !== true)
                                         ->disableOptionWhen(fn (string $value, Get $get): bool => $value === DiscountType::SeniorCitizen->value
                                             && ! $seniorCitizenEligible($get))
                                         ->dehydrated()
@@ -338,10 +361,36 @@ class CreateOpticalOrder extends CreateRecord
                                             if ($state !== DiscountType::Other->value) {
                                                 $set('discount_amount', null);
                                             }
+                                            if (! in_array($state, [DiscountType::SeniorCitizen->value, DiscountType::Pwd->value], true)) {
+                                                $set('discount_eligibility_verified', false);
+                                            }
                                         }),
+                                    Toggle::make('discount_eligibility_verified')
+                                        ->label('Valid ID/proof and exclusive use verified')
+                                        ->required(fn (Get $get): bool => in_array(
+                                            $get('discount_type'),
+                                            [DiscountType::SeniorCitizen->value, DiscountType::Pwd->value],
+                                            true,
+                                        ))
+                                        ->visible(fn (Get $get): bool => in_array(
+                                            $get('discount_type'),
+                                            [DiscountType::SeniorCitizen->value, DiscountType::Pwd->value],
+                                            true,
+                                        )),
                                     Placeholder::make('statutory_discount_amount')
                                         ->label('Discount amount')
                                         ->content(fn (Get $get): string => '₱'.number_format($discountAmount($get), 2))
+                                        ->visible(fn (Get $get): bool => in_array(
+                                            $get('discount_type'),
+                                            [DiscountType::SeniorCitizen->value, DiscountType::Pwd->value],
+                                            true,
+                                        )),
+                                    Placeholder::make('vat_exemption_amount')
+                                        ->label('VAT exemption')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            $vatSummary($get)['vat_exemption_cents'] / 100,
+                                            2,
+                                        ))
                                         ->visible(fn (Get $get): bool => in_array(
                                             $get('discount_type'),
                                             [DiscountType::SeniorCitizen->value, DiscountType::Pwd->value],
@@ -468,6 +517,7 @@ class CreateOpticalOrder extends CreateRecord
                 discountAmount: filled($data['discount_amount'] ?? null)
                     ? (float) $data['discount_amount']
                     : null,
+                discountEligibilityVerified: (bool) ($data['discount_eligibility_verified'] ?? false),
             );
 
             return $result['job_order'];
@@ -539,10 +589,19 @@ class CreateOpticalOrder extends CreateRecord
 
         if (($data['eyewear_frame_source'] ?? null) === 'catalog'
             && filled($data['eyewear_frame_variant_id'] ?? null)) {
-            $items->prepend($this->catalogItem(
+            $catalogFrame = $this->catalogItem(
                 ProductVariant::query()->active()->with('product')->findOrFail((int) $data['eyewear_frame_variant_id']),
                 quantity: 1,
-            ));
+            );
+            $items->prepend([
+                ...$catalogFrame,
+                'vat_treatment' => auth()->user()?->isAdmin() === true
+                    ? ($data['eyewear_vat_treatment'] ?? $catalogFrame['vat_treatment'])
+                    : $catalogFrame['vat_treatment'],
+                'statutory_discount_eligible' => auth()->user()?->isAdmin() === true
+                    ? (bool) ($data['eyewear_statutory_discount_eligible'] ?? $catalogFrame['statutory_discount_eligible'])
+                    : $catalogFrame['statutory_discount_eligible'],
+            ]);
         }
 
         if (($data['eyewear_frame_source'] ?? null) === 'patient') {
@@ -551,6 +610,8 @@ class CreateOpticalOrder extends CreateRecord
                 'description' => $data['eyewear_patient_frame_description'],
                 'quantity' => 1,
                 'unit_price' => $data['eyewear_patient_frame_price'],
+                'vat_treatment' => $data['eyewear_vat_treatment'] ?? 'vatable',
+                'statutory_discount_eligible' => (bool) ($data['eyewear_statutory_discount_eligible'] ?? false),
             ]);
         }
 
@@ -562,6 +623,8 @@ class CreateOpticalOrder extends CreateRecord
                 'quantity' => 1,
                 'unit_price' => $lensCategory->price,
                 'lens_category_id' => $lensCategory->id,
+                'vat_treatment' => $data['eyewear_vat_treatment'] ?? 'vatable',
+                'statutory_discount_eligible' => (bool) ($data['eyewear_statutory_discount_eligible'] ?? false),
             ]);
         }
 
@@ -577,6 +640,8 @@ class CreateOpticalOrder extends CreateRecord
                 'quantity' => 1,
                 'unit_price' => $lensOption->price,
                 'lens_option_id' => $lensOption->id,
+                'vat_treatment' => $data['eyewear_vat_treatment'] ?? 'vatable',
+                'statutory_discount_eligible' => (bool) ($data['eyewear_statutory_discount_eligible'] ?? false),
             ]);
         }
 
@@ -637,18 +702,9 @@ class CreateOpticalOrder extends CreateRecord
             'quantity' => $quantity,
             'unit_price' => $variant->price,
             'product_variant_id' => $variant->id,
+            'vat_treatment' => $variant->product->vat_treatment?->value ?? 'vatable',
+            'statutory_discount_eligible' => (bool) $variant->product->statutory_discount_eligible,
         ];
-    }
-
-    private function automaticDiscountTypeForPatient(?Patient $patient): string
-    {
-        if (auth()->user()?->isAdmin() !== true) {
-            return DiscountType::None->value;
-        }
-
-        return $this->isSeniorCitizenEligible($patient)
-            ? DiscountType::SeniorCitizen->value
-            : DiscountType::None->value;
     }
 
     private function isSeniorCitizenEligible(?Patient $patient): bool

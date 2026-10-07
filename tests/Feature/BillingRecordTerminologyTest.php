@@ -18,6 +18,7 @@ test('billing presentation uses consultation labels for encounter sources', func
     $billing = BillingRecord::factory()->create([
         'patient_id' => $encounter->patient_id,
         'encounter_id' => $encounter->id,
+        'vat_calculation_version' => 1,
     ]);
     BillingRecordItem::factory()->create([
         'billing_record_id' => $billing->id,
@@ -38,5 +39,7 @@ test('billing presentation uses consultation labels for encounter sources', func
 
     Livewire::test(EditBillingRecord::class, ['record' => $billing->getRouteKey()])
         ->assertSee('Consultation')
+        ->assertSchemaComponentDoesNotExist('vat_exempt_sales_amount')
+        ->assertSchemaComponentDoesNotExist('zero_rated_sales_amount')
         ->assertDontSee('Encounter');
 });

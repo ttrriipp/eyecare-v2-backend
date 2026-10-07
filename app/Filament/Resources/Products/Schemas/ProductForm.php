@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Enums\ProductUsage;
+use App\Enums\VatTreatment;
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
@@ -166,6 +167,22 @@ class ProductForm
                                     ['bulletList', 'orderedList'],
                                     ['undo', 'redo'],
                                 ])
+                                ->columnSpanFull(),
+                            Select::make('vat_treatment')
+                                ->label('VAT treatment')
+                                ->options(VatTreatment::options())
+                                ->default(VatTreatment::Vatable->value)
+                                ->required()
+                                ->helperText('Product prices are VAT-inclusive. Use exempt or zero-rated only when the sale meets the legal requirements.')
+                                ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                                ->dehydrated()
+                                ->columnSpanFull(),
+                            Toggle::make('statutory_discount_eligible')
+                                ->label('Qualifying SC/PWD purchase')
+                                ->default(false)
+                                ->helperText('Mark only when this specific product is covered by the statutory benefit. The patient must also qualify and use it exclusively.')
+                                ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                                ->dehydrated()
                                 ->columnSpanFull(),
                         ])
                         ->columns(2),

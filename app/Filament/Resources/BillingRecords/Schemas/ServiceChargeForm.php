@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\BillingRecords\Schemas;
 
+use App\Enums\VatTreatment;
 use App\Models\Service;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
@@ -38,6 +40,8 @@ final class ServiceChargeForm
                         $set('description', null);
                         $set('unit_price', null);
                         $set('line_total', null);
+                        $set('vat_treatment', VatTreatment::Vatable->value);
+                        $set('statutory_discount_eligible', false);
 
                         if ($state === 'custom') {
                             $set('quantity', 1);
@@ -72,6 +76,8 @@ final class ServiceChargeForm
 
                         $set('description', $service->name);
                         $set('unit_price', $service->price);
+                        $set('vat_treatment', $service->vat_treatment?->value ?? VatTreatment::Vatable->value);
+                        $set('statutory_discount_eligible', (bool) $service->statutory_discount_eligible);
                         $set('line_total', number_format(
                             ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
                             2,
@@ -125,6 +131,17 @@ final class ServiceChargeForm
                             ->disabled()
                             ->dehydrated(false),
                     ]),
+                Select::make('vat_treatment')
+                    ->label('VAT treatment')
+                    ->options(VatTreatment::options())
+                    ->default(VatTreatment::Vatable->value)
+                    ->required()
+                    ->helperText('Prices include VAT. Use exempt or zero-rated only when allowed by law.')
+                    ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                    ->dehydrated()
+                    ->columnSpan(1),
+                Hidden::make('statutory_discount_eligible')
+                    ->default(false),
             ])
             ->columns(2)
             ->defaultItems(1)
@@ -148,7 +165,7 @@ final class ServiceChargeForm
 
     /**
      * @param  array<int|string, array<string, mixed>>  $items
-     * @return Collection<int, array{description: string, quantity: int, unit_price: string, amount: string, service_id: int|null}>
+     * @return Collection<int, array{description: string, quantity: int, unit_price: string, amount: string, service_id: int|null, vat_treatment: string, statutory_discount_eligible: bool}>
      */
     public static function normalizeItems(array $items): Collection
     {
@@ -185,6 +202,10 @@ final class ServiceChargeForm
                     'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
                     'amount' => number_format($amountInCents / 100, 2, '.', ''),
                     'service_id' => $service?->id,
+                    'vat_treatment' => $item['vat_treatment']
+                        ?? $service?->vat_treatment?->value
+                        ?? VatTreatment::Vatable->value,
+                    'statutory_discount_eligible' => (bool) ($service?->statutory_discount_eligible ?? false),
                 ];
             })
             ->values();

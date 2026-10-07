@@ -9,6 +9,7 @@ use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -35,10 +36,12 @@ class CreateBillingRecord
         ?Collection $serviceItems = null,
         ?float $discountAmount = null,
         string $discountType = 'none',
+        bool $discountEligibilityVerified = false,
         ?Carbon $paymentDueDate = null,
         ?string $notes = null,
     ): BillingRecord {
         $serviceItems ??= collect();
+        $serviceItems = $this->applyCatalogServiceTaxTreatment($serviceItems, $creator);
 
         if ($orderItems === [] && $serviceItems->isEmpty()) {
             throw ValidationException::withMessages([
@@ -58,6 +61,39 @@ class CreateBillingRecord
             ]);
         }
 
+        $resolvedDiscountType = DiscountType::tryFrom($discountType);
+
+        if ($resolvedDiscountType === null) {
+            throw ValidationException::withMessages([
+                'discount_type' => ['Select a valid discount type.'],
+            ]);
+        }
+
+        if ($resolvedDiscountType->isStatutory()) {
+            if (
+                $resolvedDiscountType === DiscountType::SeniorCitizen
+                && (($patient->ageInYears() ?? 0) < DiscountType::SeniorCitizen->minimumAge())
+            ) {
+                throw ValidationException::withMessages([
+                    'discount_type' => ['Senior Citizen discount requires the patient to be at least 60 years old.'],
+                ]);
+            }
+
+            if (! $discountEligibilityVerified) {
+                throw ValidationException::withMessages([
+                    'discount_eligibility_verified' => ['Verify the patient’s entitlement and exclusive use before applying this discount.'],
+                ]);
+            }
+
+            if (! collect($orderItems)->merge($serviceItems)->contains(
+                fn (array $item): bool => (bool) ($item['statutory_discount_eligible'] ?? false),
+            )) {
+                throw ValidationException::withMessages([
+                    'discount_type' => ['At least one legally qualifying line is required for a statutory discount.'],
+                ]);
+            }
+        }
+
         return DB::transaction(function () use (
             $patient,
             $creator,
@@ -67,6 +103,8 @@ class CreateBillingRecord
             $serviceItems,
             $discountAmount,
             $discountType,
+            $discountEligibilityVerified,
+            $resolvedDiscountType,
             $paymentDueDate,
             $notes,
         ): BillingRecord {
@@ -77,12 +115,15 @@ class CreateBillingRecord
                     orderItems: $orderItems,
                     prescription: $prescription,
                     encounter: $encounter,
-                    discountAmount: $this->discountForOrderValidation(
-                        discountAmount: $discountAmount,
-                        discountType: $discountType,
-                        orderItems: $orderItems,
-                    ),
-                    discountType: $discountType,
+                    discountAmount: $serviceItems->isEmpty()
+                        ? $this->discountForOrderValidation(
+                            discountAmount: $discountAmount,
+                            discountType: $discountType,
+                            orderItems: $orderItems,
+                        )
+                        : null,
+                    discountType: $serviceItems->isEmpty() ? $discountType : DiscountType::None->value,
+                    discountEligibilityVerified: $serviceItems->isEmpty() && $discountEligibilityVerified,
                 );
             } else {
                 $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
@@ -91,6 +132,12 @@ class CreateBillingRecord
                     actor: $creator,
                 );
             }
+
+            $billingRecord->update([
+                'discount_type' => $discountType,
+                'discount_eligibility_verified' => $discountEligibilityVerified,
+                'discount_amount' => $resolvedDiscountType === DiscountType::Other ? ($discountAmount ?? 0) : 0,
+            ]);
 
             if ($serviceItems->isNotEmpty()) {
                 $billingRecord = app(AddChargesToBilling::class)->handle(
@@ -103,7 +150,9 @@ class CreateBillingRecord
 
             $billingRecord = app(RecalculateBillingRecordTotals::class)->handle(
                 billingRecord: $billingRecord,
-                discountAmount: $discountAmount ?? (float) $billingRecord->discount_amount,
+                discountAmount: $resolvedDiscountType === DiscountType::Other
+                    ? ($discountAmount ?? (float) $billingRecord->discount_amount)
+                    : null,
             );
 
             return $this->updateMetadata(
@@ -125,6 +174,7 @@ class CreateBillingRecord
         ?Encounter $encounter,
         ?float $discountAmount,
         string $discountType,
+        bool $discountEligibilityVerified,
     ): BillingRecord {
         $result = app(CreateOpticalOrderAction::class)->handle(
             patient: $patient,
@@ -136,6 +186,7 @@ class CreateBillingRecord
             encounter: $encounter,
             discountAmount: $discountAmount,
             discountType: $discountType,
+            discountEligibilityVerified: $discountEligibilityVerified,
         );
 
         return $result['billing_record'];
@@ -189,5 +240,36 @@ class CreateBillingRecord
         }
 
         return $billingRecord->fresh();
+    }
+
+    /**
+     * Keep catalog service tax treatment controlled by its administrator-owned configuration.
+     *
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function applyCatalogServiceTaxTreatment(Collection $items, User $creator): Collection
+    {
+        if ($creator->isAdmin()) {
+            return $items;
+        }
+
+        return $items->map(function (array $item): array {
+            if (blank($item['service_id'] ?? null)) {
+                return $item;
+            }
+
+            $service = Service::query()->find((int) $item['service_id']);
+
+            if ($service === null) {
+                return $item;
+            }
+
+            return [
+                ...$item,
+                'vat_treatment' => $service->vat_treatment?->value ?? 'vatable',
+                'statutory_discount_eligible' => (bool) $service->statutory_discount_eligible,
+            ];
+        });
     }
 }

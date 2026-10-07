@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Services\Schemas;
 
+use App\Enums\VatTreatment;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -32,6 +34,20 @@ class ServiceForm
                             ->prefix('₱')
                             ->extraInputAttributes(['class' => 'price-input'])
                             ->helperText('Default price when this service is billed or quoted.'),
+                        Select::make('vat_treatment')
+                            ->label('VAT treatment')
+                            ->options(VatTreatment::options())
+                            ->default(VatTreatment::Vatable->value)
+                            ->required()
+                            ->helperText('Medical services rendered by professionals are not covered by the medical-service VAT exemption. Classify each service based on how it is provided.')
+                            ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                            ->dehydrated(),
+                        Toggle::make('statutory_discount_eligible')
+                            ->label('Qualifying SC/PWD service')
+                            ->default(false)
+                            ->helperText('Mark only when the service is covered by the statutory benefit. The patient must also qualify and use it exclusively.')
+                            ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                            ->dehydrated(),
                         Textarea::make('description')
                             ->columnSpanFull(),
                         Toggle::make('is_active')

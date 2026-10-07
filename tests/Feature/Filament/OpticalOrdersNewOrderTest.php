@@ -117,7 +117,7 @@ test('direct order items use the service-style source selector layout', function
         ]);
 });
 
-test('selecting a patient aged 60 automatically selects the senior citizen discount', function () {
+test('selecting a patient aged 60 does not apply the senior citizen discount before ID verification', function () {
     $admin = User::factory()->admin()->create();
     $patient = Patient::factory()->create([
         'date_of_birth' => today()->subYears(60),
@@ -127,10 +127,10 @@ test('selecting a patient aged 60 automatically selects the senior citizen disco
 
     Livewire::test(CreateOpticalOrder::class)
         ->set('data.patient_id', $patient->id)
-        ->assertSet('data.discount_type', 'senior_citizen');
+        ->assertSet('data.discount_type', 'none');
 });
 
-test('a preselected patient aged 60 automatically receives the senior citizen discount', function () {
+test('a preselected patient aged 60 does not automatically receive the senior citizen discount', function () {
     $admin = User::factory()->admin()->create();
     $patient = Patient::factory()->create([
         'date_of_birth' => today()->subYears(60),
@@ -139,7 +139,7 @@ test('a preselected patient aged 60 automatically receives the senior citizen di
     $this->actingAs($admin);
 
     Livewire::test(CreateOpticalOrder::class, ['patient' => (string) $patient->id])
-        ->assertSet('data.discount_type', 'senior_citizen');
+        ->assertSet('data.discount_type', 'none');
 });
 
 test('selecting a patient younger than 60 leaves the automatic discount unset', function () {
@@ -155,7 +155,7 @@ test('selecting a patient younger than 60 leaves the automatic discount unset', 
         ->assertSet('data.discount_type', 'none');
 });
 
-test('senior citizen discount is locked for an age-eligible patient', function () {
+test('an eligible senior discount can be selected after the patient is checked', function () {
     $admin = User::factory()->admin()->create();
     $patient = Patient::factory()->create([
         'date_of_birth' => today()->subYears(60),
@@ -168,7 +168,8 @@ test('senior citizen discount is locked for an age-eligible patient', function (
         ->assertSchemaComponentExists(
             'discount_type',
             checkComponentUsing: function (Select $field): bool {
-                expect($field->isDisabled())->toBeTrue();
+                expect($field->isDisabled())->toBeFalse()
+                    ->and($field->getEnabledOptions())->toHaveKey('senior_citizen');
 
                 return true;
             },
@@ -205,6 +206,7 @@ test('admin statutory discounts apply twenty percent of the order subtotal', fun
         'stock_quantity' => 10,
         'price' => 2500,
     ]);
+    $variant->product->update(['statutory_discount_eligible' => true]);
 
     $this->actingAs($admin);
 
@@ -218,7 +220,7 @@ test('admin statutory discounts apply twenty percent of the order subtotal', fun
                 'quantity' => 1,
             ]],
             'discount_type' => $discountType,
-            'discount_amount' => 1,
+            'discount_eligibility_verified' => true,
         ])
         ->call('create')
         ->assertHasNoFormErrors()
@@ -229,8 +231,9 @@ test('admin statutory discounts apply twenty percent of the order subtotal', fun
         ->firstOrFail()
         ->billingRecord;
 
-    expect((float) $billing->discount_amount)->toBe(500.0)
-        ->and((float) $billing->total_amount)->toBe(2000.0);
+    expect((float) $billing->vat_exemption_amount)->toBe(267.86)
+        ->and((float) $billing->discount_amount)->toBe(446.43)
+        ->and((float) $billing->total_amount)->toBe(1785.71);
 })->with([
     'senior citizen' => ['senior_citizen', 60],
     'pwd' => ['pwd', null],

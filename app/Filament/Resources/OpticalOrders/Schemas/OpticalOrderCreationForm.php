@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
+use App\Enums\VatTreatment;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\ProductVariant;
@@ -13,6 +14,7 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -149,6 +151,25 @@ final class OpticalOrderCreationForm
                     ])
                     ->columns(1)
                     ->columnSpanFull(),
+                Fieldset::make('Tax and statutory discount')
+                    ->schema([
+                        Select::make('eyewear_vat_treatment')
+                            ->label('VAT treatment for this eyewear')
+                            ->options(VatTreatment::options())
+                            ->default(VatTreatment::Vatable->value)
+                            ->helperText('Prices are VAT-inclusive. Use exempt or zero-rated only when the sale meets the legal requirements.')
+                            ->disabled(fn (Get $get): bool => filled($get('product_variant_id'))
+                                || auth()->user()?->isAdmin() !== true)
+                            ->dehydrated(),
+                        Toggle::make('eyewear_statutory_discount_eligible')
+                            ->label('Qualifies for SC/PWD discount and VAT exemption')
+                            ->default(false)
+                            ->helperText('Confirm this eyewear is covered and for the eligible patient’s exclusive use.')
+                            ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                            ->dehydrated(),
+                    ])
+                    ->columns(2)
+                    ->columnSpanFull(),
                 Grid::make(['default' => 1, 'md' => 3])
                     ->schema([
                         Placeholder::make('eyewear_subtotal')
@@ -204,6 +225,8 @@ final class OpticalOrderCreationForm
                                 $set('description', null);
                                 $set('unit_price', null);
                                 $set('line_total', null);
+                                $set('vat_treatment', VatTreatment::Vatable->value);
+                                $set('statutory_discount_eligible', false);
 
                                 if ($prescriptionEyewearResolver($get)
                                     && ! $dedicatedPrescriptionEyewear
@@ -238,6 +261,8 @@ final class OpticalOrderCreationForm
                                 $set('catalog_product_type', $variant->product->product_type);
                                 $set('description', "{$variant->product->name} — {$variant->name}");
                                 $set('unit_price', $variant->price);
+                                $set('vat_treatment', $variant->product->vat_treatment?->value ?? VatTreatment::Vatable->value);
+                                $set('statutory_discount_eligible', (bool) $variant->product->statutory_discount_eligible);
 
                                 if ($variant->product->product_type === 'frame') {
                                     $set('quantity', 1);
@@ -298,6 +323,8 @@ final class OpticalOrderCreationForm
 
                                     $set('description', $service->name);
                                     $set('unit_price', $service->price);
+                                    $set('vat_treatment', $service->vat_treatment?->value ?? VatTreatment::Vatable->value);
+                                    $set('statutory_discount_eligible', (bool) $service->statutory_discount_eligible);
                                     $set('line_total', number_format(
                                         ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
                                         2,
@@ -381,6 +408,23 @@ final class OpticalOrderCreationForm
                                     ->disabled()
                                     ->dehydrated(false),
                             ]),
+                        Select::make('vat_treatment')
+                            ->label('VAT treatment')
+                            ->options(VatTreatment::options())
+                            ->default(VatTreatment::Vatable->value)
+                            ->required()
+                            ->helperText('Prices are VAT-inclusive. Use exempt or zero-rated only when the sale meets the legal requirements.')
+                            ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                            ->dehydrated()
+                            ->columnSpan(1),
+                        Toggle::make('statutory_discount_eligible')
+                            ->label('Qualifies for SC/PWD benefit')
+                            ->default(false)
+                            ->helperText('Confirm the item is covered and for the eligible patient’s exclusive use.')
+                            ->disabled(fn (Get $get): bool => filled($get('product_variant_id'))
+                                || auth()->user()?->isAdmin() !== true)
+                            ->dehydrated()
+                            ->columnSpan(1),
                     ])
                     ->columns(2)
                     ->defaultItems(fn (Get $get): int => $allowEmpty
@@ -410,6 +454,84 @@ final class OpticalOrderCreationForm
         return $otherItemsSubtotal + ($dedicatedPrescriptionEyewear && $prescriptionEyewearResolver($get)
             ? self::eyewearSubtotal($get)
             : 0);
+    }
+
+    /**
+     * @return array<int, array{amount: float, vat_treatment: string, statutory_discount_eligible: bool}>
+     */
+    public static function vatLines(
+        Get $get,
+        Closure $prescriptionEyewearResolver,
+        bool $dedicatedPrescriptionEyewear,
+    ): array {
+        $lines = collect($get('items') ?? [])
+            ->map(function (array $item): array {
+                return [
+                    'amount' => ((float) ($item['quantity'] ?? 0)) * ((float) ($item['unit_price'] ?? 0)),
+                    'vat_treatment' => $item['vat_treatment'] ?? VatTreatment::Vatable->value,
+                    'statutory_discount_eligible' => (bool) ($item['statutory_discount_eligible'] ?? false),
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['amount'] > 0)
+            ->values();
+
+        if (! $dedicatedPrescriptionEyewear || ! $prescriptionEyewearResolver($get)) {
+            return $lines->all();
+        }
+
+        $treatment = $get('eyewear_vat_treatment') ?? VatTreatment::Vatable->value;
+        $statutoryEligible = (bool) $get('eyewear_statutory_discount_eligible');
+        $catalogFrame = $get('eyewear_frame_source') === 'catalog'
+            ? self::frameVariant($get)
+            : null;
+        $frameTreatment = $catalogFrame !== null && auth()->user()?->isAdmin() !== true
+            ? ($catalogFrame->product->vat_treatment?->value ?? VatTreatment::Vatable->value)
+            : $treatment;
+        $frameStatutoryEligible = $catalogFrame !== null && auth()->user()?->isAdmin() !== true
+            ? (bool) $catalogFrame->product->statutory_discount_eligible
+            : $statutoryEligible;
+        $framePrice = $catalogFrame !== null
+            ? (float) $catalogFrame->price
+            : (filled($get('eyewear_patient_frame_price'))
+            ? (float) $get('eyewear_patient_frame_price')
+            : 0);
+        $lensCategoryId = $get('eyewear_lens_category_id');
+        $lensPrice = filled($lensCategoryId)
+            ? (float) (LensCategory::query()->active()->find((int) $lensCategoryId)?->price ?? 0)
+            : 0;
+
+        if ($framePrice > 0) {
+            $lines->push([
+                'amount' => $framePrice,
+                'vat_treatment' => $frameTreatment,
+                'statutory_discount_eligible' => $frameStatutoryEligible,
+            ]);
+        }
+
+        if ($lensPrice > 0) {
+            $lines->push([
+                'amount' => $lensPrice,
+                'vat_treatment' => $treatment,
+                'statutory_discount_eligible' => $statutoryEligible,
+            ]);
+        }
+
+        foreach ($get('eyewear_lens_options') ?? [] as $option) {
+            $lensOption = filled($option['lens_option_id'] ?? null)
+                ? LensOption::query()->active()->find((int) $option['lens_option_id'])
+                : null;
+            $optionPrice = (float) ($lensOption?->price ?? 0);
+
+            if ($optionPrice > 0) {
+                $lines->push([
+                    'amount' => $optionPrice,
+                    'vat_treatment' => $treatment,
+                    'statutory_discount_eligible' => $statutoryEligible,
+                ]);
+            }
+        }
+
+        return $lines->all();
     }
 
     private static function itemKindOptions(

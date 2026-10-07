@@ -57,6 +57,107 @@ test('recalculate with discount', function () {
         ->and((float) $result->total_amount)->toBe(8500.0);
 });
 
+test('recalculates and persists an inclusive VAT breakdown for new records', function () {
+    $billing = BillingRecord::factory()->create([
+        'vat_calculation_version' => 1,
+        'discount_type' => 'none',
+    ]);
+
+    BillingRecordItem::factory()->create([
+        'billing_record_id' => $billing->id,
+        'amount' => 1120,
+        'vat_treatment' => 'vatable',
+        'statutory_discount_eligible' => false,
+    ]);
+
+    $result = $this->recalculate->handle($billing);
+
+    expect((float) $result->vatable_sales_amount)->toBe(1000.0)
+        ->and((float) $result->vat_amount)->toBe(120.0)
+        ->and((float) $result->vat_exempt_sales_amount)->toBe(0.0)
+        ->and((float) $result->zero_rated_sales_amount)->toBe(0.0)
+        ->and((float) $result->vat_exemption_amount)->toBe(0.0)
+        ->and((float) $result->total_amount)->toBe(1120.0);
+});
+
+test('applies the statutory VAT exemption and 20 percent discount to qualifying lines', function () {
+    $billing = BillingRecord::factory()->create([
+        'vat_calculation_version' => 1,
+        'discount_type' => 'pwd',
+        'discount_eligibility_verified' => true,
+    ]);
+
+    BillingRecordItem::factory()->create([
+        'billing_record_id' => $billing->id,
+        'amount' => 1120,
+        'vat_treatment' => 'vatable',
+        'statutory_discount_eligible' => true,
+    ]);
+
+    $result = $this->recalculate->handle($billing);
+
+    expect((float) $result->vatable_sales_amount)->toBe(0.0)
+        ->and((float) $result->vat_amount)->toBe(0.0)
+        ->and((float) $result->vat_exempt_sales_amount)->toBe(1000.0)
+        ->and((float) $result->vat_exemption_amount)->toBe(120.0)
+        ->and((float) $result->discount_amount)->toBe(200.0)
+        ->and((float) $result->total_amount)->toBe(800.0);
+});
+
+test('requires verified entitlement and an eligible line for statutory discounts', function () {
+    $billing = BillingRecord::factory()->create([
+        'vat_calculation_version' => 1,
+        'discount_type' => 'senior_citizen',
+        'discount_eligibility_verified' => false,
+    ]);
+
+    BillingRecordItem::factory()->create([
+        'billing_record_id' => $billing->id,
+        'amount' => 1120,
+        'vat_treatment' => 'vatable',
+        'statutory_discount_eligible' => true,
+    ]);
+
+    $this->recalculate->handle($billing);
+})->throws(ValidationException::class, 'Verify the patient’s entitlement and exclusive use');
+
+test('rejects statutory discounts when no line is eligible', function () {
+    $billing = BillingRecord::factory()->create([
+        'vat_calculation_version' => 1,
+        'discount_type' => 'senior_citizen',
+        'discount_eligibility_verified' => true,
+    ]);
+
+    BillingRecordItem::factory()->create([
+        'billing_record_id' => $billing->id,
+        'amount' => 1120,
+        'vat_treatment' => 'vatable',
+        'statutory_discount_eligible' => false,
+    ]);
+
+    $this->recalculate->handle($billing);
+})->throws(ValidationException::class, 'At least one legally qualifying line');
+
+test('keeps existing records on the legacy calculation when recalculated', function () {
+    $billing = BillingRecord::factory()->create([
+        'subtotal_amount' => 0,
+        'discount_amount' => 0,
+        'total_amount' => 0,
+        'vat_calculation_version' => null,
+    ]);
+
+    BillingRecordItem::factory()->create([
+        'billing_record_id' => $billing->id,
+        'amount' => 1120,
+    ]);
+
+    $result = $this->recalculate->handle($billing);
+
+    expect((float) $result->total_amount)->toBe(1120.0)
+        ->and((float) $result->vatable_sales_amount)->toBe(0.0)
+        ->and((float) $result->vat_amount)->toBe(0.0);
+});
+
 test('a full discount marks the bill as paid with no balance due', function () {
     $billing = BillingRecord::factory()->create([
         'subtotal_amount' => 0,
@@ -101,11 +202,11 @@ test('recalculate preserves posted payments', function () {
         ->and($result->status)->toBe(BillingRecordStatus::PartiallyPaid);
 });
 
-test('recalculate voided record fails', function () {
-    $billing = BillingRecord::factory()->voided()->create();
+test('recalculate cancelled record fails', function () {
+    $billing = BillingRecord::factory()->cancelled()->create();
 
     $this->recalculate->handle($billing);
-})->throws(ValidationException::class, 'voided billing record');
+})->throws(ValidationException::class, 'Cannot modify a cancelled billing record');
 
 test('negative discount rejected', function () {
     $billing = BillingRecord::factory()->create();
