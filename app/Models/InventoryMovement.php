@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'inventory_movement_type_id',
     'quantity_change',
     'purchased_at',
+    'purchase_order_number',
+    'delivery_receipt_number',
     'previous_stock',
     'new_stock',
     'created_by',

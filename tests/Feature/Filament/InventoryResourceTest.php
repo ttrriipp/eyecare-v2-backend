@@ -454,6 +454,7 @@ test('receiving stock raises the quantity and writes a ledger entry', function (
     Livewire::test(ListInventory::class)
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 10,
+            'purchase_order_number' => 'PO-2026-RESTOCK-01',
         ]);
 
     expect($variant->fresh()->stock_quantity)->toBe(14);
@@ -464,6 +465,23 @@ test('receiving stock raises the quantity and writes a ledger entry', function (
         'previous_stock' => 4,
         'new_stock' => 14,
     ]);
+});
+
+test('receiving stock requires a purchase order number', function () {
+    $variant = ProductVariant::factory()->create([
+        'stock_quantity' => 4,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 10,
+        ])
+        ->assertHasActionErrors(['purchase_order_number' => 'required']);
+
+    expect($variant->fresh()->stock_quantity)->toBe(4)
+        ->and(InventoryMovement::query()->count())->toBe(0);
 });
 
 test('receiving stock records and displays the purchase date', function (): void {
@@ -484,6 +502,7 @@ test('receiving stock records and displays the purchase date', function (): void
         ->unmountAction()
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 10,
+            'purchase_order_number' => 'PO-2026-RESTOCK-02',
             'purchased_at' => '2026-09-01',
         ])
         ->assertHasNoActionErrors();
@@ -491,6 +510,7 @@ test('receiving stock records and displays the purchase date', function (): void
     Livewire::test(ListInventory::class)
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 10,
+            'purchase_order_number' => 'PO-2026-RESTOCK-03',
             'purchased_at' => '2026-08-01',
         ])
         ->assertHasNoActionErrors();
@@ -515,6 +535,8 @@ test('receiving contact lenses captures their lot and expiry month', function ()
     Livewire::test(ListInventory::class)
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 10,
+            'purchase_order_number' => 'PO/2026-0081',
+            'delivery_receipt_number' => 'DR-ACME/26-001',
             'lot_number' => 'ACME-001',
             'expiry_month' => '2027-06',
             'purchased_at' => '2026-08-20',
@@ -531,7 +553,11 @@ test('receiving contact lenses captures their lot and expiry month', function ()
         ->and($lot->expires_on->toDateString())->toBe('2027-06-30')
         ->and($lot->quantity_on_hand)->toBe(10);
 
-    expect(InventoryMovement::query()->sole()->purchased_at->toDateString())->toBe('2026-08-20');
+    $movement = InventoryMovement::query()->sole();
+
+    expect($movement->purchased_at->toDateString())->toBe('2026-08-20')
+        ->and($movement->purchase_order_number)->toBe('PO/2026-0081')
+        ->and($movement->delivery_receipt_number)->toBe('DR-ACME/26-001');
 
     Livewire::test(ListInventory::class)
         ->mountTableAction('viewBatches', $variant)
@@ -548,6 +574,7 @@ test('receiving accessories captures their lot and expiry month', function () {
     Livewire::test(ListInventory::class)
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 5,
+            'purchase_order_number' => 'PO-2026-ACCESSORY-01',
             'lot_number' => 'DROP-001',
             'expiry_month' => '2027-06',
             'purchased_at' => '2026-08-20',
@@ -569,9 +596,10 @@ test('accessory receiving shows the printed lot number label', function () {
 
     Livewire::test(ListInventory::class)
         ->mountTableAction('adjustStock', $variant)
+        ->assertMountedActionModalSee('Purchase Order')
+        ->assertMountedActionModalSee('Delivery Receipt (optional)')
         ->assertMountedActionModalSee('Lot number (Printed on the box)')
         ->assertMountedActionModalSeeHtml('placeholder="e.g. 17XD9U"')
-        ->assertMountedActionModalDontSee('Reference')
         ->assertMountedActionModalDontSee('Format (Printed on the box)');
 });
 
@@ -585,6 +613,8 @@ test('contact lens receiving explains the expiry month requirement before submis
     Livewire::test(ListInventory::class)
         ->mountTableAction('adjustStock', $variant)
         ->assertMountedActionModalSee('Use the expiry month printed on the box. It must be the current month or later; expired contact lens stock cannot be received.')
+        ->assertMountedActionModalSee('Purchase Order')
+        ->assertMountedActionModalSee('Delivery Receipt (optional)')
         ->assertMountedActionModalSee('Lot number (Printed on the box)')
         ->assertMountedActionModalDontSee('Reference')
         ->assertMountedActionModalDontSee('Format (Printed on the box)')
@@ -605,6 +635,7 @@ test('aggregate movements use the locked stock value for ledger boundaries', fun
         quantityChange: 1,
         type: 'restock',
         actingUser: $this->staff,
+        purchaseOrderNumber: 'PO-2026-AGGREGATE',
     );
 
     $movement = InventoryMovement::query()->sole();
@@ -703,6 +734,7 @@ test('frames receive a non-expiring batch without expiry fields', function () {
     Livewire::test(ListInventory::class)
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 4,
+            'purchase_order_number' => 'PO-2026-FRAME-01',
             'purchased_at' => '2026-08-20',
         ])
         ->assertHasNoActionErrors();
@@ -777,6 +809,7 @@ test('administrators can override an automatically generated frame batch number'
         ->test(ListInventory::class)
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 2,
+            'purchase_order_number' => 'PO-2026-FRAME-02',
             'batch_number' => 'SPECIAL-FRAME-001',
             'purchased_at' => '2026-08-20',
         ])
@@ -804,6 +837,7 @@ test('the products variants tab still receives stock through the shared action',
     ])
         ->callAction(TestAction::make('adjustStock')->table($variant), [
             'quantity' => 4,
+            'purchase_order_number' => 'PO-2026-RESTOCK-04',
         ])
         ->assertHasNoActionErrors();
 

@@ -48,6 +48,8 @@ class InventoryMovementResource extends Resource
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
+                TextEntry::make('purchase_order_number')->label('Purchase Order')->placeholder('—'),
+                TextEntry::make('delivery_receipt_number')->label('Delivery Receipt')->placeholder('—'),
                 TextEntry::make('quantity_change')
                     ->label('Change')
                     ->formatStateUsing(fn (int $state): string => $state > 0 ? "+{$state}" : (string) $state)

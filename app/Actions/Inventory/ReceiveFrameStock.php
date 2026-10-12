@@ -27,6 +27,8 @@ class ReceiveFrameStock
         ProductVariant $variant,
         int $quantity,
         User $receiver,
+        string $purchaseOrderNumber,
+        ?string $deliveryReceiptNumber = null,
         ?string $batchNumber = null,
         ?string $sourceReference = null,
         ?string $notes = null,
@@ -41,6 +43,18 @@ class ReceiveFrameStock
                 'quantity' => ['Quantity must be positive.'],
             ]);
         }
+
+        $purchaseOrderNumber = $this->normalizeReceiptReference(
+            $purchaseOrderNumber,
+            'purchase_order_number',
+            'Purchase Order number',
+            required: true,
+        );
+        $deliveryReceiptNumber = $this->normalizeReceiptReference(
+            $deliveryReceiptNumber,
+            'delivery_receipt_number',
+            'Delivery Receipt number',
+        );
 
         $variant->load('product');
 
@@ -58,6 +72,8 @@ class ReceiveFrameStock
             $quantity,
             $batchNumber,
             $receiver,
+            $purchaseOrderNumber,
+            $deliveryReceiptNumber,
             $sourceReference,
             $notes,
             $purchasedAt,
@@ -124,6 +140,8 @@ class ReceiveFrameStock
                     ->firstOrCreate(['name' => 'restock'])->id,
                 'quantity_change' => $quantity,
                 'purchased_at' => $purchasedAt,
+                'purchase_order_number' => $purchaseOrderNumber,
+                'delivery_receipt_number' => $deliveryReceiptNumber,
                 'previous_stock' => $previousStock,
                 'new_stock' => $newStock,
                 'created_by' => $receiver->id,
@@ -207,6 +225,27 @@ class ReceiveFrameStock
         if ($value !== null && mb_strlen($value) > 255) {
             throw ValidationException::withMessages([
                 'source_reference' => ['Reference must be 255 characters or fewer.'],
+            ]);
+        }
+
+        return $value === '' ? null : $value;
+    }
+
+    private function normalizeReceiptReference(
+        ?string $value,
+        string $attribute,
+        string $label,
+        bool $required = false,
+    ): ?string {
+        $value = $value === null ? null : trim($value);
+
+        if (($required && ($value === null || $value === '')) || ($value !== null && mb_strlen($value) > 255)) {
+            throw ValidationException::withMessages([
+                $attribute => [
+                    $required
+                        ? "{$label} is required and must be 255 characters or fewer."
+                        : "{$label} must be 255 characters or fewer.",
+                ],
             ]);
         }
 

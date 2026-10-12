@@ -93,6 +93,8 @@ class StockActions
                         lotNumber: (string) $data['lot_number'],
                         expiryMonth: (string) $data['expiry_month'],
                         receiver: $actor,
+                        purchaseOrderNumber: (string) $data['purchase_order_number'],
+                        deliveryReceiptNumber: $data['delivery_receipt_number'] ?? null,
                         sourceReference: $data['source_reference'] ?? null,
                         notes: $data['notes'] ?? null,
                         purchasedAt: $data['purchased_at'] ?? null,
@@ -108,6 +110,8 @@ class StockActions
                         variant: $record,
                         quantity: (int) $data['quantity'],
                         receiver: $actor,
+                        purchaseOrderNumber: (string) $data['purchase_order_number'],
+                        deliveryReceiptNumber: $data['delivery_receipt_number'] ?? null,
                         batchNumber: $data['batch_number'] ?? null,
                         sourceReference: $data['source_reference'] ?? null,
                         notes: $data['notes'] ?? null,
@@ -121,6 +125,8 @@ class StockActions
                         notes: $data['notes'] ?? null,
                         actingUser: auth()->user(),
                         purchasedAt: $data['purchased_at'] ?? null,
+                        purchaseOrderNumber: (string) $data['purchase_order_number'],
+                        deliveryReceiptNumber: $data['delivery_receipt_number'] ?? null,
                     );
                 }
 
@@ -156,6 +162,16 @@ class StockActions
                 ->required()
                 ->numeric()
                 ->minValue(1),
+            TextInput::make('purchase_order_number')
+                ->label('Purchase Order')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('e.g. PO-2026-001'),
+            TextInput::make('delivery_receipt_number')
+                ->label('Delivery Receipt (optional)')
+                ->maxLength(255)
+                ->placeholder('e.g. DR-12345')
+                ->helperText('Enter the number as printed on the supplier’s delivery receipt. Formats vary; letters, numbers, hyphens, and slashes are accepted.'),
         ];
 
         if ($record->isExpiryTracked()) {

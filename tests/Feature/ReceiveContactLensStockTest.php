@@ -28,6 +28,8 @@ test('receiving a contact lens lot normalizes the month and records the movement
         lotNumber: '  ACME-001  ',
         expiryMonth: '2027-06',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO/2026-0081',
+        deliveryReceiptNumber: 'DR-ALC/26-001',
         purchasedAt: '2026-08-20',
         sourceReference: 'PO-42',
         notes: 'June delivery',
@@ -46,7 +48,9 @@ test('receiving a contact lens lot normalizes the month and records the movement
         ->and($movement->quantity_change)->toBe(12)
         ->and($movement->previous_stock)->toBe(0)
         ->and($movement->new_stock)->toBe(12)
-        ->and($movement->purchased_at->toDateString())->toBe('2026-08-20');
+        ->and($movement->purchased_at->toDateString())->toBe('2026-08-20')
+        ->and($movement->purchase_order_number)->toBe('PO/2026-0081')
+        ->and($movement->delivery_receipt_number)->toBe('DR-ALC/26-001');
 });
 
 test('receiving an accessory lot records its expiry and movement', function () {
@@ -61,6 +65,7 @@ test('receiving an accessory lot records its expiry and movement', function () {
         lotNumber: '  DROP-001  ',
         expiryMonth: '2027-06',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-43',
         purchasedAt: '2026-08-20',
         sourceReference: 'PO-43',
     );
@@ -93,6 +98,7 @@ test('receiving into an existing lot increases its quantities', function () {
         lotNumber: 'ACME-001',
         expiryMonth: '2027-06',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-44',
         purchasedAt: '2026-08-20',
     );
 
@@ -121,6 +127,7 @@ test('a repeated lot receipt rejects a conflicting expiry month atomically', fun
         lotNumber: 'ACME-001',
         expiryMonth: '2027-07',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-45',
     ))->toThrow(ValidationException::class);
 
     expect($lot->fresh()->received_quantity)->toBe(4)
@@ -141,6 +148,7 @@ test('receiving rejects invalid or already expired months', function (string $ex
         lotNumber: 'ACME-001',
         expiryMonth: $expiryMonth,
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-46',
     ))->toThrow(ValidationException::class);
 
     expect(InventoryLot::query()->count())->toBe(0)
@@ -161,6 +169,7 @@ test('expiry-tracked receiving rejects frame variants', function () {
         lotNumber: 'ACME-001',
         expiryMonth: '2027-06',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-47',
     ))->toThrow(ValidationException::class);
 });
 
@@ -176,5 +185,6 @@ test('the contact lens receiving action requires a panel role', function () {
         lotNumber: 'ACME-001',
         expiryMonth: '2027-06',
         receiver: $patient,
+        purchaseOrderNumber: 'PO-48',
     ))->toThrow(AuthorizationException::class);
 });

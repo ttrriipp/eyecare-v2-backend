@@ -83,3 +83,22 @@ test('inventory history does not show optical order details', function () {
 
     expect($table->getColumn('jobOrder.job_order_number'))->toBeNull();
 });
+
+test('inventory history shows purchase order and delivery receipt references', function () {
+    $staff = User::factory()->staff()->create();
+    $movement = InventoryMovement::factory()->create([
+        'purchase_order_number' => 'PO/2026-0081',
+        'delivery_receipt_number' => 'DR-ACME/26-001',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListInventoryMovements::class)
+        ->mountTableAction('view', $movement)
+        ->assertMountedActionModalSee([
+            'Purchase Order',
+            'PO/2026-0081',
+            'Delivery Receipt',
+            'DR-ACME/26-001',
+        ]);
+});

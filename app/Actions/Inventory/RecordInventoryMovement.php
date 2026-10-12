@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RecordInventoryMovement
 {
@@ -30,8 +31,32 @@ class RecordInventoryMovement
         ?string $notes = null,
         ?User $actingUser = null,
         ?string $purchasedAt = null,
+        ?string $purchaseOrderNumber = null,
+        ?string $deliveryReceiptNumber = null,
     ): InventoryMovement {
-        return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes, $actingUser, $purchasedAt): InventoryMovement {
+        $purchaseOrderNumber = $this->normalizeReceiptReference(
+            $purchaseOrderNumber,
+            'purchase_order_number',
+            'Purchase Order number',
+            required: $type === 'restock',
+        );
+        $deliveryReceiptNumber = $this->normalizeReceiptReference(
+            $deliveryReceiptNumber,
+            'delivery_receipt_number',
+            'Delivery Receipt number',
+        );
+
+        return DB::transaction(function () use (
+            $variant,
+            $quantityChange,
+            $type,
+            $orderId,
+            $notes,
+            $actingUser,
+            $purchasedAt,
+            $purchaseOrderNumber,
+            $deliveryReceiptNumber,
+        ): InventoryMovement {
             $lockedVariant = ProductVariant::query()
                 ->lockForUpdate()
                 ->findOrFail($variant->id);
@@ -59,6 +84,8 @@ class RecordInventoryMovement
                 'purchased_at' => $type === 'restock'
                     ? ($purchasedAt ?? now()->toDateString())
                     : null,
+                'purchase_order_number' => $purchaseOrderNumber,
+                'delivery_receipt_number' => $deliveryReceiptNumber,
                 'previous_stock' => $previousStock,
                 'new_stock' => $newStock,
                 'created_by' => $actingUser?->id ?? auth()->id(),
@@ -95,5 +122,26 @@ class RecordInventoryMovement
             ->body("{$variant->product->name} — {$variant->name} is low on stock ({$variant->stock_quantity} remaining).")
             ->warning()
             ->sendToDatabase($recipients);
+    }
+
+    private function normalizeReceiptReference(
+        ?string $value,
+        string $attribute,
+        string $label,
+        bool $required = false,
+    ): ?string {
+        $value = $value === null ? null : trim($value);
+
+        if (($required && ($value === null || $value === '')) || ($value !== null && mb_strlen($value) > 255)) {
+            throw ValidationException::withMessages([
+                $attribute => [
+                    $required
+                        ? "{$label} is required and must be 255 characters or fewer."
+                        : "{$label} must be 255 characters or fewer.",
+                ],
+            ]);
+        }
+
+        return $value === '' ? null : $value;
     }
 }

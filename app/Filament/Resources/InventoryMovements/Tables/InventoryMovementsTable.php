@@ -41,6 +41,14 @@ class InventoryMovementsTable
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
+                TextColumn::make('purchase_order_number')
+                    ->label('Purchase Order')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('delivery_receipt_number')
+                    ->label('Delivery Receipt')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('quantity_change')
                     ->label('Change')
                     ->formatStateUsing(fn (int $state): string => $state > 0 ? "+{$state}" : (string) $state)

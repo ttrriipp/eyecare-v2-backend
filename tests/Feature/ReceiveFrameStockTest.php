@@ -27,6 +27,8 @@ test('an administrator can receive a frame with a custom batch number', function
         quantity: 4,
         batchNumber: '  FRAME-001  ',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO/2026-42',
+        deliveryReceiptNumber: 'DR-ACME/042',
         purchasedAt: '2026-08-20',
         sourceReference: 'PO-42',
         notes: 'Frame delivery',
@@ -44,7 +46,9 @@ test('an administrator can receive a frame with a custom batch number', function
         ->and($batch->received_by)->toBe($receiver->id)
         ->and($movement->inventory_lot_id)->toBe($batch->id)
         ->and($movement->quantity_change)->toBe(4)
-        ->and($movement->purchased_at->toDateString())->toBe('2026-08-20');
+        ->and($movement->purchased_at->toDateString())->toBe('2026-08-20')
+        ->and($movement->purchase_order_number)->toBe('PO/2026-42')
+        ->and($movement->delivery_receipt_number)->toBe('DR-ACME/042');
 });
 
 test('receiving a frame generates a batch number when none is provided', function () {
@@ -58,6 +62,7 @@ test('receiving a frame generates a batch number when none is provided', functio
         quantity: 4,
         batchNumber: null,
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-51',
     );
 
     $batch = InventoryLot::query()->sole();
@@ -86,6 +91,7 @@ test('receiving into an existing frame batch increases its quantities', function
         quantity: 3,
         batchNumber: 'FRAME-001',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-52',
         purchasedAt: '2026-08-20',
     );
 
@@ -107,6 +113,7 @@ test('staff cannot override the generated frame batch number', function () {
         quantity: 1,
         batchNumber: 'MANUAL-001',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-53',
     ))->toThrow(AuthorizationException::class);
 });
 
@@ -121,6 +128,7 @@ test('frame receiving rejects non-frame variants', function () {
         quantity: 1,
         batchNumber: 'FRAME-001',
         receiver: $receiver,
+        purchaseOrderNumber: 'PO-54',
     ))->toThrow(ValidationException::class);
 });
 
@@ -135,5 +143,6 @@ test('frame receiving requires a panel role', function () {
         quantity: 1,
         batchNumber: 'FRAME-001',
         receiver: $patient,
+        purchaseOrderNumber: 'PO-55',
     ))->toThrow(AuthorizationException::class);
 });
