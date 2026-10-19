@@ -305,6 +305,7 @@ class CreateBillingRecord extends CreateRecord
                                 excludeFramesFromOtherItems: true,
                                 allowCatalogFrameQuantity: true,
                                 allowEmpty: true,
+                                externalSupplierResolver: fn (): bool => false,
                             ),
 
                             Section::make('Services')
@@ -619,7 +620,9 @@ class CreateBillingRecord extends CreateRecord
 
         if (($data['eyewear_frame_source'] ?? null) === 'patient') {
             $items->prepend([
-                'item_kind' => 'custom_product',
+                'item_kind' => 'custom',
+                'is_patient_supplied' => true,
+                'eyewear_role' => 'frame',
                 'description' => $data['eyewear_patient_frame_description'],
                 'quantity' => 1,
                 'unit_price' => $data['eyewear_patient_frame_price'],

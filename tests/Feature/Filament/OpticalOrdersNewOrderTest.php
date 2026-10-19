@@ -20,6 +20,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
+use Filament\Actions\Testing\TestAction;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
@@ -113,8 +114,154 @@ test('direct order items use the service-style source selector layout', function
         ->and($itemSource->getOptions())
         ->toBe([
             'catalog' => 'Catalog item',
-            'custom' => 'Custom item',
         ]);
+});
+
+test('external orders only offer external product entry and new rows use that source', function () {
+    $this->actingAs(User::factory()->staff()->create());
+
+    $component = Livewire::test(CreateOpticalOrder::class)
+        ->set('data.uses_external_supplier', true);
+
+    $itemSource = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn (Field $field, string $key): bool => str_ends_with($key, '.item_kind'));
+
+    expect($itemSource->getOptions())->toBe(['custom' => 'External item']);
+    expect($itemSource->getDefaultState())->toBe('custom');
+    expect(collect($component->get('data.items'))->pluck('item_kind')->all())->toBe(['custom']);
+
+    $component->callAction(TestAction::make('add')->schemaComponent('items'));
+
+    expect(collect($component->get('data.items'))->pluck('item_kind')->all())->toBe(['custom', 'custom']);
+});
+
+test('staff can submit the replacement external item row after changing supplier mode', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateOpticalOrder::class)
+        ->set('data.patient_id', $patient->id)
+        ->set('data.uses_external_supplier', true);
+    $itemKey = array_key_first($component->get('data.items'));
+
+    $component
+        ->set("data.items.{$itemKey}.description", 'Supplier case')
+        ->set("data.items.{$itemKey}.unit_price", 100)
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Order created');
+
+    $order = JobOrder::query()->where('patient_id', $patient->id)->firstOrFail();
+
+    expect($order->uses_external_supplier)->toBeTrue();
+    expect($order->items->sole()->description)->toBe('Supplier case');
+    expect((float) $order->billingRecord->total_amount)->toBe(100.0);
+});
+
+test('changing supplier mode requires confirmation before removing entered products and preserves lenses', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+    $lensOption = LensOption::factory()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateOpticalOrder::class, [
+        'patient' => (string) $patient->id,
+        'prescription' => (string) $prescription->id,
+    ])
+        ->fillForm([
+            'eyewear_frame_source' => 'catalog',
+            'eyewear_frame_variant_id' => $variant->id,
+            'eyewear_lens_category_id' => $lensCategory->id,
+            'eyewear_lens_options' => [['lens_option_id' => $lensOption->id]],
+        ])
+        ->set('data.uses_external_supplier', true)
+        ->assertActionMounted('confirmSupplierChange')
+        ->assertSet('data.uses_external_supplier', false)
+        ->assertSet('data.eyewear_frame_variant_id', $variant->id)
+        ->callMountedAction()
+        ->assertSet('data.uses_external_supplier', true)
+        ->assertSet('data.eyewear_frame_variant_id', null)
+        ->assertSet('data.eyewear_frame_source', null)
+        ->assertSet('data.eyewear_lens_category_id', $lensCategory->id)
+        ->assertSchemaComponentExists('eyewear_frame_source', checkComponentUsing: function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                'external' => 'External supplier frame',
+                'patient' => 'Patient-supplied frame',
+            ]);
+
+            return true;
+        })
+        ->assertSchemaComponentVisible('eyewear_lens_category_id')
+        ->assertSchemaComponentVisible('eyewear_lens_options');
+
+    expect(collect($component->get('data.eyewear_lens_options'))->pluck('lens_option_id')->all())
+        ->toBe([$lensOption->id]);
+
+    $component
+        ->fillForm([
+            'eyewear_frame_source' => 'external',
+            'eyewear_external_frame_description' => 'Supplier frame',
+            'eyewear_external_frame_price' => 900,
+        ])
+        ->set('data.uses_external_supplier', false)
+        ->assertActionMounted('confirmSupplierChange')
+        ->callMountedAction()
+        ->assertSet('data.uses_external_supplier', false)
+        ->assertSet('data.eyewear_external_frame_description', null)
+        ->assertSet('data.eyewear_external_frame_price', null)
+        ->assertSet('data.eyewear_lens_category_id', $lensCategory->id);
+});
+
+test('cancelling a supplier mode change preserves the current items', function () {
+    $this->actingAs(User::factory()->staff()->create());
+
+    $component = Livewire::test(CreateOpticalOrder::class)
+        ->set('data.uses_external_supplier', true)
+        ->fillForm([
+            'items' => [[
+                'item_kind' => 'custom',
+                'description' => 'Supplier frame',
+                'quantity' => 1,
+                'unit_price' => 900,
+            ]],
+        ])
+        ->set('data.uses_external_supplier', false)
+        ->assertActionMounted('confirmSupplierChange')
+        ->unmountAction()
+        ->assertSet('data.uses_external_supplier', true);
+
+    expect(collect($component->get('data.items'))->pluck('description')->all())->toBe(['Supplier frame']);
+});
+
+test('immediate release clears external entries only after confirmation', function () {
+    $this->actingAs(User::factory()->staff()->create());
+
+    $component = Livewire::test(CreateOpticalOrder::class)
+        ->set('data.uses_external_supplier', true)
+        ->fillForm([
+            'items' => [[
+                'item_kind' => 'custom',
+                'description' => 'Supplier frame',
+                'quantity' => 1,
+                'unit_price' => 900,
+            ]],
+        ])
+        ->set('data.fulfillment_mode', 'immediate')
+        ->assertActionMounted('confirmSupplierChange')
+        ->assertSet('data.fulfillment_mode', 'prepared')
+        ->assertSet('data.uses_external_supplier', true)
+        ->callMountedAction()
+        ->assertSet('data.fulfillment_mode', 'immediate')
+        ->assertSet('data.uses_external_supplier', false);
+
+    expect(collect($component->get('data.items'))->pluck('item_kind')->all())->toBe(['catalog']);
+    expect(collect($component->get('data.items'))->pluck('description')->filter()->all())->toBeEmpty();
 });
 
 test('selecting a patient aged 60 does not apply the senior citizen discount before ID verification', function () {
@@ -300,6 +447,7 @@ test('custom items explain which products can be entered manually', function () 
     $this->actingAs($staff);
 
     Livewire::test(CreateOpticalOrder::class)
+        ->set('data.uses_external_supplier', true)
         ->fillForm([
             'items' => [[
                 'item_kind' => 'custom',
@@ -506,7 +654,6 @@ test('mark ready confirmation does not ask for the supplier invoice number again
     $component
         ->assertSchemaComponentExists('supplier_invoice_number')
         ->mountAction('markReady')
-        ->assertSchemaComponentDoesNotExist('supplier_invoice_number')
         ->assertMountedActionModalDontSee('Supplier Invoice Number')
         ->callMountedAction()
         ->assertNotified('Order marked ready');
@@ -813,7 +960,7 @@ test('staff creates a direct prescription eyewear order with other items and pay
                 'quantity' => 1,
             ]],
             'fulfillment_mode' => 'prepared',
-            'uses_external_supplier' => true,
+            'uses_external_supplier' => false,
             'deposit_amount' => 5100,
             'deposit_payment_method' => 'cash',
         ])
@@ -826,8 +973,52 @@ test('staff creates a direct prescription eyewear order with other items and pay
 
     expect($order->prescription_id)->toBe($prescription->id)
         ->and($order->fulfillment_mode)->toBe('prepared')
-        ->and($order->uses_external_supplier)->toBeTrue()
+        ->and($order->uses_external_supplier)->toBeFalse()
         ->and($order->items)->toHaveCount(4)
         ->and($order->billingRecord)->not->toBeNull()
         ->and((float) $order->billingRecord->balance_due)->toBe(0.0);
+});
+
+test('staff creates external prescription eyewear with selectable lenses and external additional items', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $lensCategory = LensCategory::factory()->withPrice(1200)->create();
+    $lensOption = LensOption::factory()->create(['price' => 300]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateOpticalOrder::class, [
+        'patient' => (string) $patient->id,
+        'prescription' => (string) $prescription->id,
+    ])
+        ->set('data.uses_external_supplier', true)
+        ->fillForm([
+            'eyewear_frame_source' => 'external',
+            'eyewear_external_frame_description' => 'Supplier frame',
+            'eyewear_external_frame_price' => 800,
+            'eyewear_lens_category_id' => $lensCategory->id,
+            'eyewear_lens_options' => [['lens_option_id' => $lensOption->id]],
+            'items' => [[
+                'item_kind' => 'custom',
+                'description' => 'Supplier case',
+                'quantity' => 2,
+                'unit_price' => 50,
+            ]],
+        ])
+        ->assertSee('₱2,400.00')
+        ->assertSchemaComponentHidden('eyewear_frame_variant_id')
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Order created');
+
+    $order = JobOrder::query()->where('patient_id', $patient->id)->firstOrFail();
+
+    expect($order->uses_external_supplier)->toBeTrue();
+    expect($order->items)->toHaveCount(4);
+    expect($order->items->pluck('product_variant_id')->filter())->toBeEmpty();
+    expect($order->items->firstWhere('lens_category_id', $lensCategory->id))->not->toBeNull();
+    expect($order->items->firstWhere('lens_option_id', $lensOption->id))->not->toBeNull();
+    expect((float) $order->billingRecord->total_amount)->toBe(2400.0);
+    $this->assertDatabaseEmpty('inventory_movements');
 });

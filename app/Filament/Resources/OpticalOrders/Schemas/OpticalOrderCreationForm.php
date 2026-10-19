@@ -25,27 +25,37 @@ use Illuminate\Support\Str;
 
 final class OpticalOrderCreationForm
 {
-    public static function prescriptionEyewearSection(Closure $prescriptionEyewearResolver): Section
-    {
+    public static function prescriptionEyewearSection(
+        Closure $prescriptionEyewearResolver,
+        ?Closure $externalSupplierResolver = null,
+    ): Section {
         return Section::make('Prescription Eyewear')
             ->schema([
                 Fieldset::make('1. Frame — optional')
                     ->schema([
                         Select::make('eyewear_frame_source')
                             ->label('Source')
-                            ->options([
-                                'catalog' => 'Catalog frame',
+                            ->options(fn (Get $get): array => [
+                                ...($externalSupplierResolver !== null && $externalSupplierResolver($get)
+                                    ? ['external' => 'External supplier frame']
+                                    : ['catalog' => 'Catalog frame']),
                                 'patient' => 'Patient-supplied frame',
                             ])
+                            ->in(fn (Select $component): array => array_keys($component->getEnabledOptions()))
                             ->placeholder('No frame selected')
                             ->live()
                             ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                if ($state === 'catalog') {
+                                if ($state !== 'patient') {
                                     $set('eyewear_patient_frame_description', null);
                                     $set('eyewear_patient_frame_price', null);
                                 }
 
-                                if ($state === 'patient') {
+                                if ($state !== 'external') {
+                                    $set('eyewear_external_frame_description', null);
+                                    $set('eyewear_external_frame_price', null);
+                                }
+
+                                if ($state !== 'catalog') {
                                     $set('eyewear_frame_variant_id', null);
                                 }
                             })
@@ -90,9 +100,26 @@ final class OpticalOrderCreationForm
                             ->numeric()
                             ->minValue(0)
                             ->step(0.01)
+                            ->live(onBlur: true)
                             ->extraInputAttributes(['class' => 'price-input'])
                             ->required(fn (Get $get): bool => $get('eyewear_frame_source') === 'patient')
                             ->visible(fn (Get $get): bool => $get('eyewear_frame_source') === 'patient'),
+                        TextInput::make('eyewear_external_frame_description')
+                            ->label('External frame description')
+                            ->required(fn (Get $get): bool => $get('eyewear_frame_source') === 'external')
+                            ->visible(fn (Get $get): bool => $get('eyewear_frame_source') === 'external')
+                            ->maxLength(255)
+                            ->columnSpan(2),
+                        TextInput::make('eyewear_external_frame_price')
+                            ->label('Price')
+                            ->prefix('₱')
+                            ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->live(onBlur: true)
+                            ->extraInputAttributes(['class' => 'price-input'])
+                            ->required(fn (Get $get): bool => $get('eyewear_frame_source') === 'external')
+                            ->visible(fn (Get $get): bool => $get('eyewear_frame_source') === 'external'),
                     ])
                     ->columns(['default' => 1, 'md' => 3])
                     ->columnSpanFull(),
@@ -189,6 +216,7 @@ final class OpticalOrderCreationForm
         bool $excludeFramesFromOtherItems = false,
         bool $allowCatalogFrameQuantity = false,
         bool $allowEmpty = false,
+        ?Closure $externalSupplierResolver = null,
     ): Section {
         $customItemKinds = $includeServices
             ? ['custom_product', 'custom_service']
@@ -210,8 +238,12 @@ final class OpticalOrderCreationForm
                                 $prescriptionEyewearResolver,
                                 $dedicatedPrescriptionEyewear,
                                 $includeServices,
+                                $externalSupplierResolver,
                             ))
-                            ->default('catalog')
+                            ->default(fn (Get $get): string => $externalSupplierResolver !== null && $externalSupplierResolver($get)
+                                ? 'custom'
+                                : 'catalog')
+                            ->in(fn (Radio $component): array => array_keys($component->getEnabledOptions()))
                             ->required()
                             ->dehydrated()
                             ->inline()
@@ -490,11 +522,7 @@ final class OpticalOrderCreationForm
         $frameStatutoryEligible = $catalogFrame !== null && auth()->user()?->isAdmin() !== true
             ? (bool) $catalogFrame->product->statutory_discount_eligible
             : $statutoryEligible;
-        $framePrice = $catalogFrame !== null
-            ? (float) $catalogFrame->price
-            : (filled($get('eyewear_patient_frame_price'))
-            ? (float) $get('eyewear_patient_frame_price')
-            : 0);
+        $framePrice = self::selectedFramePrice($get);
         $lensCategoryId = $get('eyewear_lens_category_id');
         $lensPrice = filled($lensCategoryId)
             ? (float) (LensCategory::query()->active()->find((int) $lensCategoryId)?->price ?? 0)
@@ -539,8 +567,15 @@ final class OpticalOrderCreationForm
         Closure $prescriptionEyewearResolver,
         bool $dedicatedPrescriptionEyewear,
         bool $includeServices,
+        ?Closure $externalSupplierResolver,
     ): array {
         if (! $includeServices) {
+            if ($externalSupplierResolver !== null) {
+                return $externalSupplierResolver($get)
+                    ? ['custom' => 'External item']
+                    : ['catalog' => 'Catalog item'];
+            }
+
             return [
                 'catalog' => 'Catalog item',
                 'custom' => 'Custom item',
@@ -643,9 +678,7 @@ final class OpticalOrderCreationForm
 
     private static function eyewearSubtotal(Get $get): float
     {
-        $framePrice = filled($get('eyewear_patient_frame_price'))
-            ? (float) $get('eyewear_patient_frame_price')
-            : (float) (self::frameVariant($get)?->price ?? 0);
+        $framePrice = self::selectedFramePrice($get);
         $lensCategoryId = $get('eyewear_lens_category_id');
         $lensPrice = filled($lensCategoryId)
             ? (float) (LensCategory::query()->active()->find((int) $lensCategoryId)?->price ?? 0)
@@ -659,6 +692,16 @@ final class OpticalOrderCreationForm
         });
 
         return (float) $framePrice + $lensPrice + $optionPrice;
+    }
+
+    private static function selectedFramePrice(Get $get): float
+    {
+        return match ($get('eyewear_frame_source')) {
+            'catalog' => (float) (self::frameVariant($get)?->price ?? 0),
+            'patient' => (float) ($get('eyewear_patient_frame_price') ?? 0),
+            'external' => (float) ($get('eyewear_external_frame_price') ?? 0),
+            default => 0,
+        };
     }
 
     private static function usesCatalogValues(Get $get): bool

@@ -6,12 +6,15 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
+use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
 use App\Models\Patient;
+use App\Models\Prescription;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class BuildOpticalOrder
 {
@@ -36,6 +39,8 @@ class BuildOpticalOrder
         ?int $actorId = null,
         bool $notifyPatient = true,
     ): JobOrder {
+        $this->validateSupplierItems($patientId, $usesExternalSupplier, $fulfillmentMode, $prescriptionId, $items);
+
         return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId, $notifyPatient): JobOrder {
             $patient = Patient::query()->findOrFail($patientId);
 
@@ -107,5 +112,59 @@ class BuildOpticalOrder
 
             return $order->fresh();
         });
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $items
+     */
+    private function validateSupplierItems(int $patientId, bool $usesExternalSupplier, string $fulfillmentMode, ?int $prescriptionId, Collection $items): void
+    {
+        if ($usesExternalSupplier && $fulfillmentMode !== 'prepared') {
+            throw ValidationException::withMessages([
+                'fulfillment_mode' => ['External supplier orders must use prepared fulfillment.'],
+            ]);
+        }
+
+        $hasLensPackage = $items->contains(fn (array $item): bool => filled($item['lens_category_id'] ?? null));
+        $hasPatientFrame = $items->contains(fn (array $item): bool => ($item['item_snapshot']['source'] ?? null) === 'patient');
+        $prescription = $hasPatientFrame && $prescriptionId !== null
+            ? Prescription::query()->find($prescriptionId)
+            : null;
+        $hasPatientPrescription = $prescription !== null
+            && $prescription->patient_id === $patientId
+            && $prescription->isCurrentVersion()
+            && ! $prescription->isCancelled();
+
+        foreach ($items as $item) {
+            $hasCatalogProduct = filled($item['product_variant_id'] ?? null);
+            $hasLensReference = filled($item['lens_category_id'] ?? null)
+                || filled($item['lens_option_id'] ?? null);
+            $isPatientFrame = ($item['item_kind'] ?? null) === CommercialItemKind::CustomProduct
+                && ($item['item_snapshot']['source'] ?? null) === 'patient'
+                && ($item['item_snapshot']['eyewear_role'] ?? 'frame') === 'frame'
+                && ! $hasCatalogProduct
+                && ! $hasLensReference
+                && $hasLensPackage
+                && $hasPatientPrescription
+                && (int) ($item['quantity'] ?? 0) === 1;
+
+            if ($usesExternalSupplier && $hasCatalogProduct) {
+                throw ValidationException::withMessages([
+                    'items' => ['External supplier orders cannot include catalog products.'],
+                ]);
+            }
+
+            if (($item['item_snapshot']['source'] ?? null) === 'patient' && ! $isPatientFrame) {
+                throw ValidationException::withMessages([
+                    'items' => ['A patient-supplied frame requires one frame, a lens package, and a current prescription belonging to the patient.'],
+                ]);
+            }
+
+            if (! $usesExternalSupplier && ! $hasCatalogProduct && ! $hasLensReference && ! $isPatientFrame) {
+                throw ValidationException::withMessages([
+                    'items' => ['Internal orders cannot include external products.'],
+                ]);
+            }
+        }
     }
 }

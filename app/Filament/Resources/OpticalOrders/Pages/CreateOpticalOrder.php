@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OpticalOrders\Pages;
 use App\Actions\BillingRecords\CalculatePhilippineVatSummary;
 use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
 use App\Enums\DiscountType;
+use App\Enums\VatTreatment;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderCreationForm;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
@@ -73,14 +74,12 @@ class CreateOpticalOrder extends CreateRecord
             $patientRecord = $this->resolvePatient();
 
             $this->form->fill([
+                ...$this->data,
                 'patient_id' => $patientRecord?->id,
                 'prescription_id' => $this->resolvePrescription()?->id,
                 'discount_type' => DiscountType::None->value,
                 'include_prescription_eyewear' => $this->prescriptionId !== null,
-                'items' => $this->prescriptionId !== null ? [] : [[
-                    'item_kind' => 'catalog',
-                    'quantity' => 1,
-                ]],
+                'items' => $this->prescriptionId !== null ? [] : [$this->defaultItem(false)],
             ]);
         }
     }
@@ -100,6 +99,7 @@ class CreateOpticalOrder extends CreateRecord
             ?? $get('../../include_prescription_eyewear')
             ?? false
         );
+        $externalSupplierResolver = fn (Get $get): bool => (bool) $get('data.uses_external_supplier', isAbsolute: true);
         $prescriptionOptions = fn (Get $get): array => Prescription::query()
             ->where('patient_id', $get('patient_id'))
             ->whereNull('cancelled_at')
@@ -171,6 +171,8 @@ class CreateOpticalOrder extends CreateRecord
                                             $set('eyewear_frame_variant_id', null);
                                             $set('eyewear_patient_frame_description', null);
                                             $set('eyewear_patient_frame_price', null);
+                                            $set('eyewear_external_frame_description', null);
+                                            $set('eyewear_external_frame_price', null);
                                             $set('eyewear_lens_category_id', null);
                                             $set('eyewear_lens_options', []);
                                             $set('discount_type', DiscountType::None->value);
@@ -178,10 +180,7 @@ class CreateOpticalOrder extends CreateRecord
                                             $set('discount_eligibility_verified', false);
 
                                             if (blank($get('items'))) {
-                                                $set('items', [[
-                                                    'item_kind' => 'catalog',
-                                                    'quantity' => 1,
-                                                ]]);
+                                                $set('items', [$this->defaultItem((bool) $get('uses_external_supplier'))]);
                                             }
 
                                             $livewire->resetValidation('data.prescription_id');
@@ -226,10 +225,7 @@ class CreateOpticalOrder extends CreateRecord
                                             if ($state && ! $hasEnteredItem) {
                                                 $set('items', []);
                                             } elseif (! $state && ! $hasEnteredItem) {
-                                                $set('items', [[
-                                                    'item_kind' => 'catalog',
-                                                    'quantity' => 1,
-                                                ]]);
+                                                $set('items', [$this->defaultItem((bool) $get('uses_external_supplier'))]);
                                             }
 
                                             if ($state) {
@@ -282,13 +278,17 @@ class CreateOpticalOrder extends CreateRecord
                                 ])
                                 ->columns(['default' => 1, 'md' => 2]),
 
-                            OpticalOrderCreationForm::prescriptionEyewearSection($prescriptionEyewearResolver),
+                            OpticalOrderCreationForm::prescriptionEyewearSection(
+                                $prescriptionEyewearResolver,
+                                $externalSupplierResolver,
+                            ),
                             OpticalOrderCreationForm::itemsSection(
                                 prescriptionEyewearResolver: $prescriptionEyewearResolver,
                                 dedicatedPrescriptionEyewear: true,
                                 includeServices: false,
                                 excludeFramesFromOtherItems: true,
                                 allowCatalogFrameQuantity: true,
+                                externalSupplierResolver: $externalSupplierResolver,
                             ),
                         ]),
                     Grid::make(1)
@@ -308,14 +308,22 @@ class CreateOpticalOrder extends CreateRecord
                                         ->required()
                                         ->live()
                                         ->in(fn (Radio $component): array => array_keys($component->getEnabledOptions()))
-                                        ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                            if ($state === 'immediate') {
-                                                $set('uses_external_supplier', false);
+                                        ->afterStateUpdated(function (?string $state, ?string $old): void {
+                                            if ($state === 'immediate' && ($this->data['uses_external_supplier'] ?? false)) {
+                                                $this->requestSupplierModeChange(false, true, 'immediate', $old ?? 'prepared');
                                             }
                                         }),
                                     Toggle::make('uses_external_supplier')
                                         ->label('External lab/supplier')
                                         ->default(false)
+                                        ->helperText('External orders use supplier items. Lens packages and options remain available in either mode.')
+                                        ->live()
+                                        ->afterStateUpdated(fn (?bool $state, ?bool $old) => $this->requestSupplierModeChange(
+                                            (bool) $state,
+                                            (bool) $old,
+                                            $this->data['fulfillment_mode'] ?? 'prepared',
+                                            $this->data['fulfillment_mode'] ?? 'prepared',
+                                        ))
                                         ->visible(fn (Get $get): bool => $get('fulfillment_mode') === 'prepared'),
                                 ]),
                             Section::make('Payment')
@@ -566,6 +574,110 @@ class CreateOpticalOrder extends CreateRecord
         return false;
     }
 
+    public function confirmSupplierChangeAction(): Action
+    {
+        return Action::make('confirmSupplierChange')
+            ->requiresConfirmation()
+            ->modalHeading('Change item source?')
+            ->modalDescription('Items from the previous source will be removed. Your lens package and lens options will be kept.')
+            ->modalSubmitActionLabel('Change source and clear items')
+            ->action(fn (array $arguments) => $this->applySupplierMode(
+                (bool) $arguments['uses_external_supplier'],
+                $arguments['fulfillment_mode'],
+            ));
+    }
+
+    private function requestSupplierModeChange(
+        bool $usesExternalSupplier,
+        bool $previousUsesExternalSupplier,
+        string $fulfillmentMode,
+        string $previousFulfillmentMode,
+    ): void {
+        $incompatibleItems = collect($this->data['items'] ?? [])
+            ->filter(fn (array $item): bool => ! $this->itemMatchesSupplierMode($item, $usesExternalSupplier));
+        $hasEnteredItems = $incompatibleItems->contains(fn (array $item): bool => collect([
+            $item['product_variant_id'] ?? null,
+            $item['description'] ?? null,
+            $item['unit_price'] ?? null,
+        ])->contains(fn (mixed $value): bool => filled($value)));
+        $frameSource = $this->data['eyewear_frame_source'] ?? null;
+        $hasIncompatibleFrame = $usesExternalSupplier
+            ? $frameSource === 'catalog' && filled($this->data['eyewear_frame_variant_id'] ?? null)
+            : $frameSource === 'external' && (filled($this->data['eyewear_external_frame_description'] ?? null)
+                || filled($this->data['eyewear_external_frame_price'] ?? null));
+
+        if ($hasEnteredItems || $hasIncompatibleFrame) {
+            $this->data['uses_external_supplier'] = $previousUsesExternalSupplier;
+            $this->data['fulfillment_mode'] = $previousFulfillmentMode;
+            $this->mountAction('confirmSupplierChange', [
+                'uses_external_supplier' => $usesExternalSupplier,
+                'fulfillment_mode' => $fulfillmentMode,
+            ]);
+
+            return;
+        }
+
+        $this->applySupplierMode($usesExternalSupplier, $fulfillmentMode);
+    }
+
+    private function applySupplierMode(bool $usesExternalSupplier, string $fulfillmentMode): void
+    {
+        $this->data['uses_external_supplier'] = $usesExternalSupplier;
+        $this->data['fulfillment_mode'] = $fulfillmentMode;
+        $this->data['items'] = collect($this->data['items'] ?? [])
+            ->filter(fn (array $item): bool => $this->itemMatchesSupplierMode($item, $usesExternalSupplier))
+            ->all();
+
+        if (blank($this->data['items']) && ! ($this->data['include_prescription_eyewear'] ?? false)) {
+            $this->data['items'] = [$this->defaultItem($usesExternalSupplier)];
+        }
+
+        if (($usesExternalSupplier && ($this->data['eyewear_frame_source'] ?? null) === 'catalog')
+            || (! $usesExternalSupplier && ($this->data['eyewear_frame_source'] ?? null) === 'external')) {
+            $this->data['eyewear_frame_source'] = null;
+        }
+
+        $this->data['eyewear_frame_variant_id'] = $usesExternalSupplier
+            ? null
+            : ($this->data['eyewear_frame_variant_id'] ?? null);
+
+        if (! $usesExternalSupplier) {
+            $this->data['eyewear_external_frame_description'] = null;
+            $this->data['eyewear_external_frame_price'] = null;
+        }
+
+        $this->resetValidation();
+    }
+
+    /**
+     * @return array{item_kind: string, quantity: int, vat_treatment: string, statutory_discount_eligible: bool}
+     */
+    private function defaultItem(bool $usesExternalSupplier): array
+    {
+        return [
+            'item_kind' => $usesExternalSupplier ? 'custom' : 'catalog',
+            'quantity' => 1,
+            'vat_treatment' => VatTreatment::Vatable->value,
+            'statutory_discount_eligible' => false,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function itemMatchesSupplierMode(array $item, bool $usesExternalSupplier): bool
+    {
+        if (filled($item['product_variant_id'] ?? null)) {
+            return ! $usesExternalSupplier;
+        }
+
+        if (filled($item['lens_category_id'] ?? null) || filled($item['lens_option_id'] ?? null)) {
+            return true;
+        }
+
+        return ($item['item_kind'] ?? 'catalog') === ($usesExternalSupplier ? 'custom' : 'catalog');
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @return array<int, array<string, mixed>>
@@ -587,6 +699,8 @@ class CreateOpticalOrder extends CreateRecord
             return $items->all();
         }
 
+        $items = $items->map(fn (array $item): array => [...$item, 'eyewear_role' => 'other']);
+
         if (($data['eyewear_frame_source'] ?? null) === 'catalog'
             && filled($data['eyewear_frame_variant_id'] ?? null)) {
             $catalogFrame = $this->catalogItem(
@@ -607,9 +721,23 @@ class CreateOpticalOrder extends CreateRecord
         if (($data['eyewear_frame_source'] ?? null) === 'patient') {
             $items->prepend([
                 'item_kind' => 'custom',
+                'is_patient_supplied' => true,
+                'eyewear_role' => 'frame',
                 'description' => $data['eyewear_patient_frame_description'],
                 'quantity' => 1,
                 'unit_price' => $data['eyewear_patient_frame_price'],
+                'vat_treatment' => $data['eyewear_vat_treatment'] ?? 'vatable',
+                'statutory_discount_eligible' => (bool) ($data['eyewear_statutory_discount_eligible'] ?? false),
+            ]);
+        }
+
+        if (($data['eyewear_frame_source'] ?? null) === 'external') {
+            $items->prepend([
+                'item_kind' => 'custom',
+                'eyewear_role' => 'frame',
+                'description' => $data['eyewear_external_frame_description'],
+                'quantity' => 1,
+                'unit_price' => $data['eyewear_external_frame_price'],
                 'vat_treatment' => $data['eyewear_vat_treatment'] ?? 'vatable',
                 'statutory_discount_eligible' => (bool) ($data['eyewear_statutory_discount_eligible'] ?? false),
             ]);

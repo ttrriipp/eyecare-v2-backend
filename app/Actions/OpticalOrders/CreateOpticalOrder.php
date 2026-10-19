@@ -6,6 +6,7 @@ use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
+use App\Enums\CommercialItemKind;
 use App\Enums\DiscountType;
 use App\Enums\VatTreatment;
 use App\Models\BillingRecord;
@@ -32,7 +33,7 @@ class CreateOpticalOrder
     /**
      * Create an Optical Order with billing.
      *
-     * @param  array<int, array{description: string, quantity: int, unit_price: float, product_variant_id?: int|null, lens_category_id?: int|null}>  $items
+     * @param  array<int, array{description: string, quantity: int, unit_price: float, product_variant_id?: int|null, lens_category_id?: int|null, lens_option_id?: int|null, is_patient_supplied?: bool, eyewear_role?: 'frame'|'other'}>  $items
      * @return array{job_order: JobOrder, billing_record: BillingRecord, dispensing_event: ?DispensingEvent}
      */
     public function handle(
@@ -149,6 +150,7 @@ class CreateOpticalOrder
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_option_id' => $item['lens_option_id'] ?? null,
                     'quantity' => $item['quantity'],
+                    'eyewear_role' => ($item['is_patient_supplied'] ?? false) ? 'frame' : ($item['eyewear_role'] ?? 'frame'),
                 ];
             })->values(),
             patient: $patient,
@@ -166,6 +168,21 @@ class CreateOpticalOrder
                     lensCategoryId: $item['lens_category_id'] ?? null,
                     lensOptionId: $item['lens_option_id'] ?? null,
                 );
+
+                if ($snapshotResult['item_kind'] === CommercialItemKind::CustomProduct
+                    && blank($item['product_variant_id'] ?? null)) {
+                    $customSnapshot = [];
+
+                    if ($item['is_patient_supplied'] ?? false) {
+                        $customSnapshot['source'] = 'patient';
+                    }
+
+                    if (isset($item['eyewear_role'])) {
+                        $customSnapshot['eyewear_role'] = $item['eyewear_role'];
+                    }
+
+                    $snapshotResult['item_snapshot'] = $customSnapshot ?: null;
+                }
 
                 return [
                     'description' => trim($item['description']),
@@ -276,6 +293,8 @@ class CreateOpticalOrder
         $validator = Validator::make(['items' => $items], [
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.item_kind' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'custom'])],
+            'items.*.is_patient_supplied' => ['sometimes', 'boolean'],
+            'items.*.eyewear_role' => ['sometimes', Rule::in(['frame', 'other'])],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
             'items.*.unit_price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],

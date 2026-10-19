@@ -1,12 +1,16 @@
 <?php
 
+use App\Actions\OpticalOrders\BuildOpticalOrder;
 use App\Actions\OpticalOrders\CreateOpticalOrder;
+use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Enums\VatTreatment;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
@@ -293,3 +297,279 @@ test('patient cannot create a direct optical order', function () {
         items: [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 500]],
     );
 })->throws(ValidationException::class);
+
+test('supplier exclusivity rejects catalog products in external orders without writes', function (string $productType, bool $includeCustomItem) {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->state(['product_type' => $productType]))
+        ->create(['stock_quantity' => 10]);
+    $items = [[
+        'item_kind' => 'custom',
+        'description' => 'Catalog product labelled custom',
+        'quantity' => 1,
+        'unit_price' => 500,
+        'product_variant_id' => $variant->id,
+    ]];
+
+    if ($includeCustomItem) {
+        $items[] = ['description' => 'External accessory', 'quantity' => 1, 'unit_price' => 100];
+    }
+
+    expect(fn () => $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: $items,
+        usesExternalSupplier: true,
+    ))->toThrow(ValidationException::class, 'External supplier orders cannot include catalog products.');
+
+    $this->assertDatabaseEmpty('job_orders');
+    $this->assertDatabaseEmpty('job_order_items');
+    $this->assertDatabaseEmpty('billing_records');
+    $this->assertDatabaseEmpty('inventory_movements');
+    expect($variant->fresh()->stock_quantity)->toBe(10);
+})->with([
+    'frame' => ['frame', false],
+    'accessory' => ['accessory', false],
+    'contact lenses' => ['contact_lens', false],
+    'mixed catalog and external' => ['accessory', true],
+]);
+
+test('supplier exclusivity rejects reference-free internal products without writes', function (array $metadata) {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+
+    expect(fn () => $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [
+            ['description' => 'Catalog frame', 'quantity' => 1, 'unit_price' => 500, 'product_variant_id' => $variant->id],
+            [...$metadata, 'description' => 'Manual product', 'quantity' => 1, 'unit_price' => 100],
+        ],
+    ))->toThrow(ValidationException::class, 'Internal orders cannot include external products.');
+
+    $this->assertDatabaseEmpty('job_orders');
+    $this->assertDatabaseEmpty('job_order_items');
+    $this->assertDatabaseEmpty('billing_records');
+    $this->assertDatabaseEmpty('inventory_movements');
+    expect($variant->fresh()->stock_quantity)->toBe(10);
+})->with([
+    'manual product' => [[]],
+    'catalog label without reference' => [['item_kind' => 'catalog']],
+    'lens label without reference' => [['item_kind' => 'lens']],
+    'custom label' => [['item_kind' => 'custom']],
+    'forged patient snapshot' => [['item_snapshot' => ['source' => 'patient']]],
+]);
+
+test('supplier exclusivity allows external frame and accessory with lens package and option', function () {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->for($patient)->create();
+    $lensCategory = LensCategory::factory()->withPrice()->create(['price' => 1200]);
+    $lensOption = LensOption::factory()->create(['price' => 300]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [
+            ['description' => 'External frame', 'quantity' => 1, 'unit_price' => 800, 'eyewear_role' => 'frame'],
+            ['description' => 'External accessory', 'quantity' => 2, 'unit_price' => 50, 'eyewear_role' => 'other'],
+            ['description' => 'Lens package', 'quantity' => 1, 'unit_price' => 1200, 'lens_category_id' => $lensCategory->id],
+            ['item_kind' => 'lens_option', 'description' => 'Lens option', 'quantity' => 1, 'unit_price' => 300, 'lens_option_id' => $lensOption->id],
+        ],
+        usesExternalSupplier: true,
+        prescription: $prescription,
+    );
+
+    expect($result['job_order']->uses_external_supplier)->toBeTrue()
+        ->and($result['job_order']->status)->toBe(JobOrderStatus::Queued)
+        ->and($result['job_order']->prescription_id)->toBe($prescription->id)
+        ->and($result['job_order']->items)->toHaveCount(4);
+    expect($result['job_order']->items->firstWhere('description', 'External frame')->item_snapshot)
+        ->toBe(['eyewear_role' => 'frame']);
+    expect($result['job_order']->items->firstWhere('description', 'External accessory')->item_snapshot)
+        ->toBe(['eyewear_role' => 'other']);
+    expect((float) $result['billing_record']->total_amount)->toBe(2400.0);
+    $this->assertDatabaseEmpty('inventory_movements');
+});
+
+test('supplier exclusivity keeps unmarked manual products external with no patient snapshot', function () {
+    $patient = Patient::factory()->create();
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [['description' => 'External accessory', 'quantity' => 1, 'unit_price' => 100, 'item_snapshot' => ['source' => 'patient']]],
+        usesExternalSupplier: true,
+    );
+
+    expect($result['job_order']->items->sole()->item_kind)->toBe(CommercialItemKind::CustomProduct)
+        ->and($result['job_order']->items->sole()->item_snapshot)->toBeNull();
+    expect((float) $result['billing_record']->total_amount)->toBe(100.0);
+});
+
+test('supplier exclusivity preserves a patient frame with internal lenses', function () {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->for($patient)->create();
+    $lensCategory = LensCategory::factory()->withPrice()->create(['price' => 1200]);
+    $lensOption = LensOption::factory()->create(['price' => 300]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [
+            ['description' => 'Patient frame', 'quantity' => 1, 'unit_price' => 0, 'is_patient_supplied' => true, 'eyewear_role' => 'frame'],
+            ['description' => 'Lens package', 'quantity' => 1, 'unit_price' => 1200, 'lens_category_id' => $lensCategory->id],
+            ['item_kind' => 'lens_option', 'description' => 'Lens option', 'quantity' => 1, 'unit_price' => 300, 'lens_option_id' => $lensOption->id],
+        ],
+        prescription: $prescription,
+    );
+
+    $frame = $result['job_order']->items->firstWhere('description', 'Patient frame');
+
+    expect($frame->item_kind)->toBe(CommercialItemKind::CustomProduct)
+        ->and($frame->item_snapshot)->toBe(['source' => 'patient', 'eyewear_role' => 'frame'])
+        ->and($frame->product_variant_id)->toBeNull();
+    expect($result['job_order']->uses_external_supplier)->toBeFalse();
+    expect((float) $result['billing_record']->total_amount)->toBe(1500.0);
+    $this->assertDatabaseEmpty('inventory_movements');
+});
+
+test('supplier exclusivity rejects immediate external fulfillment without writes', function () {
+    $patient = Patient::factory()->create();
+
+    expect(fn () => $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [['description' => 'External accessory', 'quantity' => 1, 'unit_price' => 100]],
+        fulfillmentMode: 'immediate',
+        usesExternalSupplier: true,
+    ))->toThrow(ValidationException::class, 'External supplier orders must use prepared fulfillment.');
+
+    $this->assertDatabaseEmpty('job_orders');
+    $this->assertDatabaseEmpty('job_order_items');
+    $this->assertDatabaseEmpty('billing_records');
+    $this->assertDatabaseEmpty('inventory_movements');
+    $this->assertDatabaseEmpty('dispensing_events');
+});
+
+test('supplier exclusivity validates patient and eyewear metadata without writes', function (array $metadata) {
+    $patient = Patient::factory()->create();
+
+    expect(fn () => $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [[...$metadata, 'description' => 'External frame', 'quantity' => 1, 'unit_price' => 100]],
+        usesExternalSupplier: true,
+    ))->toThrow(ValidationException::class);
+
+    $this->assertDatabaseEmpty('job_orders');
+    $this->assertDatabaseEmpty('billing_records');
+    $this->assertDatabaseEmpty('inventory_movements');
+})->with([
+    'invalid patient flag' => [['is_patient_supplied' => 'patient']],
+    'invalid eyewear role' => [['eyewear_role' => 'accessory']],
+]);
+
+test('supplier exclusivity core rejects invalid patient exceptions and misleading kinds before writes', function (array $itemOverrides, bool $hasLensPackage, bool $hasPrescription, bool $usesExternalSupplier) {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->for($patient)->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+    $item = [
+        'description' => 'Patient frame',
+        'quantity' => 1,
+        'unit_price' => '0.00',
+        'amount' => '0.00',
+        'item_kind' => CommercialItemKind::CustomProduct,
+        'item_snapshot' => ['source' => 'patient'],
+        ...$itemOverrides,
+    ];
+
+    if (array_key_exists('product_variant_id', $itemOverrides)) {
+        $item['product_variant_id'] = $variant->id;
+    }
+
+    $items = collect([$item]);
+
+    if ($hasLensPackage) {
+        $items->push([
+            'description' => 'Lens package',
+            'quantity' => 1,
+            'unit_price' => '1200.00',
+            'amount' => '1200.00',
+            'lens_category_id' => $lensCategory->id,
+            'item_kind' => CommercialItemKind::LensPackage,
+        ]);
+    }
+
+    expect(fn () => app(BuildOpticalOrder::class)->handle(
+        patientId: $patient->id,
+        encounterId: null,
+        prescriptionId: $hasPrescription ? $prescription->id : null,
+        fulfillmentMode: 'prepared',
+        usesExternalSupplier: $usesExternalSupplier,
+        items: $items,
+        actorId: $this->staff->id,
+        notifyPatient: false,
+    ))->toThrow(ValidationException::class);
+
+    $this->assertDatabaseEmpty('job_orders');
+    $this->assertDatabaseEmpty('job_order_items');
+    $this->assertDatabaseEmpty('billing_records');
+    $this->assertDatabaseEmpty('inventory_movements');
+    expect($variant->fresh()->stock_quantity)->toBe(10);
+})->with([
+    'patient frame needs lenses' => [[], false, true, false],
+    'patient frame needs prescription' => [[], true, false, false],
+    'patient frame quantity is one' => [['quantity' => 2], true, true, false],
+    'patient frame must be custom product' => [['item_kind' => CommercialItemKind::Accessory], true, true, false],
+    'patient frame needs patient source' => [['item_snapshot' => null], true, true, false],
+    'lens kind cannot hide missing references' => [['item_kind' => CommercialItemKind::LensPackage, 'item_snapshot' => null], false, true, false],
+    'patient marker cannot hide external catalog reference' => [['product_variant_id' => true], true, true, true],
+]);
+
+test('supplier exclusivity core requires a usable patient prescription for patient frames', function (string $scenario) {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create([
+        'patient_id' => $scenario === 'other patient' ? Patient::factory()->create()->id : $patient->id,
+        'cancelled_at' => $scenario === 'cancelled' ? now() : null,
+    ]);
+    $lensCategory = LensCategory::factory()->withPrice(1200)->create();
+
+    if ($scenario === 'superseded') {
+        Prescription::factory()->create([
+            'patient_id' => $patient->id,
+            'previous_prescription_id' => $prescription->id,
+        ]);
+    }
+
+    expect(fn () => app(BuildOpticalOrder::class)->handle(
+        patientId: $patient->id,
+        encounterId: null,
+        prescriptionId: $prescription->id,
+        fulfillmentMode: 'prepared',
+        usesExternalSupplier: false,
+        items: collect([
+            [
+                'description' => 'Patient frame',
+                'quantity' => 1,
+                'unit_price' => '0.00',
+                'amount' => '0.00',
+                'item_kind' => CommercialItemKind::CustomProduct,
+                'item_snapshot' => ['source' => 'patient', 'eyewear_role' => 'frame'],
+            ],
+            [
+                'description' => 'Lens package',
+                'quantity' => 1,
+                'unit_price' => '1200.00',
+                'amount' => '1200.00',
+                'item_kind' => CommercialItemKind::LensPackage,
+                'lens_category_id' => $lensCategory->id,
+            ],
+        ]),
+        actorId: $this->staff->id,
+        notifyPatient: false,
+    ))->toThrow(ValidationException::class, 'patient-supplied frame');
+
+    $this->assertDatabaseEmpty('job_orders');
+    $this->assertDatabaseEmpty('inventory_movements');
+})->with(['other patient', 'cancelled', 'superseded']);
