@@ -1,10 +1,13 @@
 <?php
 
 use App\Filament\Resources\Products\Pages\CreateProduct;
+use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
+use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Textarea;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -22,6 +25,49 @@ test('product creation is presented as a two-step wizard', function (): void {
         ->assertWizardStepExists(2)
         ->assertSee('Product')
         ->assertSee('Variants');
+});
+
+test('products are created with multiline plain text descriptions', function (string $productType): void {
+    $brand = Brand::factory()->create();
+    $description = "Lightweight & comfortable.\nSuitable for everyday use.";
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->assertFormFieldExists('description', fn (Field $field): bool => $field instanceof Textarea)
+        ->fillForm([
+            'product_type' => $productType,
+            'name' => 'Plain Text Product',
+            'slug' => 'plain-text-product',
+            'brand_id' => $brand->id,
+            'description' => $description,
+            'is_active' => false,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $this->assertDatabaseHas(Product::class, [
+        'slug' => 'plain-text-product',
+        'description' => $description,
+    ]);
+})->with(['frame', 'contact_lens', 'accessory']);
+
+test('product descriptions can be edited as multiline plain text', function (): void {
+    $product = Product::factory()->inactive()->create();
+    $description = "Updated description & details.\nPreserve this second line.";
+
+    Livewire::actingAs($this->user)
+        ->test(EditProduct::class, ['record' => $product->id])
+        ->assertFormFieldExists('description', fn (Field $field): bool => $field instanceof Textarea)
+        ->fillForm(['description' => $description])
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertNotified();
+
+    $this->assertDatabaseHas(Product::class, [
+        'id' => $product->id,
+        'description' => $description,
+    ]);
 });
 
 test('the wizard creates the product and its variants together', function (): void {

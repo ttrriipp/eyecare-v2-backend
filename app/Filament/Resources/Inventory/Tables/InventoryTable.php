@@ -157,23 +157,7 @@ class InventoryTable
                     ->placeholder('Not set')
                     ->toggleable(),
             ])
-            // Sort by the latest recorded receipt, leaving variants with no restock history last.
-            ->defaultSort(fn (Builder $query): Builder => $query->orderByDesc(
-                InventoryMovement::query()
-                    ->select('created_at')
-                    ->whereColumn(
-                        'product_variant_id',
-                        $query->getModel()->qualifyColumn($query->getModel()->getKeyName()),
-                    )
-                    ->where('quantity_change', '>', 0)
-                    ->whereHas(
-                        'movementType',
-                        fn (Builder $movementTypeQuery): Builder => $movementTypeQuery->where('name', 'restock'),
-                    )
-                    ->orderByDesc('created_at')
-                    ->orderByDesc('id')
-                    ->limit(1),
-            ))
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('product')
                     ->relationship('product', 'name')

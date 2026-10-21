@@ -45,8 +45,10 @@
                             <td class="whitespace-nowrap px-4 py-3 font-medium">{{ $lot->lot_number }}</td>
                             @if ($showExpiry)
                                 <td class="whitespace-nowrap px-4 py-3">
-                                    <span>{{ $lot->expires_on->toDateString() }}</span>
-                                    <span class="block text-xs text-gray-500">{{ $lot->expires_on->format('M d, Y') }}</span>
+                                    <span>{{ $lot->expires_on?->toDateString() ?? 'No expiry' }}</span>
+                                    @if ($lot->expires_on !== null)
+                                        <span class="block text-xs text-gray-500">{{ $lot->expires_on->format('M d, Y') }}</span>
+                                    @endif
                                 </td>
                             @endif
                             <td class="px-4 py-3">{{ $lot->quantity_on_hand }}</td>

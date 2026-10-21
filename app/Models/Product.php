@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
     'description',
     'is_active',
     'product_type',
+    'requires_expiry',
     'usage',
     'images',
     'default_variant_attributes',
@@ -32,6 +33,11 @@ class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
     use HasFactory, SoftDeletes;
+
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'requires_expiry' => true,
+    ];
 
     /** @var array<string, string> */
     public const array TYPE_OPTIONS = [
@@ -62,7 +68,7 @@ class Product extends Model
     ];
 
     /**
-     * Product types whose batches must carry an expiry date.
+     * Product types whose inventory supports expiry tracking.
      *
      * @var list<string>
      */
@@ -162,6 +168,7 @@ class Product extends Model
     {
         return [
             'is_active' => 'boolean',
+            'requires_expiry' => 'boolean',
             'usage' => ProductUsage::class,
             'vat_treatment' => VatTreatment::class,
             'statutory_discount_eligible' => 'boolean',

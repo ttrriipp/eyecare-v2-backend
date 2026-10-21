@@ -174,6 +174,7 @@ class CommitJobOrderInventory
             ->where('product_variant_id', $variant->id)
             ->available()
             ->notExpired($asOf)
+            ->orderByRaw('expires_on IS NULL')
             ->orderBy('expires_on')
             ->orderBy('id')
             ->lockForUpdate()

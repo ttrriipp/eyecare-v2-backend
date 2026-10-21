@@ -91,7 +91,7 @@ class StockActions
                         variant: $record,
                         quantity: (int) $data['quantity'],
                         lotNumber: (string) $data['lot_number'],
-                        expiryMonth: (string) $data['expiry_month'],
+                        expiryMonth: $data['expiry_month'] ?? null,
                         receiver: $actor,
                         purchaseOrderNumber: (string) $data['purchase_order_number'],
                         deliveryReceiptNumber: $data['delivery_receipt_number'] ?? null,
@@ -184,6 +184,7 @@ class StockActions
                     : 'e.g. 17XD9U');
             $fields[] = TextInput::make('expiry_month')
                 ->label('Expiry month')
+                ->visible($record->requiresExpiry())
                 ->required()
                 ->type('month')
                 ->extraInputAttributes(['min' => now()->format('Y-m')])
@@ -295,9 +296,15 @@ class StockActions
                 ->orderBy('expires_on')
                 ->orderBy('id')
                 ->get()
-                ->mapWithKeys(fn (InventoryLot $lot): array => [
-                    $lot->id => "{$lot->lot_number} — expires {$lot->expires_on->format('M Y')} ({$lot->quantity_on_hand} on hand)",
-                ])
+                ->mapWithKeys(function (InventoryLot $lot): array {
+                    $expiryLabel = $lot->expires_on === null
+                        ? 'No expiry'
+                        : 'expires '.$lot->expires_on->format('M Y');
+
+                    return [
+                        $lot->id => "{$lot->lot_number} — {$expiryLabel} ({$lot->quantity_on_hand} on hand)",
+                    ];
+                })
                 ->all();
 
             $fields[] = Select::make('inventory_lot_id')

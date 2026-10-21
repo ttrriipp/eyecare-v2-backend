@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 class ReceiveContactLensStock
 {
     /**
-     * Receive expiry-tracked stock into a dated lot.
+     * Receive lot-tracked stock, with an expiry date when required.
      *
      * @throws ValidationException when the lot details are invalid or conflict
      *                             with an existing lot.
@@ -26,7 +26,7 @@ class ReceiveContactLensStock
         ProductVariant $variant,
         int $quantity,
         string $lotNumber,
-        string $expiryMonth,
+        ?string $expiryMonth,
         User $receiver,
         string $purchaseOrderNumber,
         ?string $deliveryReceiptNumber = null,
@@ -65,14 +65,13 @@ class ReceiveContactLensStock
         }
 
         $lotNumber = $this->normalizeLotNumber($lotNumber);
-        $expiresOn = $this->normalizeExpiryMonth($expiryMonth);
         $purchasedAt ??= now()->toDateString();
 
         return DB::transaction(function () use (
             $variant,
             $quantity,
             $lotNumber,
-            $expiresOn,
+            $expiryMonth,
             $receiver,
             $purchaseOrderNumber,
             $deliveryReceiptNumber,
@@ -91,6 +90,10 @@ class ReceiveContactLensStock
                 ]);
             }
 
+            $expiresOn = $lockedVariant->requiresExpiry()
+                ? $this->normalizeExpiryMonth($expiryMonth)
+                : null;
+
             $previousStock = (int) $lockedVariant->stock_quantity;
             $newStock = $previousStock + $quantity;
 
@@ -106,7 +109,7 @@ class ReceiveContactLensStock
                 $lot = InventoryLot::query()->create([
                     'product_variant_id' => $lockedVariant->id,
                     'lot_number' => $lotNumber,
-                    'expires_on' => $expiresOn->toDateString(),
+                    'expires_on' => $expiresOn?->toDateString(),
                     'received_quantity' => $quantity,
                     'quantity_on_hand' => $quantity,
                     'received_at' => now(),
@@ -115,10 +118,12 @@ class ReceiveContactLensStock
                     'source_reference' => $this->normalizeOptionalText($sourceReference),
                 ]);
             } else {
-                if ($lot->expires_on->toDateString() !== $expiresOn->toDateString()) {
+                if ($lot->expires_on?->toDateString() !== $expiresOn?->toDateString()) {
+                    $existingExpiry = $lot->expires_on?->format('Y-m') ?? 'no expiry';
+
                     throw ValidationException::withMessages([
-                        'expiry_month' => [
-                            "Lot {$lotNumber} already has expiry {$lot->expires_on->format('Y-m')}.",
+                        ($lockedVariant->requiresExpiry() ? 'expiry_month' : 'lot_number') => [
+                            "Lot {$lotNumber} already has a different expiry setting ({$existingExpiry}).",
                         ],
                     ]);
                 }
@@ -157,7 +162,7 @@ class ReceiveContactLensStock
                     'variant_id' => $lockedVariant->id,
                     'inventory_lot_id' => $lot->id,
                     'lot_number' => $lot->lot_number,
-                    'expires_on' => $lot->expires_on->toDateString(),
+                    'expires_on' => $lot->expires_on?->toDateString(),
                 ],
                 actorId: $receiver->id,
             );
@@ -179,9 +184,9 @@ class ReceiveContactLensStock
         return $lotNumber;
     }
 
-    private function normalizeExpiryMonth(string $expiryMonth): CarbonImmutable
+    private function normalizeExpiryMonth(?string $expiryMonth): CarbonImmutable
     {
-        $expiryMonth = trim($expiryMonth);
+        $expiryMonth = trim($expiryMonth ?? '');
 
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D', $expiryMonth)) {
             throw ValidationException::withMessages([

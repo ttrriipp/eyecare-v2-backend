@@ -7,8 +7,8 @@ use App\Enums\VatTreatment;
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
@@ -162,11 +162,14 @@ class ProductForm
                                 ->unique(ignoreRecord: true)
                                 ->disabled()
                                 ->dehydrated(),
-                            RichEditor::make('description')
-                                ->toolbarButtons([
-                                    ['bulletList', 'orderedList'],
-                                    ['undo', 'redo'],
-                                ])
+                            Textarea::make('description')
+                                ->rows(5)
+                                ->columnSpanFull(),
+                            Toggle::make('requires_expiry')
+                                ->label('Requires expiry')
+                                ->default(true)
+                                ->helperText('Require an expiry month when receiving stock for this accessory.')
+                                ->visible(fn (Get $get): bool => $get('product_type') === 'accessory')
                                 ->columnSpanFull(),
                             Select::make('vat_treatment')
                                 ->label('VAT treatment')

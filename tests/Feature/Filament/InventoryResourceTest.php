@@ -125,11 +125,20 @@ test('staff can access inventory', function () {
     $this->get(InventoryResource::getUrl('index'))->assertSuccessful();
 });
 
-test('inventory defaults to most recently restocked variants first', function (): void {
+test('inventory defaults to latest added variants first', function (array $createdAt): void {
     $product = Product::factory()->create();
-    $earlierRestock = ProductVariant::factory()->for($product)->create(['stock_quantity' => 30]);
-    $laterRestock = ProductVariant::factory()->for($product)->create(['stock_quantity' => 1]);
-    $neverRestocked = ProductVariant::factory()->for($product)->create(['stock_quantity' => 0]);
+    $earlierRestock = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 30,
+        'created_at' => $createdAt[0],
+    ]);
+    $laterRestock = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 1,
+        'created_at' => $createdAt[1],
+    ]);
+    $neverRestocked = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 0,
+        'created_at' => $createdAt[2],
+    ]);
 
     $restockType = InventoryMovementType::query()->firstOrCreate(['name' => 'restock']);
 
@@ -148,8 +157,21 @@ test('inventory defaults to most recently restocked variants first', function ()
     $this->actingAs($this->staff);
 
     Livewire::test(ListInventory::class)
-        ->assertCanSeeTableRecords([$laterRestock, $earlierRestock, $neverRestocked], inOrder: true);
-});
+        ->assertCanSeeTableRecords([$neverRestocked, $laterRestock, $earlierRestock], inOrder: true)
+        ->sortTable('stock_quantity', 'desc')
+        ->assertCanSeeTableRecords([$earlierRestock, $laterRestock, $neverRestocked], inOrder: true);
+})->with([
+    'different creation times' => [[
+        '2026-08-01 09:00:00',
+        '2026-08-02 09:00:00',
+        '2026-08-03 09:00:00',
+    ]],
+    'same creation time' => [[
+        '2026-08-01 09:00:00',
+        '2026-08-01 09:00:00',
+        '2026-08-01 09:00:00',
+    ]],
+]);
 
 // --- Navigation badge ---
 

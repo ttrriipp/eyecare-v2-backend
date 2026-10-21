@@ -186,6 +186,12 @@ class ProductVariant extends Model
         return in_array($this->product?->product_type, Product::EXPIRY_TRACKED_TYPES, true);
     }
 
+    public function requiresExpiry(): bool
+    {
+        return $this->isContactLens()
+            || ($this->product?->product_type === 'accessory' && $this->product->requires_expiry);
+    }
+
     public function usableStockQuantity(?CarbonInterface $asOf = null): ?int
     {
         if (! $this->isExpiryTracked()) {
