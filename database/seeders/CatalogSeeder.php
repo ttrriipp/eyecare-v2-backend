@@ -724,6 +724,8 @@ class CatalogSeeder extends Seeder
         ] as $productData) {
             $this->upsertClinicProduct($productData, $brands, $categories, $openingStockReceiverId);
         }
+
+        $this->call(CatalogStockReceiptReferencesSeeder::class);
     }
 
     /**
