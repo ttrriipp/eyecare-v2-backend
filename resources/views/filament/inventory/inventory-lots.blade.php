@@ -29,6 +29,8 @@
                         @endif
                         <th scope="col" class="px-4 py-3">On hand</th>
                         <th scope="col" class="px-4 py-3">Received</th>
+                        <th scope="col" class="px-4 py-3">Purchase Order</th>
+                        <th scope="col" class="px-4 py-3">Delivery Receipt</th>
                         <th scope="col" class="px-4 py-3">Status</th>
                     </tr>
                 </thead>
@@ -40,24 +42,34 @@
                                     ? 'Expired'
                                     : ($lot->quantity_on_hand > 0 ? 'Usable' : 'Depleted'))
                                 : ($lot->quantity_on_hand > 0 ? 'Available' : 'Depleted');
+                            $receipts = $lot->movements->isEmpty() ? [null] : $lot->movements;
+                            $receiptCount = count($receipts);
                         @endphp
-                        <tr class="text-gray-700 dark:text-gray-200">
-                            <td class="whitespace-nowrap px-4 py-3 font-medium">{{ $lot->lot_number }}</td>
-                            @if ($showExpiry)
-                                <td class="whitespace-nowrap px-4 py-3">
-                                    <span>{{ $lot->expires_on?->toDateString() ?? 'No expiry' }}</span>
-                                    @if ($lot->expires_on !== null)
-                                        <span class="block text-xs text-gray-500">{{ $lot->expires_on->format('M d, Y') }}</span>
+                        @foreach ($receipts as $receipt)
+                            <tr class="text-gray-700 dark:text-gray-200">
+                                @if ($loop->first)
+                                    <td rowspan="{{ $receiptCount }}" class="whitespace-nowrap px-4 py-3 font-medium">{{ $lot->lot_number }}</td>
+                                    @if ($showExpiry)
+                                        <td rowspan="{{ $receiptCount }}" class="whitespace-nowrap px-4 py-3">
+                                            <span>{{ $lot->expires_on?->toDateString() ?? 'No expiry' }}</span>
+                                            @if ($lot->expires_on !== null)
+                                                <span class="block text-xs text-gray-500">{{ $lot->expires_on->format('M d, Y') }}</span>
+                                            @endif
+                                        </td>
                                     @endif
-                                </td>
-                            @endif
-                            <td class="px-4 py-3">{{ $lot->quantity_on_hand }}</td>
-                            <td class="px-4 py-3">
-                                <span>{{ ($lot->purchased_at ?? $lot->received_at)->format('M d, Y') }}</span>
-                                <span class="block text-xs text-gray-500">{{ $lot->receivedBy?->full_name ?? '—' }}</span>
-                            </td>
-                            <td class="px-4 py-3">{{ $status }}</td>
-                        </tr>
+                                    <td rowspan="{{ $receiptCount }}" class="px-4 py-3">{{ $lot->quantity_on_hand }}</td>
+                                    <td rowspan="{{ $receiptCount }}" class="px-4 py-3">
+                                        <span>{{ ($lot->purchased_at ?? $lot->received_at)->format('M d, Y') }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $lot->receivedBy?->full_name ?? '—' }}</span>
+                                    </td>
+                                @endif
+                                <td class="break-all px-4 py-3">{{ $receipt?->purchase_order_number ?? '—' }}</td>
+                                <td class="break-all px-4 py-3">{{ $receipt?->delivery_receipt_number ?? '—' }}</td>
+                                @if ($loop->first)
+                                    <td rowspan="{{ $receiptCount }}" class="px-4 py-3">{{ $status }}</td>
+                                @endif
+                            </tr>
+                        @endforeach
                     @endforeach
                 </tbody>
             </table>

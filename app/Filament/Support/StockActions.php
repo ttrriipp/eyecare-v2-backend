@@ -18,6 +18,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Stock movements shared by every surface that adjusts inventory.
@@ -39,10 +41,27 @@ class StockActions
                 $record->isFrame() => 'Frame batches',
                 default => 'Accessory batches',
             })
-            ->modalWidth('3xl')
+            ->modalWidth('5xl')
             ->modalContent(function (ProductVariant $record) {
                 $lotsQuery = $record->inventoryLots()
-                    ->with('receivedBy');
+                    ->with([
+                        'receivedBy',
+                        'movements' => function (HasMany $movements): void {
+                            $movements
+                                ->select([
+                                    'id',
+                                    'inventory_lot_id',
+                                    'purchase_order_number',
+                                    'delivery_receipt_number',
+                                ])
+                                ->where('quantity_change', '>', 0)
+                                ->whereHas(
+                                    'movementType',
+                                    fn (Builder $query): Builder => $query->where('name', 'restock'),
+                                )
+                                ->orderBy('id');
+                        },
+                    ]);
 
                 if ($record->isExpiryTracked()) {
                     $lotsQuery
