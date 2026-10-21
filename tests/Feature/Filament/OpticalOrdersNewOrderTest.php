@@ -22,6 +22,7 @@ use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -135,6 +136,59 @@ test('external orders only offer external product entry and new rows use that so
     expect(collect($component->get('data.items'))->pluck('item_kind')->all())->toBe(['custom', 'custom']);
 });
 
+test('external supplier name is required only when external mode is enabled', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateOpticalOrder::class)
+        ->assertSchemaComponentHidden('external_supplier_name')
+        ->set('data.uses_external_supplier', true)
+        ->assertSchemaComponentVisible('external_supplier_name')
+        ->set('data.patient_id', Patient::factory()->create()->id)
+        ->set('data.items', [[
+            'item_kind' => 'custom',
+            'description' => 'External frame',
+            'quantity' => 1,
+            'unit_price' => 100,
+            'vat_treatment' => 'vatable',
+            'statutory_discount_eligible' => false,
+        ]])
+        ->call('create')
+        ->assertHasFormErrors(['external_supplier_name' => 'required']);
+
+    $component
+        ->set('data.external_supplier_name', 'North Star Optical Lab')
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Order created');
+
+    $order = JobOrder::query()->where('uses_external_supplier', true)->firstOrFail();
+
+    expect($order->external_supplier_name)->toBe('North Star Optical Lab');
+});
+
+test('external lab supplier name displays the saved value as read-only order detail', function () {
+    $staff = User::factory()->staff()->create();
+    $order = JobOrder::factory()->create([
+        'uses_external_supplier' => true,
+        'external_supplier_name' => 'North Star Optical Lab',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $order->getRouteKey()])
+        ->assertSee('North Star Optical Lab')
+        ->assertSchemaComponentExists(
+            'external_supplier_name',
+            checkComponentUsing: function ($component): bool {
+                expect($component)->toBeInstanceOf(Placeholder::class);
+
+                return true;
+            },
+        );
+});
+
 test('staff can submit the replacement external item row after changing supplier mode', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
@@ -143,7 +197,8 @@ test('staff can submit the replacement external item row after changing supplier
 
     $component = Livewire::test(CreateOpticalOrder::class)
         ->set('data.patient_id', $patient->id)
-        ->set('data.uses_external_supplier', true);
+        ->set('data.uses_external_supplier', true)
+        ->set('data.external_supplier_name', 'North Star Optical Lab');
     $itemKey = array_key_first($component->get('data.items'));
 
     $component
@@ -994,6 +1049,7 @@ test('staff creates external prescription eyewear with selectable lenses and ext
     ])
         ->set('data.uses_external_supplier', true)
         ->fillForm([
+            'external_supplier_name' => 'North Star Optical Lab',
             'eyewear_frame_source' => 'external',
             'eyewear_external_frame_description' => 'Supplier frame',
             'eyewear_external_frame_price' => 800,
@@ -1015,6 +1071,7 @@ test('staff creates external prescription eyewear with selectable lenses and ext
     $order = JobOrder::query()->where('patient_id', $patient->id)->firstOrFail();
 
     expect($order->uses_external_supplier)->toBeTrue();
+    expect($order->external_supplier_name)->toBe('North Star Optical Lab');
     expect($order->items)->toHaveCount(4);
     expect($order->items->pluck('product_variant_id')->filter())->toBeEmpty();
     expect($order->items->firstWhere('lens_category_id', $lensCategory->id))->not->toBeNull();

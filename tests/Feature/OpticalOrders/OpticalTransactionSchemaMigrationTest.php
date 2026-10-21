@@ -16,3 +16,7 @@ test('job_orders has fulfillment_mode column', function () {
 test('job_orders has uses_external_supplier column', function () {
     expect(Schema::hasColumn('job_orders', 'uses_external_supplier'))->toBeTrue();
 });
+
+test('job_orders has nullable external supplier name column', function () {
+    expect(Schema::hasColumn('job_orders', 'external_supplier_name'))->toBeTrue();
+});

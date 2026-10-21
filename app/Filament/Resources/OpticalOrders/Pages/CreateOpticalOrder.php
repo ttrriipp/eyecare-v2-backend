@@ -325,6 +325,15 @@ class CreateOpticalOrder extends CreateRecord
                                             $this->data['fulfillment_mode'] ?? 'prepared',
                                         ))
                                         ->visible(fn (Get $get): bool => $get('fulfillment_mode') === 'prepared'),
+                                    TextInput::make('external_supplier_name')
+                                        ->label('External lab / supplier')
+                                        ->placeholder('Enter the lab or supplier name')
+                                        ->helperText('Where the external product is being made.')
+                                        ->maxLength(255)
+                                        ->required(fn (Get $get): bool => (bool) $get('uses_external_supplier'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('uses_external_supplier')
+                                            && $get('fulfillment_mode') === 'prepared')
+                                        ->columnSpanFull(),
                                 ]),
                             Section::make('Payment')
                                 ->schema([
@@ -511,6 +520,11 @@ class CreateOpticalOrder extends CreateRecord
                 fulfillmentMode: $data['fulfillment_mode'] ?? 'prepared',
                 usesExternalSupplier: ($data['fulfillment_mode'] ?? 'prepared') === 'prepared'
                     && (bool) ($data['uses_external_supplier'] ?? false),
+                externalSupplierName: ($data['fulfillment_mode'] ?? 'prepared') === 'prepared'
+                    && (bool) ($data['uses_external_supplier'] ?? false)
+                    && filled($data['external_supplier_name'] ?? null)
+                    ? trim($data['external_supplier_name'])
+                    : null,
                 prescription: $prescription,
                 encounter: $this->resolveEncounter(),
                 paymentDueDate: filled($data['payment_due_date'] ?? null)

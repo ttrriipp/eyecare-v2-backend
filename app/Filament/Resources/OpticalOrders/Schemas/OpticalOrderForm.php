@@ -68,6 +68,11 @@ class OpticalOrderForm
                                     .($record->uses_external_supplier ? ' (External Supplier)' : ''))
                                 ->badge()
                                 ->color(fn (JobOrder $record): string => $record->uses_external_supplier ? 'warning' : 'info'),
+                            Placeholder::make('external_supplier_name')
+                                ->label('External lab / supplier')
+                                ->content(fn (JobOrder $record): string => $record->external_supplier_name ?? '—')
+                                ->visible(fn (JobOrder $record): bool => $record->uses_external_supplier
+                                    || filled($record->external_supplier_name)),
                             TextInput::make('supplier_invoice_number')
                                 ->label('Supplier Invoice Number')
                                 ->maxLength(100)

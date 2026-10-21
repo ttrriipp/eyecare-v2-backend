@@ -52,6 +52,7 @@ class CreateOpticalOrder
         ?float $discountAmount = null,
         ?string $discountType = null,
         bool $discountEligibilityVerified = false,
+        ?string $externalSupplierName = null,
     ): array {
         if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
@@ -158,7 +159,7 @@ class CreateOpticalOrder
             allowMultipleFrameQuantity: true,
         );
 
-        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $encounter, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $discountType, $discountEligibilityVerified, $creator) {
+        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $externalSupplierName, $prescription, $encounter, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $discountType, $discountEligibilityVerified, $creator) {
             $itemSnapshots = collect($validatedItems)->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -208,6 +209,7 @@ class CreateOpticalOrder
                 items: $itemSnapshots,
                 dispensedBy: $creator->id,
                 actorId: $creator->id,
+                externalSupplierName: $externalSupplierName,
             );
 
             if ($fulfillmentMode === 'immediate' && $recipientName !== null) {

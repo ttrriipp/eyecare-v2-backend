@@ -38,10 +38,11 @@ class BuildOpticalOrder
         ?int $dispensedBy = null,
         ?int $actorId = null,
         bool $notifyPatient = true,
+        ?string $externalSupplierName = null,
     ): JobOrder {
         $this->validateSupplierItems($patientId, $usesExternalSupplier, $fulfillmentMode, $prescriptionId, $items);
 
-        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId, $notifyPatient): JobOrder {
+        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $fulfillmentMode, $usesExternalSupplier, $externalSupplierName, $items, $dispensedBy, $actorId, $notifyPatient): JobOrder {
             $patient = Patient::query()->findOrFail($patientId);
 
             $order = JobOrder::create([
@@ -51,6 +52,9 @@ class BuildOpticalOrder
                 'status' => JobOrderStatus::Queued,
                 'fulfillment_mode' => $fulfillmentMode,
                 'uses_external_supplier' => $usesExternalSupplier,
+                'external_supplier_name' => $usesExternalSupplier && filled($externalSupplierName)
+                    ? trim($externalSupplierName)
+                    : null,
                 'total_amount' => $items->sum('amount'),
             ]);
 

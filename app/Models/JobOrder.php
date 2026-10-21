@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'fulfillment_mode',
     'uses_external_supplier',
+    'external_supplier_name',
     'total_amount',
     'notes',
     'supplier_invoice_number',
@@ -31,7 +32,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'payment_expires_at',
     'payment_instructions',
 ])]
-#[Hidden(['supplier_invoice_number', 'payment_instructions'])]
+#[Hidden(['supplier_invoice_number', 'external_supplier_name', 'payment_instructions'])]
 class JobOrder extends Model
 {
     use HasFactory, SoftDeletes;
