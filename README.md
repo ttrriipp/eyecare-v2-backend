@@ -1,58 +1,91 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# EyeCare — Padilla Optical Clinic Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+EyeCare is the clinic operations backend for Padilla Optical Clinic. Staff use its web admin panel to manage patient records, appointments, clinical encounters and prescriptions, optical orders, billing, inventory, and clinic communications. A versioned REST API also serves a separate Android patient app, including its appointment, catalog, order, messaging, and frame try-on workflows.
 
-## About Laravel
+## What’s in this repository
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Staff admin panel** built with Laravel and Filament at `/admin`.
+- **Patient API** under `/api/v1`, consumed by the separate Android application.
+- **Clinic workflows** for scheduling, patient care, optical retail, payment, and inventory.
+- **Security and recordkeeping** such as role-based access, audit logging, and encrypted clinical and contact data.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Technology
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.3+
+- Laravel 13
+- Filament 5 and Livewire 4
+- MySQL 8.4
+- Vite and Tailwind CSS 4
+- Pest 4
+- Laravel Sail for the local Docker environment
 
-## Learning Laravel
+## Getting started
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+For the complete local installation, environment configuration, demo account, troubleshooting, and production-data cautions, see the [installation guide](docs/INSTALLATION.md).
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Quick setup:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+1. Clone the repository and enter the project directory.
+2. Copy `.env.example` to `.env` if you do not already have an environment file. For Sail, set `DB_HOST=mysql` and configure matching local database credentials. See the installation guide for the full environment setup.
+3. Install Composer dependencies. This first command runs on the host because Sail is installed with the dependencies:
 
-## Agentic Development
+   ```bash
+   composer install --no-interaction
+   ```
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+4. Start Sail, prepare Laravel and the database, then build the frontend assets:
 
-```bash
-composer require laravel/boost --dev
+   ```bash
+   vendor/bin/sail up -d
+   vendor/bin/sail artisan key:generate --no-interaction
+   vendor/bin/sail artisan migrate --seed --no-interaction
+   vendor/bin/sail artisan storage:link --no-interaction
+   vendor/bin/sail npm ci
+   vendor/bin/sail npm run build
+   ```
 
-php artisan boost:install
-```
+5. Open the staff panel at `http://localhost/admin/login`.
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The seed data and credentials documented in the installation guide are for local development only. Do not load the full local demo seed into a production database.
 
-## Contributing
+## Common commands
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Run these from the project root after installing dependencies and starting Docker:
 
-## Code of Conduct
+| Task | Command |
+| --- | --- |
+| Start containers | `vendor/bin/sail up -d` |
+| Check container status | `vendor/bin/sail ps` |
+| Apply migrations | `vendor/bin/sail artisan migrate --no-interaction` |
+| Run the test suite | `vendor/bin/sail artisan test --compact` |
+| Watch frontend assets | `vendor/bin/sail npm run dev` |
+| Build frontend assets | `vendor/bin/sail npm run build` |
+| Stop containers | `vendor/bin/sail stop` |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Project structure
 
-## Security Vulnerabilities
+| Path | Purpose |
+| --- | --- |
+| `app/Actions` | Clinic and commerce workflows |
+| `app/Filament` | Staff panel resources, pages, and widgets |
+| `app/Http` | API controllers, middleware, requests, and resources |
+| `app/Models` | Eloquent models |
+| `app/Services` | Integrations and shared domain services |
+| `database/migrations` | Database schema changes |
+| `database/factories` and `database/seeders` | Test factories and setup/demo data |
+| `routes/api.php` | Versioned patient API routes |
+| `routes/web.php` | Web routes and health/readiness endpoints |
+| `tests` | Pest feature and unit tests |
+| `docs` | Installation, API, deployment, workflow, and design documentation |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Project documentation
 
-## License
+- [Local installation](docs/INSTALLATION.md)
+- [API contract](docs/API_CONTRACT.md)
+- [Backend context](docs/BACKEND_CONTEXT.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Clinic workflow audit](docs/clinic-workflow-audit.md)
+- [Known gaps](docs/gap-analysis.md)
+- [Architecture decisions](docs/decisions/)
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+The Android application is maintained in a separate repository. This project owns the backend and the API contract it consumes; coordinate API changes with that client.
